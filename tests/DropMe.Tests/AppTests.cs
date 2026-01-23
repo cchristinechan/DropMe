@@ -15,10 +15,10 @@ public class Tests {
         // Configure services
         var services = new ServiceCollection();
         App.ConfigureServices(services);
-        
+
         // Check app contains services
         Assert.That(App.Services, Is.Not.Null);
-        
+
         // Check necessary services exist
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<MainView>());
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<MainViewModel>());

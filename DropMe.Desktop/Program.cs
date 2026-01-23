@@ -20,7 +20,7 @@ sealed class Program {
         // Add platform specific services here
         services.AddSingleton<IDeviceService, DropMe.Desktop.Services.DeviceService>();
         App.ConfigureServices(services);
-        
+
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()

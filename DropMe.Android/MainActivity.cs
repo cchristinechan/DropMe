@@ -17,12 +17,12 @@ namespace DropMe.Android;
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
 public class MainActivity : AvaloniaMainActivity<App> {
     protected override AppBuilder CustomizeAppBuilder(AppBuilder builder) {
-        
+
         var services = new ServiceCollection();
         services.AddSingleton<IDeviceService, DeviceService>(); // Platform specific
         App.ConfigureServices(services);
 
-        
+
         return base.CustomizeAppBuilder(builder)
             .WithInterFont();
     }

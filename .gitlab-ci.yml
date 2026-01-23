@@ -86,7 +86,7 @@ ios_formatting:
   tags:
     - docker
   before_script:
-    - cd DropMe
+    - cd DropMe.iOS
     - dotnet workload restore
   script:
     - dotnet format --verify-no-changes
