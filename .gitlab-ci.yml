@@ -1,0 +1,106 @@
+stages:
+  - build
+  - test
+  - formatting
+
+image: $CI_REGISTRY_IMAGE:latest
+
+core_build:
+  stage: build
+  tags:
+    - docker
+  before_script:
+    - cd DropMe
+    - dotnet workload restore
+  script:
+    - dotnet build
+
+desktop_build:
+  stage: build
+  tags:
+    - docker
+  before_script:
+    - cd DropMe.Desktop
+    - dotnet workload restore
+  script:
+    - dotnet build
+
+android_build:
+  stage: build
+  tags:
+    - docker
+  before_script:
+    - cd DropMe.Android
+    - dotnet workload restore
+  script:
+    - dotnet build
+
+core_test:
+  stage: test
+  tags:
+    - docker
+  before_script:
+    - cd tests/DropMe.Tests
+    - dotnet workload restore
+  script:
+    - dotnet test
+
+core_formatting:
+  stage: formatting
+  tags:
+    - docker
+  before_script:
+    - cd DropMe
+    - dotnet workload restore
+  script:
+    - dotnet format --verify-no-changes
+  only: 
+    - branches
+
+android_formatting:
+  stage: formatting
+  tags:
+    - docker
+  before_script:
+    - cd DropMe.Android
+    - dotnet workload restore
+  script:
+    - dotnet format --verify-no-changes
+  only: 
+    - branches
+
+desktop_formatting:
+  stage: formatting
+  tags:
+    - docker
+  before_script:
+    - cd DropMe.Desktop
+    - dotnet workload restore
+  script:
+    - dotnet format --verify-no-changes
+  only: 
+    - branches
+
+ios_formatting:
+  stage: formatting
+  tags:
+    - docker
+  before_script:
+    - cd DropMe
+    - dotnet workload restore
+  script:
+    - dotnet format --verify-no-changes
+  only: 
+    - branches
+
+core_test_formatting:
+  stage: formatting
+  tags:
+    - docker
+  before_script:
+    - cd tests/DropMe.Tests
+    - dotnet workload restore
+  script:
+    - dotnet format --verify-no-changes
+  only: 
+    - branches
