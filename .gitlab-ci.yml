@@ -92,8 +92,10 @@ pkgbuild_install:
   tags:
     - docker
   before_script:
-    - "echo 'nobody ALL=(root) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/nobody-pacman"
-    - chmod 0440 /etc/sudoers.d/nobody-pacman
+    - useradd -m -s /bin/bash build
+    - passwd -l build
+    - "echo 'build ALL=(root) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/build-pacman"
+    - chmod 0440 /etc/sudoers.d/build-pacman
   script:
-    - runuser -u nobody -- makepkg -si
+    - runuser -u build -- makepkg -si
   allow_failure: true
