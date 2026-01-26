@@ -92,6 +92,6 @@ pkgbuild_install:
   tags:
     - docker
   script:
-    - runuser -u nobody makepkg
+    - runuser -u nobody makepkg -si
   allow_failure: true
   when: manual
