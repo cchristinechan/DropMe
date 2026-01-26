@@ -91,6 +91,10 @@ pkgbuild_install:
   image: archlinux:base-devel
   tags:
     - docker
+  before_script:
+    - echo 'nobody ALL=(root) NOPASSWD: /usr/bin/pacman -S --needed --noconfirm *' > /etc/sudoers.d/nobody-pacman
+    - chmod 0440 /etc/sudoers.d/nobody-pacman
+    - pacman -Syu
   script:
     - runuser -u nobody -- makepkg -si
   allow_failure: true
