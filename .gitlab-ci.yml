@@ -95,8 +95,7 @@ pkgbuild_install:
     - pacman -Syu git --noconfirm
     - useradd -m -s /bin/bash build
     - passwd -l build
-    - runuser -u build -- git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.scss.tcd.ie/".insteadOf "git+https://gitlab.scss.tcd.ie/"
-    - runuser -u build -- git ls-remote https://gitlab.scss.tcd.ie/sweng26_group3/sweng26_group3.git
+    - runuser -u build -- sed -i "s|https://gitlab.scss.tcd.ie|https://gitlab-ci-toke :${CI_JOB_TOKEN}@gitlab.scss.tcd.ie|g" PKGBUILD
     - "echo 'build ALL=(root) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/build-pacman"
     - chmod 0440 /etc/sudoers.d/build-pacman
   script:
