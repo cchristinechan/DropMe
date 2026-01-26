@@ -88,7 +88,7 @@ core_test_formatting:
   
 pkgbuild_install:
   stage: install
-  image: archlinux:latest
+  image: archlinux:base-devel
   tags:
     - docker
   script:
