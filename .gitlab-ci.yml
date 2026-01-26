@@ -95,11 +95,9 @@ pkgbuild_install:
     - pacman -Syu git --noconfirm
     - useradd -m -s /bin/bash build
     - passwd -l build
-    - git config --system url."https://ci-read-token:${CI_READ_TOKEN}@gitlab.scss.tcd.ie/".insteadOf "git+https://gitlab.scss.tcd.ie/"
+    - git config --system url."git+https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.scss.tcd.ie/".insteadOf "git+https://gitlab.scss.tcd.ie/"
     - "echo 'build ALL=(root) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/build-pacman"
     - chmod 0440 /etc/sudoers.d/build-pacman
-    - echo "Token length is ${#CI_READ_TOKEN}"
-    - echo "Token length is ${#CI_JOB_TOKEN}"
   script:
     - runuser -u build -- env GIT_ASKPASS=/bin/echo makepkg -si --noconfirm
   allow_failure: true
