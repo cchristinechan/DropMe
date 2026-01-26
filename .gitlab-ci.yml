@@ -99,5 +99,5 @@ pkgbuild_install:
     - "echo 'build ALL=(root) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/build-pacman"
     - chmod 0440 /etc/sudoers.d/build-pacman
   script:
-    - runuser -u build -- makepkg -si --noconfirm
+    - runuser -u build -- GIT_ASKPASS=/bin/echo makepkg -si --noconfirm
   allow_failure: true
