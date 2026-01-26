@@ -1,8 +1,8 @@
 stages:
+  - install
   - build
   - test
   - formatting
-  - install
 
 image: $CI_REGISTRY_IMAGE:latest
 
