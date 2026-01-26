@@ -93,9 +93,9 @@ pkgbuild_install:
     - docker
   before_script:
     - pacman -Syu git --noconfirm
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.scss.tcd.ie/".insteadOf "https://gitlab.scss.tcd.ie/"
     - useradd -m -s /bin/bash build
     - passwd -l build
+    - runuser -u build -- git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.scss.tcd.ie/".insteadOf "https://gitlab.scss.tcd.ie/"
     - "echo 'build ALL=(root) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/build-pacman"
     - chmod 0440 /etc/sudoers.d/build-pacman
   script:
