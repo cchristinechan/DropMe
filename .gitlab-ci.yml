@@ -2,6 +2,7 @@ stages:
   - build
   - test
   - formatting
+  - install
 
 image: $CI_REGISTRY_IMAGE:latest
 
@@ -54,8 +55,6 @@ core_formatting:
     - dotnet workload restore
   script:
     - dotnet format --verify-no-changes
-  only: 
-    - branches
 
 android_formatting:
   stage: formatting
@@ -66,8 +65,6 @@ android_formatting:
     - dotnet workload restore
   script:
     - dotnet format --verify-no-changes
-  only: 
-    - branches
 
 desktop_formatting:
   stage: formatting
@@ -78,8 +75,6 @@ desktop_formatting:
     - dotnet workload restore
   script:
     - dotnet format --verify-no-changes
-  only: 
-    - branches
 
 core_test_formatting:
   stage: formatting
@@ -90,5 +85,12 @@ core_test_formatting:
     - dotnet workload restore
   script:
     - dotnet format --verify-no-changes
-  only: 
-    - branches
+  
+pkgbuild_install:
+  stage: install
+  image: archlinux:latest
+  tags:
+    - docker
+  script:
+    - makepkg
+  allow_failure: true
