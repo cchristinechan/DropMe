@@ -98,5 +98,5 @@ pkgbuild_install:
     - chmod 0440 /etc/sudoers.d/build-pacman
     - pacman -Syu --noconfirm
   script:
-    - runuser -u build -- makepkg -si
+    - runuser -u build -- makepkg -si --noconfirm
   allow_failure: true
