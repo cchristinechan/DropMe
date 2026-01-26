@@ -95,7 +95,7 @@ pkgbuild_install:
     - pacman -Syu git --noconfirm
     - useradd -m -s /bin/bash build
     - passwd -l build
-    - git config --system url."https://ci-read-token:${CI_READ_TOKEN}@gitlab.scss.tcd.ie/sweng26_group3/sweng26_group3.git".insteadOf "https://gitlab.scss.tcd.ie/sweng26_group3/sweng26_group3.git"
+    - git config --system url."https://ci-read-token:${CI_READ_TOKEN}@gitlab.scss.tcd.ie/".insteadOf "git+https://gitlab.scss.tcd.ie/"
     - "echo 'build ALL=(root) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/build-pacman"
     - chmod 0440 /etc/sudoers.d/build-pacman
     - echo "Token length is ${#CI_READ_TOKEN}"
