@@ -92,11 +92,13 @@ pkgbuild_install:
   tags:
     - docker
   before_script:
+    - pacman -Syu git --noconfirm
+    - git config --global credential.helper store
+    - git credential approve --username ${CI_DEPENDENCY_PROXY_USER} --password ${CI_DEPENDENCY_PROXY_PASSWORD}
     - useradd -m -s /bin/bash build
     - passwd -l build
     - "echo 'build ALL=(root) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/build-pacman"
     - chmod 0440 /etc/sudoers.d/build-pacman
-    - pacman -Syu --noconfirm
   script:
     - runuser -u build -- makepkg -si --noconfirm
   allow_failure: true
