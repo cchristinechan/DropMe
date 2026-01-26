@@ -94,7 +94,7 @@ pkgbuild_install:
   before_script:
     - pacman -Syu git --noconfirm
     - git config --global credential.helper store
-    - printf "protocol=https\nhost=%s\nusername=%s\npassword=%s\n\n" "$CI_DEPENDENCY_PROXY_SERVER" "$CI_DEPENDENCY_PROXY_USER" "$CI_DEPENDENCY_PROXY_PASSWORD" | git credential approve
+    - printf "protocol=https\nhost=%s\nusername=%s\npassword=%s\n\n" "gitlab.scss.tcd.ie" "$CI_DEPENDENCY_PROXY_USER" "$CI_DEPENDENCY_PROXY_PASSWORD" | git credential approve
     - useradd -m -s /bin/bash build
     - passwd -l build
     - "echo 'build ALL=(root) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/build-pacman"
