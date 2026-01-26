@@ -92,7 +92,7 @@ pkgbuild_install:
   tags:
     - docker
   before_script:
-    - echo 'nobody ALL=(root) NOPASSWD: /usr/bin/pacman -S --needed --noconfirm *' > /etc/sudoers.d/nobody-pacman
+    - "echo 'nobody ALL=(root) NOPASSWD: /usr/bin/pacman -S --needed --noconfirm *' > /etc/sudoers.d/nobody-pacman"
     - chmod 0440 /etc/sudoers.d/nobody-pacman
     - pacman -Syu
   script:
