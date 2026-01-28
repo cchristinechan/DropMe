@@ -1,10 +1,12 @@
 using DropMe.ViewModels;
+using DropMe.Views;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DropMe.Services;
 
 public static class ServiceCollectionExtensions {
-    public static void AddCrossPlatformServices(this IServiceCollection collection) {
-        collection.AddTransient<MainViewModel>();
+    public static void AddCrossPlatformServices(this IServiceCollection services) {
+        // Register cross platform services here
+        services.AddTransient<MainViewModel>();
     }
 }

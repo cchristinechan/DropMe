@@ -17,9 +17,12 @@ sealed class Program {
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp() {
         var services = new ServiceCollection();
-        // Add platform specific services here
+        services.AddCrossPlatformServices();
+
+        // Add desktop specific services here
         services.AddSingleton<IDeviceService, DropMe.Desktop.Services.DeviceService>();
-        App.ConfigureServices(services);
+
+        App.Services = services.BuildServiceProvider();
 
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()

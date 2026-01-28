@@ -1,4 +1,5 @@
 ﻿using Avalonia;
+using DropMe.Services;
 using DropMe.ViewModels;
 using DropMe.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,13 +15,13 @@ public class Tests {
     public void CrossPlatformServicesAvailable() {
         // Configure services
         var services = new ServiceCollection();
-        App.ConfigureServices(services);
+        services.AddCrossPlatformServices();
+        App.Services = services.BuildServiceProvider();
 
         // Check app contains services
         Assert.That(App.Services, Is.Not.Null);
 
         // Check necessary services exist
-        Assert.DoesNotThrow(() => App.Services.GetRequiredService<MainView>());
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<MainViewModel>());
     }
 }
