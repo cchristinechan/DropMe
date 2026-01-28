@@ -15,17 +15,7 @@ public partial class App : Application {
         AvaloniaXamlLoader.Load(this);
     }
 
-    public static IServiceProvider? Services { get; private set; }
-
-    // Add this method to be called by platforms with their collection of platform specific services
-    // Must be called before running the app.
-    public static void ConfigureServices(IServiceCollection services) {
-        // Register cross platform services here
-        services.AddTransient<MainView>();
-        services.AddTransient<MainViewModel>();
-
-        Services = services.BuildServiceProvider();
-    }
+    public static IServiceProvider? Services { get; set; }
 
     public override void OnFrameworkInitializationCompleted() {
         // If you use CommunityToolkit, line below is needed to remove Avalonia data validation.
@@ -33,7 +23,7 @@ public partial class App : Application {
         BindingPlugins.DataValidators.RemoveAt(0);
 
         if (Services is null) {
-            throw new InvalidOperationException("You must call ConfigureServices before OnFrameworkInitializationCompleted()");
+            throw new InvalidOperationException("You must set the Services property prior to calling OnFrameworkInitializationCompleted()");
         }
 
         var view = Services.GetRequiredService<MainView>();
