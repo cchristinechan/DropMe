@@ -23,5 +23,6 @@ public class Tests {
 
         // Check necessary services exist
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<MainViewModel>());
+        Assert.DoesNotThrow(() => App.Services.GetRequiredService<IWorkManager>());
     }
 }
