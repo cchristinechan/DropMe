@@ -3,8 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 namespace DropMe.Services;
 
-public static class StreamTransfer
-{
+public static class StreamTransfer {
     // Sync PoC
     public static void SendStream(Stream source, Stream dest) {
         // Copies until EOF (source.Read returns 0)
