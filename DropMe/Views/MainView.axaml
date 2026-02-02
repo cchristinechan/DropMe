@@ -12,5 +12,6 @@
     <vm:MainViewModel />
   </Design.DataContext>
 
-  <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    <Button Content="Run Local PoC Transfer" Click="RunLocalPoc_Click" HorizontalAlignment="Center"/>
+
 </UserControl>
