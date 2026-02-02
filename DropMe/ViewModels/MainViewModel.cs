@@ -27,7 +27,7 @@ public class MainViewModel {
                 string sourcePath = Path.Combine(tempDir, "helloworld.txt");
                 await File.WriteAllTextAsync(sourcePath, "Hello world!\n").ConfigureAwait(false);
 
-                // Recieve path
+                // Receive path
                 string destPath = Path.Combine(tempDir, "helloworld.received.txt");
 
                 // Free port on loopback
