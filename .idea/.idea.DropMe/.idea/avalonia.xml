@@ -3,7 +3,9 @@
   <component name="AvaloniaProject">
     <option name="projectPerEditor">
       <map>
+        <entry key="DropMe/App.axaml" value="DropMe.Desktop/DropMe.Desktop.csproj" />
         <entry key="DropMe/Views/MainView.axaml" value="DropMe.Desktop/DropMe.Desktop.csproj" />
+        <entry key="DropMe/Views/MainWindow.axaml" value="DropMe.Desktop/DropMe.Desktop.csproj" />
       </map>
     </option>
   </component>
