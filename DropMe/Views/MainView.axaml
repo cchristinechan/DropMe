@@ -12,6 +12,138 @@
     <vm:MainViewModel />
   </Design.DataContext>
 
-    <Button Content="Run Local PoC Transfer" Click="RunLocalPoc_Click" HorizontalAlignment="Center"/>
+  <UserControl.Styles>
+    <Style Selector="UserControl">
+      <Setter Property="Background" Value="#CFE6F5"/>
+    </Style>
 
+    <!-- Title / subtitle -->
+    <Style Selector="TextBlock.Title">
+      <Setter Property="FontFamily" Value="Georgia"/>
+      <Setter Property="FontSize" Value="78"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="TextBlock.Subtitle">
+      <Setter Property="FontFamily" Value="Georgia"/>
+      <Setter Property="FontSize" Value="36"/>
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+
+    <Style Selector="TextBlock.Body">
+      <Setter Property="FontSize" Value="20"/>
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+
+    <!-- Normal pill button -->
+    <Style Selector="Button.Pill">
+      <Setter Property="Background" Value="White"/>
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="999"/>
+      <Setter Property="Padding" Value="34,18"/>
+      <Setter Property="FontSize" Value="26"/>
+    </Style>
+
+    <!-- Hover: target the ContentPresenter -->
+    <Style Selector="Button.Pill:pointerover > ContentPresenter">
+      <Setter Property="Background" Value="#A0A0A0"/>
+    </Style>
+
+    <!-- Pressed -->
+    <Style Selector="Button.Pill:pressed > ContentPresenter">
+      <Setter Property="Background" Value="#8F8F8F"/>
+    </Style>
+
+    <!-- Divider lines around “How it works” -->
+    <Style Selector="Border.Hr">
+      <Setter Property="Height" Value="1"/>
+      <Setter Property="Background" Value="#222"/>
+      <Setter Property="Opacity" Value="0.8"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Bottom cards -->
+    <Style Selector="Border.Card">
+      <Setter Property="Background" Value="White"/>
+      <Setter Property="CornerRadius" Value="26"/>
+      <Setter Property="Padding" Value="22"/>
+      <Setter Property="Width" Value="260"/>
+      <Setter Property="Height" Value="185"/>
+    </Style>
+
+    <Style Selector="TextBlock.CardPlaceholder">
+      <Setter Property="FontSize" Value="52"/>
+      <Setter Property="Opacity" Value="0.65"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="TextBlock.CardLabel">
+      <Setter Property="FontSize" Value="18"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid Background="#CFE6F5">
+    <!-- Main vertical layout -->
+    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="26" Margin="40">
+
+      <!-- Title -->
+      <StackPanel Spacing="4" HorizontalAlignment="Center">
+        <TextBlock Classes="Title" Text="DropMe"/>
+        <TextBlock Classes="Subtitle" Text="Secure file transfer for all"/>
+      </StackPanel>
+
+      <!-- Description -->
+      <TextBlock Classes="Body"
+                 Width="820"
+                 TextWrapping="Wrap"
+                 Text="Scan or display a QR code to start a private trasfer\nsession between the devices"/>
+
+      <!-- Two pill buttons -->
+      <StackPanel Orientation="Horizontal" Spacing="56" HorizontalAlignment="Center" Margin="0,18,0,0">
+        <Button Classes="Pill" Content="Scan QR code"/>
+        <Button Classes="Pill" Content="Display QR code"/>
+      </StackPanel>
+
+      <!-- “How it works” divider -->
+      <Grid ColumnDefinitions="*,Auto,*" Width="1020" Margin="0,48,0,0" VerticalAlignment="Center">
+        <Border Classes="Hr" Grid.Column="0" Margin="0,0,22,0"/>
+        <TextBlock Grid.Column="1" Text="How it works" FontSize="18" Foreground="Black" Opacity="0.9" VerticalAlignment="Center"/>
+        <Border Classes="Hr" Grid.Column="2" Margin="22,0,0,0"/>
+      </Grid>
+
+      <!-- Three cards (icons replaced with placeholders) -->
+      <StackPanel Orientation="Horizontal" Spacing="64" HorizontalAlignment="Center" Margin="0,10,0,0">
+
+        <Border Classes="Card">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+            <TextBlock Classes="CardPlaceholder" Text="[ ]"/>
+            <TextBlock Classes="CardLabel" Text="Scan the QR Code"/>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="Card">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+            <TextBlock Classes="CardPlaceholder" Text="[↔]"/>
+            <TextBlock Classes="CardLabel" Text="Connect to session"/>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="Card">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+            <TextBlock Classes="CardPlaceholder" Text="[▦]"/>
+            <TextBlock Classes="CardLabel" Text="Share the files"/>
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+
+    </StackPanel>
+  </Grid>
 </UserControl>
