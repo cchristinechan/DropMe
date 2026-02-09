@@ -31,6 +31,7 @@ public sealed class TcpAeadFileTransfer : IFileTransfer {
         await client.ConnectAsync(dest.Address, dest.Port, ct).ConfigureAwait(false);
         await using var net = client.GetStream();
         await using var file = File.OpenRead(sourceFile);
+        await using var fileStream = new BufferedStream(file);
 
         // 12 byte base nonce
         var baseNonce = new byte[NonceSize];
@@ -57,7 +58,7 @@ public sealed class TcpAeadFileTransfer : IFileTransfer {
             int toRead = (int)Math.Min((long)chunkSize, fileSize - sent);
             int read = 0;
             while (read < toRead) {
-                int r = await file.ReadAsync(plain.AsMemory(read, toRead - read), ct).ConfigureAwait(false);
+                int r = await fileStream.ReadAsync(plain.AsMemory(read, toRead - read), ct).ConfigureAwait(false);
                 if (r == 0) throw new EndOfStreamException("Unexpected EOF while reading source file.");
                 read += r;
             }
@@ -92,6 +93,8 @@ public sealed class TcpAeadFileTransfer : IFileTransfer {
             using var client = await listener.AcceptTcpClientAsync(ct).ConfigureAwait(false);
             await using var net = client.GetStream();
             await using var file = File.Create(destFile);
+            await using var fileStream = new BufferedStream(file);
+            
             (FileTransferHeader header, byte[] headerBytes) = await ReadHeaderAsync(net, ct).ConfigureAwait(false);
             if (!header.Encrypted)
                 throw new InvalidOperationException("Expected encrypted transfer but header.Encrypted was false.");
@@ -120,7 +123,7 @@ public sealed class TcpAeadFileTransfer : IFileTransfer {
 
                 gcm.Decrypt(nonce, cipher.AsSpan(0, plainLen), tag, plain.AsSpan(0, plainLen), headerBytes);
                 await file.WriteAsync(plain.AsMemory(0, plainLen), ct).ConfigureAwait(false);
-
+                
                 written += plainLen;
                 counter++;
             }
