@@ -122,12 +122,12 @@ public sealed class TcpAeadFileTransfer : IFileTransfer {
                 BinaryPrimitives.WriteUInt32LittleEndian(nonce.AsSpan(NonceSize - 4, 4), counter);
 
                 gcm.Decrypt(nonce, cipher.AsSpan(0, plainLen), tag, plain.AsSpan(0, plainLen), headerBytes);
-                await file.WriteAsync(plain.AsMemory(0, plainLen), ct).ConfigureAwait(false);
+                await fileStream.WriteAsync(plain.AsMemory(0, plainLen), ct).ConfigureAwait(false);
                 
                 written += plainLen;
                 counter++;
             }
-            await file.FlushAsync(ct).ConfigureAwait(false);
+            await fileStream.FlushAsync(ct).ConfigureAwait(false);
             return header;
         }
         finally {
