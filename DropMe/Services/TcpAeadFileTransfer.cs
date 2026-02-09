@@ -94,7 +94,7 @@ public sealed class TcpAeadFileTransfer : IFileTransfer {
             await using var net = client.GetStream();
             await using var file = File.Create(destFile);
             await using var fileStream = new BufferedStream(file);
-            
+
             (FileTransferHeader header, byte[] headerBytes) = await ReadHeaderAsync(net, ct).ConfigureAwait(false);
             if (!header.Encrypted)
                 throw new InvalidOperationException("Expected encrypted transfer but header.Encrypted was false.");
@@ -123,7 +123,7 @@ public sealed class TcpAeadFileTransfer : IFileTransfer {
 
                 gcm.Decrypt(nonce, cipher.AsSpan(0, plainLen), tag, plain.AsSpan(0, plainLen), headerBytes);
                 await fileStream.WriteAsync(plain.AsMemory(0, plainLen), ct).ConfigureAwait(false);
-                
+
                 written += plainLen;
                 counter++;
             }
