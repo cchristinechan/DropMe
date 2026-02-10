@@ -1,11 +1,6 @@
-<<<<<<< Updated upstream
-using Avalonia.Controls;
-=======
-﻿using Avalonia.Controls;
->>>>>>> Stashed changes
 using Avalonia.Interactivity;
 using System;
-
+using Avalonia.Controls;
 
 namespace DropMe.Views;
 

@@ -25,14 +25,13 @@ public partial class App : Application {
         if (Services is null) {
             throw new InvalidOperationException("You must set the Services property prior to calling OnFrameworkInitializationCompleted()");
         }
-
-<<<<<<< Updated upstream
+        
         var view = new TransferPage();
         var viewmodel = Services.GetRequiredService<MainViewModel>();
-=======
+
         // var view = new MainView();
         // var viewmodel = Services.GetRequiredService<MainViewModel>();
->>>>>>> Stashed changes
+
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
