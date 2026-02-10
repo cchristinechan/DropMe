@@ -25,7 +25,7 @@ public partial class App : Application {
         if (Services is null) {
             throw new InvalidOperationException("You must set the Services property prior to calling OnFrameworkInitializationCompleted()");
         }
-        
+
         var view = new TransferPage();
         var viewmodel = Services.GetRequiredService<MainViewModel>();
 
