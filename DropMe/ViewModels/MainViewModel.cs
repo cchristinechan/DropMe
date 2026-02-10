@@ -1,86 +1,303 @@
 ﻿using System;
-using System.IO;
+using System.ComponentModel;
 using System.Net;
-using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using Avalonia;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using Avalonia.Threading;
 using DropMe.Services;
+using DropMe.Services.Session;
+
 namespace DropMe.ViewModels;
 
-public class MainViewModel {
-    private readonly IWorkManager _work;
-    private readonly IFileTransfer _transfer;
+public sealed class MainViewModel : INotifyPropertyChanged {
+    private readonly ICameraService _camera;
+    private readonly QrDecoder _decoder;
+    private readonly IQrCodeService _qr;
+    private byte[]? _latestFrameBytes;
+    private int _latestStride;
+    private int _latestWidth;
+    private int _latestHeight;
+    private readonly object _frameLock = new();
+    private int _previewFrameCounter = 0;
+    private DispatcherTimer? _renderTimer;
+    private ISession? _session;
+    private CancellationTokenSource? _sessionCts;
+    private int _qrHandled = 0;
+    private readonly SessionFactory _sessionFactory;
 
-    public MainViewModel(IWorkManager work, IFileTransfer transfer) {
-        _work = work;
-        _transfer = transfer;
+    public bool IsConnected => _session?.State == SessionState.Connected;
+
+
+
+
+
+    private CancellationTokenSource? _scanCts;
+
+    private Bitmap? _qrImage;
+    public Bitmap? QrImage {
+        get => _qrImage;
+        private set { _qrImage = value; OnPropertyChanged(); }
     }
 
-    // Run local PoC for TCP AES-GCM chunked file transfer with header AAD
-    public void RunLocalHelloWorldTransfer() {
-        _work.ScheduleWork(async () => {
-            try {
-                // Create hello world to send
-                string tempDir = Path.Combine(Path.GetTempPath(), "DropMe-PoC"); // GetTempPath for cross platform
-                Directory.CreateDirectory(tempDir);
-                string sourcePath = Path.Combine(tempDir, "helloworld.txt");
-                await File.WriteAllTextAsync(sourcePath, "Hello world!\n").ConfigureAwait(false);
+    private WriteableBitmap? _preview;
+    public WriteableBitmap? Preview {
+        get => _preview;
+        private set {
+            _preview = value;
+            OnPropertyChanged();
+        }
+    }
 
-                // Receive path
-                string destPath = Path.Combine(tempDir, "helloworld.received.txt");
 
-                // Free port on loopback
-                int port = GetFreePort();
-                var ep = new IPEndPoint(IPAddress.Loopback, port);
+    private string? _decodedText;
+    public string? DecodedText {
+        get => _decodedText;
+        private set { _decodedText = value; OnPropertyChanged(); }
+    }
 
-                // Shared key for AES-GCM (32 bytes, so AES-256)
-                byte[] key = new byte[32];
-                RandomNumberGenerator.Fill(key);
+    private string? _status;
+    public string? Status {
+        get => _status;
+        private set { _status = value; OnPropertyChanged(); }
+    }
 
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+    public MainViewModel(ICameraService camera, QrDecoder decoder, IQrCodeService qr, SessionFactory sessionFactory) {
+        _camera = camera;
+        _decoder = decoder;
+        _qr = qr;
+        _sessionFactory = sessionFactory;
 
-                // Start receiver (listening)
-                Task<FileTransferHeader> recvTask =
-                    _transfer.ReceiveFileEncryptedAsync(ep, destPath, key, cts.Token);
+        _camera.FrameArrived += OnFrameArrived;
+        Status = "Ready";
 
-                // small PoC delay to allow listener to start
-                await Task.Delay(75, cts.Token).ConfigureAwait(false);
+        _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        _renderTimer.Tick += (_, _) => RenderPreview();
+        _renderTimer.Start();
 
-                // Send file
-                await _transfer.SendFileEncryptedAsync(sourcePath, ep, key, chunkSize: 64 * 1024, cts.Token)
-                    .ConfigureAwait(false);
+    }
 
-                // Wait for completion
-                FileTransferHeader header = await recvTask.ConfigureAwait(false);
 
-                // Verify arrival
-                string receivedText = await File.ReadAllTextAsync(destPath, cts.Token).ConfigureAwait(false);
 
-                // PoC output: write to debug output
-                System.Diagnostics.Debug.WriteLine("=== DropMe PoC Transfer Complete ===");
-                System.Diagnostics.Debug.WriteLine($"Sent file: {sourcePath}");
-                System.Diagnostics.Debug.WriteLine($"Received file: {destPath}");
-                System.Diagnostics.Debug.WriteLine($"Header name: {header.FileName}");
-                System.Diagnostics.Debug.WriteLine($"Header size: {header.FileSize}");
-                System.Diagnostics.Debug.WriteLine($"Received text: {receivedText.Trim()}");
+    public void GenerateQr() {
+        // Example payload for LAN session bootstrap
+        var psk = new byte[32];
+        RandomNumberGenerator.Fill(psk);
 
-                // Update UI below
-                /*Avalonia.Threading.Dispatcher.UIThread.Post(() => Status = "Transfer complete!");*/
+        var invite = new ConnectionInvite(
+            V: 1,
+            Ip: "192.168.1.23", // TODO later: detect local LAN IP
+            Port: 5050,
+            Sid: Guid.NewGuid().ToString("N"),
+            Psk: ConnectionInviteCodec.Base64UrlEncode(psk)
+        );
+
+        var text = ConnectionInviteCodec.Encode(invite);
+
+        QrImage = _qr.Generate(text, pixelsPerModule: 10);
+        Status = "QR generated (DM1 payload).";
+        DecodedText = null;
+    }
+
+    public async Task StartScanAsync() {
+        _renderTimer?.Start();
+
+        if (_scanCts is not null) return;
+
+        _scanCts = new CancellationTokenSource();
+        Status = "Starting camera...";
+        DecodedText = null;
+
+        await _camera.StartAsync(_scanCts.Token);
+        Status = "Scanning... show a QR to the camera.";
+    }
+
+    public async Task StopScanAsync() {
+        _renderTimer?.Stop();
+
+        if (_scanCts is null) return;
+
+        _scanCts.Cancel();
+        _scanCts.Dispose();
+        _scanCts = null;
+
+        await _camera.StopAsync();
+        Status = "Scan stopped.";
+
+    }
+
+    private DateTime _lastUiFrame = DateTime.MinValue;
+    private DateTime _lastDecode = DateTime.MinValue;
+
+    private void OnFrameArrived(CameraFrame frame) {
+        lock (_frameLock) {
+            _latestWidth = frame.Width;
+            _latestHeight = frame.Height;
+            _latestStride = frame.Stride;
+
+            int needed = frame.Stride * frame.Height;
+            if (_latestFrameBytes == null || _latestFrameBytes.Length != needed)
+                _latestFrameBytes = new byte[needed];
+
+            Buffer.BlockCopy(frame.Rgba, 0, _latestFrameBytes, 0, needed);
+        }
+    }
+
+
+    private void RenderPreview() {
+        byte[]? bytes;
+        int w, h, stride;
+
+        lock (_frameLock) {
+            bytes = _latestFrameBytes;
+            w = _latestWidth;
+            h = _latestHeight;
+            stride = _latestStride;
+        }
+
+        if (bytes is null || w <= 0 || h <= 0)
+            return;
+
+        // Create a fresh bitmap each tick (PoC reliable)
+        var bmp = new WriteableBitmap(
+            new PixelSize(w, h),
+            new Vector(96, 96),
+            PixelFormat.Bgra8888,
+            AlphaFormat.Unpremul);
+
+        using (var fb = bmp.Lock()) {
+            int rows = Math.Min(h, fb.Size.Height);
+            int dstStride = fb.RowBytes;
+
+            if (stride == dstStride) {
+                Marshal.Copy(bytes, 0, fb.Address, rows * dstStride);
             }
-            catch (Exception ex) {
-                System.Diagnostics.Debug.WriteLine($"PoC transfer failed: {ex}");
-                // Update UI below
-                /*Dispatcher.UIThread.Post(() => Status = ex.Message);*/
+            else {
+                int colsBytes = Math.Min(stride, dstStride);
+                for (int y = 0; y < rows; y++) {
+                    Marshal.Copy(bytes, y * stride, fb.Address + (y * dstStride), colsBytes);
+                }
             }
-        });
+        }
+
+        // Assign NEW reference => Image will redraw, guaranteed
+        Preview = bmp;
+        var now = DateTime.UtcNow;
+        if ((now - _lastDecode).TotalMilliseconds >= 200) // 5x/sec
+        {
+            _lastDecode = now;
+
+            // Use the latest frame bytes (already captured)
+            CameraFrame? snapshot = null;
+            lock (_frameLock) {
+                if (_latestFrameBytes is not null)
+                    snapshot = new CameraFrame(_latestWidth, _latestHeight, (byte[])_latestFrameBytes.Clone(), _latestStride);
+            }
+
+            if (snapshot is not null) {
+                var decoded = _decoder.TryDecode(snapshot);
+                if (!string.IsNullOrWhiteSpace(decoded)) {
+                    DecodedText = decoded;
+                    Status = "QR decoded";
+                    if (Interlocked.Exchange(ref _qrHandled, 1) == 1)
+                        return;
+                    _ = HandleQrDecodedAsync(decoded); // 🔑 fire-and-forget async workflow
+                }
+
+            }
+        }
+
     }
 
-    private static int GetFreePort() {
-        var l = new TcpListener(IPAddress.Loopback, 0);
-        l.Start();
-        int port = ((IPEndPoint)l.LocalEndpoint).Port;
-        l.Stop();
-        return port;
+
+
+
+    private void EnsurePreviewBitmap(int width, int height) {
+        if (Preview is not null && Preview.PixelSize.Width == width && Preview.PixelSize.Height == height)
+            return;
+
+        Preview = new WriteableBitmap(
+            new PixelSize(width, height),
+            new Vector(96, 96),
+            PixelFormat.Bgra8888,
+            AlphaFormat.Unpremul);
     }
+    private async Task HandleQrDecodedAsync(string decoded) {
+        try {
+            await StopScanAsync();
+
+            Status = "Parsing invite…";
+
+
+            if (!ConnectionInviteCodec.TryDecode(decoded, out var invite) || invite is null) {
+                Status = "Invalid invite";
+                return;
+            }
+
+            Status = "Connecting to peer…";
+
+            _sessionCts = new CancellationTokenSource();
+            _session = _sessionFactory.Create(invite);
+
+            await _session.StartAsync(_sessionCts.Token);
+
+            Status = $"Connected to {invite.Ip}:{invite.Port}";
+            OnPropertyChanged(nameof(IsConnected));
+        }
+        catch (Exception ex) {
+            Status = $"Connection failed: {ex.Message}";
+        }
+    }
+
+    private void CopyBytesToPreview(byte[] rgba, int width, int height, int srcStride) {
+        if (Preview is null) return;
+
+        using (var fb = Preview.Lock()) {
+            int rows = Math.Min(height, fb.Size.Height);
+            int dstStride = fb.RowBytes;
+
+            if (srcStride == dstStride) {
+                Marshal.Copy(rgba, 0, fb.Address, rows * dstStride);
+            }
+            else {
+                int colsBytes = Math.Min(srcStride, dstStride);
+                for (int y = 0; y < rows; y++) {
+                    Marshal.Copy(
+                        rgba,
+                        y * srcStride,
+                        fb.Address + (y * dstStride),
+                        colsBytes);
+                }
+            }
+        }
+
+        // 🔑 FORCE AVALONIA TO REBIND THE IMAGE SOURCE
+        if (++_previewFrameCounter % 5 == 0) {
+            Preview = Preview;
+        }
+    }
+    public async Task SendFileAsync() {
+        if (_session is null) return;
+
+        // PoC path
+        var path = "helloworld.txt";
+
+        Status = "Sending file…";
+        await _session.SendFileAsync(path, CancellationToken.None);
+        Status = "File sent.";
+    }
+
+
+
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
 }
