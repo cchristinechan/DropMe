@@ -8,5 +8,11 @@
         x:Class="DropMe.Views.MainWindow"
         Icon="/Assets/avalonia-logo.ico"
         Title="DropMe">
+<<<<<<< Updated upstream
     <ContentControl x:Name="MainContent" />
 </Window>
+=======
+        <ContentControl x:Name="MainContent" />
+</Window>
+
+>>>>>>> Stashed changes

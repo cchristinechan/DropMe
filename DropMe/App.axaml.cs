@@ -26,23 +26,29 @@ public partial class App : Application {
             throw new InvalidOperationException("You must set the Services property prior to calling OnFrameworkInitializationCompleted()");
         }
 
+<<<<<<< Updated upstream
         var view = new TransferPage();
         var viewmodel = Services.GetRequiredService<MainViewModel>();
+=======
+        // var view = new MainView();
+        // var viewmodel = Services.GetRequiredService<MainViewModel>();
+>>>>>>> Stashed changes
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
 
-            desktop.MainWindow = new MainWindow {
-                Content = view,
-                DataContext = viewmodel
-            };
+            // desktop.MainWindow = new MainWindow {
+            //     Content = view,
+            //     DataContext = viewmodel
+            // };
+            desktop.MainWindow = new MainWindow();
         }
-        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
-            view.DataContext = viewmodel;
-            singleViewPlatform.MainView = view;
-        }
+        // else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
+        //     view.DataContext = viewmodel;
+        //     singleViewPlatform.MainView = view;
+        // }
 
         base.OnFrameworkInitializationCompleted();
     }

@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 using Avalonia.Controls;
+=======
+﻿using Avalonia.Controls;
+>>>>>>> Stashed changes
 using Avalonia.Interactivity;
 using System;
 
