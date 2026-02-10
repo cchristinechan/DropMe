@@ -7,9 +7,64 @@
              x:Class="DropMe.Views.Session"
              x:DataType="vm:MainViewModel">
   
-    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
-        <TextBlock Text="This is the second screen!" HorizontalAlignment="Center"/>
-        <Button Content="Back to Main Screen" Click="BackButton_Click" HorizontalAlignment="Center"/>
-    </StackPanel>
+    <Grid Background="#C4E0F2" HorizontalAlignment="Stretch"
+          VerticalAlignment="Stretch" RowDefinitions="*,Auto,*">
+        
+        <Button Content="End Session"
+                Click="BackButton_Click"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="12"
+                Width="105"
+                Height="35"
+                CornerRadius="8"
+                Background="Red"
+                Foreground="White"
+                FontWeight="Bold"/>
+    
+        <TextBlock Text="SessionID = " Margin="865,20,0,0"/>
+        
+        <TextBlock Text="Connected " Margin="505,70,0,0"/>
+        
+        <Border Width="600"
+                Height="400"
+                Background="White"
+                CornerRadius="16"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin = "100">
+        </Border>  
+        
+        <Button Content="Send Files"
+                HorizontalAlignment="Center"
+                Width="80"
+                Height="35"
+                Margin="450"
+                CornerRadius="8"
+                Background="#C4E0F2"
+                Foreground="Black"
+                FontWeight="Bold"/>
+        
+        <Image Source="avares://DropMe/Assets/profile_session.jpg"
+               Width="200"
+               Height="200"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Top"
+               Margin="280, 200,0,0"
+               Stretch="Uniform"/>
+        
+        <Image Source="avares://DropMe/Assets/profile_session.jpg"
+               Width="200"
+               Height="200"
+               HorizontalAlignment="Right"
+               VerticalAlignment="Bottom"
+               Margin="0, 0,280,535"
+               Stretch="Uniform"/>
+        
+    </Grid>
 
 </UserControl>
+
+
+
+

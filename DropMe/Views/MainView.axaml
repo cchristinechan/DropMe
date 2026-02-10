@@ -13,10 +13,18 @@
         <vm:MainViewModel />
     </Design.DataContext>
     
-    <DockPanel LastChildFill="True">
-        <Button Content="Run Local PoC Transfer" Click="RunLocalPoc_Click" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-    
-        <Button Content="Session Page" Click="SessionStart_Click" DockPanel.Dock="Bottom" HorizontalAlignment="Center"/>
-    
-    </DockPanel>
+    <Grid RowDefinitions="*,Auto,*">
+        <Button Content="Run Local PoC Transfer"
+                Click="RunLocalPoc_Click"
+                Grid.Row="0"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"/>
+        
+        <Button Content="Session Page"
+                Click="SessionStart_Click"
+                Grid.Row="2"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"/>
+    </Grid>
 </UserControl>
+
