@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:DropMe.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="DropMe.Views.MainView"
+             x:Class="DropMe.Views.TransferPage"
              x:DataType="vm:MainViewModel">
 
   <Design.DataContext>
@@ -146,5 +146,17 @@
       </StackPanel>
 
     </StackPanel>
+    <Button Content="Run Local PoC Transfer"
+            Click="RunLocalPoc_Click"
+            Grid.Row="0"
+            VerticalAlignment="Center"
+            HorizontalAlignment="Center"/>
+    
+    <Button Content="Session Page"
+            Click="SessionStart_Click"
+            Grid.Row="2"
+            VerticalAlignment="Center"
+            HorizontalAlignment="Center"/>
   </Grid>
 </UserControl>
+
