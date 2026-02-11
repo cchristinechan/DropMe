@@ -110,6 +110,17 @@
       <StackPanel Orientation="Horizontal" Spacing="56" HorizontalAlignment="Center" Margin="0,18,0,0">
         <Button Classes="Pill" Content="Scan QR code"/>
         <Button Classes="Pill" Content="Display QR code"/>
+        <Button Content="Run Local PoC Transfer"
+                Click="RunLocalPoc_Click"
+                Grid.Row="0"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"/>
+    
+        <Button Content="Session Page"
+                Click="SessionStart_Click"
+                Grid.Row="2"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"/>
       </StackPanel>
 
       <!-- “How it works” divider -->
@@ -146,17 +157,6 @@
       </StackPanel>
 
     </StackPanel>
-    <Button Content="Run Local PoC Transfer"
-            Click="RunLocalPoc_Click"
-            Grid.Row="0"
-            VerticalAlignment="Center"
-            HorizontalAlignment="Center"/>
-    
-    <Button Content="Session Page"
-            Click="SessionStart_Click"
-            Grid.Row="2"
-            VerticalAlignment="Center"
-            HorizontalAlignment="Center"/>
   </Grid>
 </UserControl>
 
