@@ -8,4 +8,6 @@
         x:Class="DropMe.Views.MainWindow"
         Icon="/Assets/avalonia-logo.ico"
         Title="DropMe">
+    <ContentControl x:Name="MainContent" />
 </Window>
+
