@@ -6,65 +6,80 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="DropMe.Views.Session"
              x:DataType="vm:MainViewModel">
-  
-    <Grid Background="#C4E0F2" HorizontalAlignment="Stretch"
-          VerticalAlignment="Stretch" RowDefinitions="*,Auto,*">
-        
-        <Button Content="End Session"
-                Click="BackButton_Click"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Margin="12"
-                Width="105"
-                Height="35"
-                CornerRadius="8"
-                Background="Red"
-                Foreground="White"
-                FontWeight="Bold"/>
-    
-        <TextBlock Text="SessionID = " Margin="865,20,0,0"/>
-        
-        <TextBlock Text="Connected " Margin="505,70,0,0"/>
-        
-        <Border Width="600"
-                Height="400"
-                Background="White"
-                CornerRadius="16"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Top"
-                Margin = "100">
-        </Border>  
-        
-        <Button Content="Send Files"
-                HorizontalAlignment="Center"
-                Width="80"
-                Height="35"
-                Margin="450"
-                CornerRadius="8"
-                Background="#C4E0F2"
-                Foreground="Black"
-                FontWeight="Bold"/>
-        
-        <Image Source="avares://DropMe/Assets/profile_session.jpg"
-               Width="200"
-               Height="200"
-               HorizontalAlignment="Left"
-               VerticalAlignment="Top"
-               Margin="280, 200,0,0"
-               Stretch="Uniform"/>
-        
-        <Image Source="avares://DropMe/Assets/profile_session.jpg"
-               Width="200"
-               Height="200"
-               HorizontalAlignment="Right"
-               VerticalAlignment="Bottom"
-               Margin="0, 0,280,535"
-               Stretch="Uniform"/>
-        
+
+    <Grid Background="#C4E0F2">
+
+        <!-- Wrap everything in a Viewbox for automatic scaling -->
+        <Viewbox Stretch="Uniform">
+            <Grid Width="800" Height="450">
+
+                <!-- Top-right End Session button -->
+                <Button Content="End Session"
+                        Click="BackButton_Click"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="12"
+                        Width="105"
+                        Height="35"
+                        CornerRadius="8"
+                        Background="Red"
+                        Foreground="White"
+                        FontWeight="Bold"/>
+
+                <!-- TextBlocks -->
+                <TextBlock Text="SessionID = "
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Top"
+                           Margin="0,20,130,0"
+                           FontSize="16"/>
+
+                <TextBlock Text="Connected"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Top"
+                           Margin="0,70,0,0"
+                           FontSize="16"/>
+
+                <!-- Centered White Border -->
+                <Border Width="450"
+                        Height="280"
+                        Background="White"
+                        CornerRadius="16"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        Margin="0,100,0,0"/>
+
+                <!-- Center Send Files Button -->
+                <Button Content="Send Files"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Width="90"
+                        Height="35"
+                        Margin="0,0,0,80"
+                        CornerRadius="8"
+                        Background="#C4E0F2"
+                        Foreground="Black"
+                        FontWeight="Bold"/>
+
+                <!-- Left Image -->
+                <Image Source="avares://DropMe/Assets/profile_session.jpg"
+                       Width="150"
+                       Height="150"
+                       HorizontalAlignment="Left"
+                       VerticalAlignment="Top"
+                       Margin="200,150,0,0"
+                       Stretch="Uniform"/>
+
+                <!-- Right Image -->
+                <Image Source="avares://DropMe/Assets/profile_session.jpg"
+                       Width="150"
+                       Height="150"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Top"
+                       Margin="0,150,200,0"
+                       Stretch="Uniform"/>
+
+            </Grid>
+        </Viewbox>
+
     </Grid>
-
 </UserControl>
-
-
-
-
