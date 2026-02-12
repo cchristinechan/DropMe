@@ -1,9 +1,40 @@
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using DropMe.Services;
 
 namespace DropMe.Desktop.Services;
 
-public class DeviceService : IDeviceService {
+public sealed class DeviceService : IDeviceService
+{
     public string GetDeviceString() {
         return "Desktop";
+    }
+    public string GetLocalLanIp()
+    {
+        foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (ni.OperationalStatus != OperationalStatus.Up)
+                continue;
+
+            if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                continue;
+
+            var props = ni.GetIPProperties();
+            foreach (var ua in props.UnicastAddresses)
+            {
+                if (ua.Address.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    var ip = ua.Address.ToString();
+
+                    // Skip APIPA / localhost
+                    if (!ip.StartsWith("169.254.") && ip != "127.0.0.1")
+                        return ip;
+                }
+            }
+        }
+
+        // Fallback (still better than crashing)
+        return "127.0.0.1";
     }
 }

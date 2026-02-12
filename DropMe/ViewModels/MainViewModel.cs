@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.ComponentModel;
 using System.Net;
 using System.Runtime.CompilerServices;
@@ -30,6 +31,8 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private CancellationTokenSource? _sessionCts;
     private int _qrHandled = 0;
     private readonly SessionFactory _sessionFactory;
+    private readonly IDeviceService _device;
+
 
     public bool IsConnected => _session?.State == SessionState.Connected;
 
@@ -66,43 +69,73 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         get => _status;
         private set { _status = value; OnPropertyChanged(); }
     }
-
-    public MainViewModel(ICameraService camera, QrDecoder decoder, IQrCodeService qr, SessionFactory sessionFactory) {
+    public MainViewModel(
+        ICameraService camera,
+        QrDecoder decoder,
+        IQrCodeService qr,
+        SessionFactory sessionFactory,
+        IDeviceService device)
+    {
         _camera = camera;
         _decoder = decoder;
         _qr = qr;
         _sessionFactory = sessionFactory;
+        _device = device;
 
         _camera.FrameArrived += OnFrameArrived;
         Status = "Ready";
 
-        _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         _renderTimer.Tick += (_, _) => RenderPreview();
         _renderTimer.Start();
-
     }
 
 
+    
+    public void GenerateQr()
+    {
+        const int port = 5050;
+        _ = StartHostingAsync(port);
 
-    public void GenerateQr() {
-        // Example payload for LAN session bootstrap
         var psk = new byte[32];
         RandomNumberGenerator.Fill(psk);
 
+        var ip = _device.GetLocalLanIp();
+
         var invite = new ConnectionInvite(
             V: 1,
-            Ip: "192.168.1.23", // TODO later: detect local LAN IP
-            Port: 5050,
+            Ip: ip,
+            Port: port,
             Sid: Guid.NewGuid().ToString("N"),
             Psk: ConnectionInviteCodec.Base64UrlEncode(psk)
         );
 
         var text = ConnectionInviteCodec.Encode(invite);
-
         QrImage = _qr.Generate(text, pixelsPerModule: 10);
-        Status = "QR generated (DM1 payload).";
-        DecodedText = null;
     }
+
+
+    private async Task StartHostingAsync(int port)
+    {
+        try
+        {
+            _sessionCts?.Cancel();
+            _sessionCts = new CancellationTokenSource();
+
+            _session = new TcpHostSession(new System.Net.IPEndPoint(System.Net.IPAddress.Any, port));
+            Status = "Waiting for peer…";
+
+            await _session.StartAsync(_sessionCts.Token);
+
+            Status = $"Connected to {_session.Peer}";
+            OnPropertyChanged(nameof(IsConnected));
+        }
+        catch (Exception ex)
+        {
+            Status = $"Host error: {ex.Message}";
+        }
+    }
+
 
     public async Task StartScanAsync() {
         _renderTimer?.Start();
@@ -148,12 +181,13 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         }
     }
 
-
-    private void RenderPreview() {
+    private void RenderPreview()
+    {
         byte[]? bytes;
         int w, h, stride;
 
-        lock (_frameLock) {
+        lock (_frameLock)
+        {
             bytes = _latestFrameBytes;
             w = _latestWidth;
             h = _latestHeight;
@@ -170,16 +204,20 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             PixelFormat.Bgra8888,
             AlphaFormat.Unpremul);
 
-        using (var fb = bmp.Lock()) {
+        using (var fb = bmp.Lock())
+        {
             int rows = Math.Min(h, fb.Size.Height);
             int dstStride = fb.RowBytes;
 
-            if (stride == dstStride) {
+            if (stride == dstStride)
+            {
                 Marshal.Copy(bytes, 0, fb.Address, rows * dstStride);
             }
-            else {
+            else
+            {
                 int colsBytes = Math.Min(stride, dstStride);
-                for (int y = 0; y < rows; y++) {
+                for (int y = 0; y < rows; y++)
+                {
                     Marshal.Copy(bytes, y * stride, fb.Address + (y * dstStride), colsBytes);
                 }
             }
@@ -187,6 +225,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
         // Assign NEW reference => Image will redraw, guaranteed
         Preview = bmp;
+
         var now = DateTime.UtcNow;
         if ((now - _lastDecode).TotalMilliseconds >= 200) // 5x/sec
         {
@@ -206,7 +245,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                     Status = "QR decoded";
                     if (Interlocked.Exchange(ref _qrHandled, 1) == 1)
                         return;
-                    _ = HandleQrDecodedAsync(decoded); // 🔑 fire-and-forget async workflow
+                    _ = HandleQrDecodedAsync(decoded); // fire-and-forget async workflow
                 }
 
             }
@@ -276,21 +315,33 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             }
         }
 
-        // 🔑 FORCE AVALONIA TO REBIND THE IMAGE SOURCE
+        //  FORCE AVALONIA TO REBIND THE IMAGE SOURCE
         if (++_previewFrameCounter % 5 == 0) {
             Preview = Preview;
         }
     }
-    public async Task SendFileAsync() {
-        if (_session is null) return;
+    public async Task SendFileAsync()
+    {
+        if (_session is null)
+            return;
 
-        // PoC path
-        var path = "helloworld.txt";
+        var path = Path.Combine(
+            AppContext.BaseDirectory,
+            "helloworld.txt");
+
+        // PoC: ensure file exists
+        if (!File.Exists(path))
+        {
+            await File.WriteAllTextAsync(
+                path,
+                "Hello world from DropMe 👋\n");
+        }
 
         Status = "Sending file…";
         await _session.SendFileAsync(path, CancellationToken.None);
         Status = "File sent.";
     }
+
 
 
 

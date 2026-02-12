@@ -29,7 +29,7 @@ public sealed class TcpSession : ISession {
 
         State = SessionState.Connected;
 
-        // 🔑 start background loops AFTER connection
+        // start background loops AFTER connection
         _ = Task.Run(() => ReceiveLoop(ct), ct);
         _ = Task.Run(() => KeepAliveLoop(ct), ct);
     }

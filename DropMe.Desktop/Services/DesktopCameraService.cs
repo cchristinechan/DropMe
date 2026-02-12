@@ -7,26 +7,30 @@ using OpenCvSharp;
 
 namespace DropMe.Desktop.Services;
 
-public sealed class DesktopCameraService : ICameraService {
+public sealed class DesktopCameraService : ICameraService
+{
     private VideoCapture? _cap;
     private CancellationTokenSource? _loopCts;
 
     public event Action<CameraFrame>? FrameArrived;
 
-    public Task StartAsync(CancellationToken ct = default) {
+    public Task StartAsync(CancellationToken ct = default)
+    {
         _cap = new VideoCapture(0);
+        
+
         if (!_cap.IsOpened())
             throw new InvalidOperationException("Could not open camera 0.");
         _cap.Set(VideoCaptureProperties.FrameWidth, 640);
         _cap.Set(VideoCaptureProperties.FrameHeight, 480);
         _cap.Set(VideoCaptureProperties.Fps, 30);
-
         _loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _ = Task.Run(() => Loop(_loopCts.Token), _loopCts.Token);
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken ct = default) {
+    public Task StopAsync(CancellationToken ct = default)
+    {
         _loopCts?.Cancel();
         _loopCts = null;
 
@@ -36,12 +40,15 @@ public sealed class DesktopCameraService : ICameraService {
 
         return Task.CompletedTask;
     }
-    private void Loop(CancellationToken ct) {
-        try {
+    private void Loop(CancellationToken ct)
+    {
+        try
+        {
             using var mat = new Mat();
             int n = 0;
 
-            while (!ct.IsCancellationRequested && _cap is not null) {
+            while (!ct.IsCancellationRequested && _cap is not null)
+            {
                 if (!_cap.Read(mat) || mat.Empty())
                     continue;
 
@@ -64,7 +71,8 @@ public sealed class DesktopCameraService : ICameraService {
                 Thread.Sleep(1);
             }
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             System.Diagnostics.Debug.WriteLine("Camera loop crashed: " + ex);
         }
     }
