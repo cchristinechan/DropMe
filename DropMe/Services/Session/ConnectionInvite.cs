@@ -5,5 +5,8 @@ public sealed record ConnectionInvite(
     string Ip,
     int Port,
     string Sid,
-    string Psk // Base64Url 32 bytes
+    string Psk, // Base64Url 32 bytes
+    string? Transport,
+    string? Ssid,
+    string? Bssid
 );

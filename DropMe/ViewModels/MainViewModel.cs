@@ -30,6 +30,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private ISession? _session;
     private CancellationTokenSource? _sessionCts;
     private int _qrHandled = 0;
+    private bool _firstFrameSeen;
     private readonly SessionFactory _sessionFactory;
     private readonly IDeviceService _device;
 
@@ -94,24 +95,41 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     
     public void GenerateQr()
     {
-        const int port = 5050;
-        _ = StartHostingAsync(port);
+        try
+        {
+            Status = "Generating QR…";
 
-        var psk = new byte[32];
-        RandomNumberGenerator.Fill(psk);
+            var psk = new byte[32];
+            RandomNumberGenerator.Fill(psk);
 
-        var ip = _device.GetLocalLanIp();
+            var ip = _device.GetLocalLanIp();
 
-        var invite = new ConnectionInvite(
-            V: 1,
-            Ip: ip,
-            Port: port,
-            Sid: Guid.NewGuid().ToString("N"),
-            Psk: ConnectionInviteCodec.Base64UrlEncode(psk)
-        );
+            var invite = new ConnectionInvite(
+                V: 2,
+                Ip: ip,
+                Port: 5050,
+                Sid: Guid.NewGuid().ToString("N"),
+                Psk: ConnectionInviteCodec.Base64UrlEncode(psk),
+                Transport: "lan",
+                Ssid: null,
+                Bssid: null
+            );
 
-        var text = ConnectionInviteCodec.Encode(invite);
-        QrImage = _qr.Generate(text, pixelsPerModule: 10);
+            var text = ConnectionInviteCodec.Encode(invite);
+            var bmp = _qr.Generate(text, pixelsPerModule: 10);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                QrImage = bmp;
+                Status = "QR generated";
+            });
+
+            _ = StartHostingAsync(5050);
+        }
+        catch (Exception ex)
+        {
+            Status = $"QR error: {ex.Message}";
+        }
     }
 
 
@@ -124,6 +142,22 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
             _session = new TcpHostSession(new System.Net.IPEndPoint(System.Net.IPAddress.Any, port));
             Status = "Waiting for peer…";
+
+            if (_session is TcpHostSession h)
+            {
+                h.FileSaved += path =>
+                    Dispatcher.UIThread.Post(() => Status = $"Received and saved: {path}");
+
+                h.FileAcked += (_, sha) =>
+                    Dispatcher.UIThread.Post(() => Status = $"Delivered ✅ SHA256={sha}");
+
+                h.FileOfferDecision = offer =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                        Status = $"Incoming file: {offer.Name} ({offer.Size} bytes)");
+                    return Task.FromResult(true);
+                };
+            }
 
             await _session.StartAsync(_sessionCts.Token);
 
@@ -146,8 +180,15 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         Status = "Starting camera...";
         DecodedText = null;
 
-        await _camera.StartAsync(_scanCts.Token);
-        Status = "Scanning... show a QR to the camera.";
+        try
+        {
+            await _camera.StartAsync(_scanCts.Token);
+            Status = "Scanning... show a QR to the camera.";
+        }
+        catch (Exception ex)
+        {
+            Status = $"Camera error: {ex.Message}";
+        }
     }
 
     public async Task StopScanAsync() {
@@ -168,6 +209,13 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private DateTime _lastDecode = DateTime.MinValue;
 
     private void OnFrameArrived(CameraFrame frame) {
+        if (!_firstFrameSeen)
+        {
+            _firstFrameSeen = true;
+            Dispatcher.UIThread.Post(() =>
+                Status = $"Camera frame: {frame.Width}x{frame.Height} stride={frame.Stride}");
+        }
+
         lock (_frameLock) {
             _latestWidth = frame.Width;
             _latestHeight = frame.Height;
@@ -198,10 +246,14 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             return;
 
         // Create a fresh bitmap each tick (PoC reliable)
+        var pixelFormat = OperatingSystem.IsAndroid()
+            ? PixelFormat.Rgba8888
+            : PixelFormat.Bgra8888;
+
         var bmp = new WriteableBitmap(
             new PixelSize(w, h),
             new Vector(96, 96),
-            PixelFormat.Bgra8888,
+            pixelFormat,
             AlphaFormat.Unpremul);
 
         using (var fb = bmp.Lock())
@@ -282,6 +334,38 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
             _sessionCts = new CancellationTokenSource();
             _session = _sessionFactory.Create(invite);
+
+            if (_session is TcpAesGcmSession s)
+            {
+                s.FileSaved += path =>
+                    Dispatcher.UIThread.Post(() => Status = $"Received and saved: {path}");
+
+                s.FileAcked += (_, sha) =>
+                    Dispatcher.UIThread.Post(() => Status = $"Delivered ✅ SHA256={sha}");
+
+                s.FileOfferDecision = offer =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                        Status = $"Incoming file: {offer.Name} ({offer.Size} bytes)");
+                    return Task.FromResult(true);
+                };
+            }
+            else if (_session is TcpHostSession h)
+            {
+                h.FileSaved += path =>
+                    Dispatcher.UIThread.Post(() => Status = $"Received and saved: {path}");
+
+                h.FileAcked += (_, sha) =>
+                    Dispatcher.UIThread.Post(() => Status = $"Delivered ✅ SHA256={sha}");
+
+                h.FileOfferDecision = offer =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                        Status = $"Incoming file: {offer.Name} ({offer.Size} bytes)");
+                    return Task.FromResult(true);
+                };
+            }
+
 
             await _session.StartAsync(_sessionCts.Token);
 

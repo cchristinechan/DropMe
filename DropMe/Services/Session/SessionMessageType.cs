@@ -11,6 +11,7 @@ public enum SessionMessageType : byte {
     FileReject = 12,
     FileChunk = 13,
     FileDone = 14,
+    FileAck = 15,
 
     Error = 250,
     Bye = 255

@@ -8,6 +8,6 @@ public sealed class SessionFactory {
             IPAddress.Parse(invite.Ip),
             invite.Port);
 
-        return new TcpSession(ep);
+        return new TcpAesGcmSession(ep);
     }
 }

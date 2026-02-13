@@ -11,10 +11,26 @@ public sealed class TcpHostSession : ISession
     private readonly IPEndPoint _listenEp;
     private TcpListener? _listener;
     private TcpClient? _client;
-    private NetworkStream? _stream;
+    private TcpAesGcmSession? _session;
 
-    public SessionState State { get; private set; } = SessionState.Idle;
-    public string Peer { get; private set; } = "waiting…";
+    private Func<TcpAesGcmSession.FileOfferInfo, Task<bool>>? _fileOfferDecision;
+
+    public event Action<string>? FileSaved;
+    public event Action<Guid, string /*sha256 hex*/>? FileAcked;
+
+    public Func<TcpAesGcmSession.FileOfferInfo, Task<bool>>? FileOfferDecision
+    {
+        get => _fileOfferDecision;
+        set
+        {
+            _fileOfferDecision = value;
+            if (_session is not null)
+                _session.FileOfferDecision = value;
+        }
+    }
+
+    public SessionState State => _session?.State ?? SessionState.Idle;
+    public string Peer => _session?.Peer ?? "waiting…";
 
     public TcpHostSession(IPEndPoint listenEp)
     {
@@ -23,63 +39,34 @@ public sealed class TcpHostSession : ISession
 
     public async Task StartAsync(CancellationToken ct)
     {
-        State = SessionState.Connecting;
-
         _listener = new TcpListener(_listenEp);
         _listener.Start();
 
-        // Wait for a peer
         _client = await _listener.AcceptTcpClientAsync(ct);
-        _stream = _client.GetStream();
 
-        Peer = _client.Client.RemoteEndPoint?.ToString() ?? "peer";
-        State = SessionState.Connected;
+        var ep = (IPEndPoint?)_client.Client.RemoteEndPoint ?? _listenEp;
+        _session = new TcpAesGcmSession(ep);
+        _session.AttachAcceptedClient(_client);
 
-        _ = Task.Run(() => ReceiveLoop(ct), ct);
-        _ = Task.Run(() => KeepAliveLoop(ct), ct);
+        _session.FileSaved += path => FileSaved?.Invoke(path);
+        _session.FileAcked += (id, sha) => FileAcked?.Invoke(id, sha);
+        _session.FileOfferDecision = _fileOfferDecision;
+
+        await _session.StartAsAcceptedAsync(ct);
     }
 
-    public async Task SendFileAsync(string path, CancellationToken ct)
+    public Task SendFileAsync(string path, CancellationToken ct)
     {
-        using var fs = System.IO.File.OpenRead(path);
-        await fs.CopyToAsync(_stream!, ct);
-        await _stream!.FlushAsync(ct);
+        if (_session is null) throw new InvalidOperationException("Not connected.");
+        return _session.SendFileAsync(path, ct);
     }
 
-    public Task StopAsync()
+    public async Task StopAsync()
     {
-        State = SessionState.Closed;
-        _stream?.Dispose();
+        if (_session is not null)
+            await _session.StopAsync();
+
         _client?.Dispose();
         _listener?.Stop();
-        return Task.CompletedTask;
-    }
-
-    private async Task ReceiveLoop(CancellationToken ct)
-    {
-        var buf = new byte[1];
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                int n = await _stream!.ReadAsync(buf, ct);
-                if (n == 0) break;
-            }
-        }
-        catch { State = SessionState.Error; }
-        finally { State = SessionState.Closed; }
-    }
-
-    private async Task KeepAliveLoop(CancellationToken ct)
-    {
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                await _stream!.WriteAsync(new byte[] { 0x00 }, ct);
-                await Task.Delay(TimeSpan.FromSeconds(2), ct);
-            }
-        }
-        catch { State = SessionState.Error; }
     }
 }

@@ -5,21 +5,31 @@ using System.Text.Json;
 namespace DropMe.Services.Session;
 
 public static class ConnectionInviteCodec {
-    private const string Prefix = "DM1:"; //Change with version
+    private const string PrefixV1 = "DM1:";
+    private const string PrefixV2 = "DM2:";
 
     public static string Encode(ConnectionInvite invite) {
         var json = JsonSerializer.Serialize(invite);
         var bytes = Encoding.UTF8.GetBytes(json);
-        return Prefix + Base64UrlEncode(bytes);
+        var prefix = invite.V >= 2 ? PrefixV2 : PrefixV1;
+        return prefix + Base64UrlEncode(bytes);
     }
 
     public static bool TryDecode(string text, out ConnectionInvite? invite) {
         invite = null;
-        if (string.IsNullOrWhiteSpace(text) || !text.StartsWith(Prefix, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        string prefix;
+        if (text.StartsWith(PrefixV2, StringComparison.Ordinal))
+            prefix = PrefixV2;
+        else if (text.StartsWith(PrefixV1, StringComparison.Ordinal))
+            prefix = PrefixV1;
+        else
             return false;
 
         try {
-            var b64 = text.Substring(Prefix.Length);
+            var b64 = text.Substring(prefix.Length);
             var bytes = Base64UrlDecode(b64);
             invite = JsonSerializer.Deserialize<ConnectionInvite>(Encoding.UTF8.GetString(bytes));
             return invite is not null;

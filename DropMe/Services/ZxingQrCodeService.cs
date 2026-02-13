@@ -23,10 +23,13 @@ public sealed class ZxingQrCodeService : IQrCodeService {
         int width = (modules + margin * 2) * scale;
         int height = width;
 
+        var useRgba = OperatingSystem.IsAndroid();
+        var pixelFormat = useRgba ? PixelFormat.Rgba8888 : PixelFormat.Bgra8888;
+
         var bmp = new WriteableBitmap(
             new PixelSize(width, height),
             new Vector(96, 96),
-            PixelFormat.Bgra8888,
+            pixelFormat,
             AlphaFormat.Unpremul);
 
         using var fb = bmp.Lock();
@@ -36,10 +39,20 @@ public sealed class ZxingQrCodeService : IQrCodeService {
         for (int y = 0; y < height; y++) {
             // white row
             for (int i = 0; i < row.Length; i += 4) {
-                row[i + 0] = 0xFF;
-                row[i + 1] = 0xFF;
-                row[i + 2] = 0xFF;
-                row[i + 3] = 0xFF;
+                if (useRgba)
+                {
+                    row[i + 0] = 0xFF; // R
+                    row[i + 1] = 0xFF; // G
+                    row[i + 2] = 0xFF; // B
+                    row[i + 3] = 0xFF; // A
+                }
+                else
+                {
+                    row[i + 0] = 0xFF; // B
+                    row[i + 1] = 0xFF; // G
+                    row[i + 2] = 0xFF; // R
+                    row[i + 3] = 0xFF; // A
+                }
             }
 
             int my = (y / scale) - margin;
@@ -51,10 +64,20 @@ public sealed class ZxingQrCodeService : IQrCodeService {
 
                     if (matrix[mx, my] == 1) {
                         int px = x * 4;
-                        row[px + 0] = 0x00;
-                        row[px + 1] = 0x00;
-                        row[px + 2] = 0x00;
-                        row[px + 3] = 0xFF;
+                        if (useRgba)
+                        {
+                            row[px + 0] = 0x00;
+                            row[px + 1] = 0x00;
+                            row[px + 2] = 0x00;
+                            row[px + 3] = 0xFF;
+                        }
+                        else
+                        {
+                            row[px + 0] = 0x00;
+                            row[px + 1] = 0x00;
+                            row[px + 2] = 0x00;
+                            row[px + 3] = 0xFF;
+                        }
                     }
                 }
             }
