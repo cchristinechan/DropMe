@@ -11,8 +11,7 @@ using System.Threading.Tasks;
 
 namespace DropMe.Services.Session;
 
-public sealed class TcpAesGcmSession : ISession
-{
+public sealed class TcpAesGcmSession : ISession {
     private readonly IPEndPoint _endpoint;
     private TcpClient? _client;
     private NetworkStream? _stream;
@@ -45,14 +44,12 @@ public sealed class TcpAesGcmSession : ISession
 
     public TcpAesGcmSession(IPEndPoint endpoint) => _endpoint = endpoint;
 
-    public void AttachAcceptedClient(TcpClient client)
-    {
+    public void AttachAcceptedClient(TcpClient client) {
         _client = client;
         _stream = client.GetStream();
     }
 
-    public Task StartAsAcceptedAsync(CancellationToken ct)
-    {
+    public Task StartAsAcceptedAsync(CancellationToken ct) {
         if (_stream is null) throw new InvalidOperationException("No accepted client.");
 
         State = SessionState.Connected;
@@ -61,8 +58,7 @@ public sealed class TcpAesGcmSession : ISession
         return Task.CompletedTask;
     }
 
-    public async Task StartAsync(CancellationToken ct)
-    {
+    public async Task StartAsync(CancellationToken ct) {
         State = SessionState.Connecting;
 
         _client = new TcpClient();
@@ -75,23 +71,20 @@ public sealed class TcpAesGcmSession : ISession
         _ = Task.Run(() => KeepAliveLoop(ct), ct);
     }
 
-    public async Task SendFileAsync(string path, CancellationToken ct)
-    {
+    public async Task SendFileAsync(string path, CancellationToken ct) {
         if (_stream is null) throw new InvalidOperationException("Not connected.");
 
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("File not found.", path);
 
         var fileId = Guid.NewGuid();
-        var offer = new FileOffer
-        {
+        var offer = new FileOffer {
             FileId = fileId,
             Name = fi.Name,
             Size = fi.Length
         };
 
-        lock (_txLock)
-        {
+        lock (_txLock) {
             _txOfferFileId = fileId;
             _txRejectReason = null;
             _txOfferTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -101,12 +94,10 @@ public sealed class TcpAesGcmSession : ISession
         await SendMessageAsync(SessionMessageType.FileOffer, JsonSerializer.SerializeToUtf8Bytes(offer), ct).ConfigureAwait(false);
 
         bool accepted;
-        try
-        {
+        try {
             accepted = await WaitForOfferDecisionAsync(fileId, ct).ConfigureAwait(false);
         }
-        finally
-        {
+        finally {
             lock (_txLock) _txOfferTcs = null;
         }
 
@@ -121,8 +112,7 @@ public sealed class TcpAesGcmSession : ISession
         var buffer = new byte[chunkSize];
         int chunkIndex = 0;
 
-        while (true)
-        {
+        while (true) {
             int n = await fs.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false);
             if (n <= 0) break;
 
@@ -137,8 +127,7 @@ public sealed class TcpAesGcmSession : ISession
         await SendMessageAsync(SessionMessageType.FileDone, endPayload, ct).ConfigureAwait(false);
     }
 
-    public Task StopAsync()
-    {
+    public Task StopAsync() {
         State = SessionState.Closed;
         try { _rxFile?.Dispose(); } catch { }
         try { _rxHash?.Dispose(); } catch { }
@@ -147,16 +136,12 @@ public sealed class TcpAesGcmSession : ISession
         return Task.CompletedTask;
     }
 
-    private async Task ReceiveLoop(CancellationToken ct)
-    {
-        try
-        {
-            while (!ct.IsCancellationRequested && _stream is not null)
-            {
+    private async Task ReceiveLoop(CancellationToken ct) {
+        try {
+            while (!ct.IsCancellationRequested && _stream is not null) {
                 var (type, payload) = await SessionFraming.ReadAsync(_stream, ct).ConfigureAwait(false);
 
-                switch (type)
-                {
+                switch (type) {
                     case SessionMessageType.Ping:
                         await SendMessageAsync(SessionMessageType.Pong, ReadOnlyMemory<byte>.Empty, ct).ConfigureAwait(false);
                         break;
@@ -196,52 +181,42 @@ public sealed class TcpAesGcmSession : ISession
             }
         }
         catch (OperationCanceledException) { }
-        catch (Exception)
-        {
+        catch (Exception) {
             State = SessionState.Error;
         }
-        finally
-        {
+        finally {
             State = SessionState.Closed;
         }
     }
 
-    private async Task KeepAliveLoop(CancellationToken ct)
-    {
-        try
-        {
-            while (!ct.IsCancellationRequested && _stream is not null)
-            {
+    private async Task KeepAliveLoop(CancellationToken ct) {
+        try {
+            while (!ct.IsCancellationRequested && _stream is not null) {
                 await SendMessageAsync(SessionMessageType.Ping, ReadOnlyMemory<byte>.Empty, ct).ConfigureAwait(false);
                 await Task.Delay(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) { }
-        catch
-        {
+        catch {
             State = SessionState.Error;
         }
     }
 
-    private async Task SendMessageAsync(SessionMessageType type, ReadOnlyMemory<byte> payload, CancellationToken ct)
-    {
+    private async Task SendMessageAsync(SessionMessageType type, ReadOnlyMemory<byte> payload, CancellationToken ct) {
         if (_stream is null) throw new InvalidOperationException("Not connected.");
 
         await _writeLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
+        try {
             await SessionFraming.WriteAsync(_stream, type, payload, ct).ConfigureAwait(false);
         }
-        finally
-        {
+        finally {
             _writeLock.Release();
         }
     }
 
     // ---------------- Receive handlers ----------------
 
-    private async Task HandleFileOfferAsync(byte[] payload, CancellationToken ct)
-    {
+    private async Task HandleFileOfferAsync(byte[] payload, CancellationToken ct) {
         var offer = JsonSerializer.Deserialize<FileOffer>(payload);
         if (offer is null) return;
 
@@ -250,8 +225,7 @@ public sealed class TcpAesGcmSession : ISession
             ? await FileOfferDecision(info).ConfigureAwait(false)
             : true;
 
-        if (!accept)
-        {
+        if (!accept) {
             var rej = new FileReject { FileId = offer.FileId, Reason = "User rejected" };
             await SendMessageAsync(SessionMessageType.FileReject, JsonSerializer.SerializeToUtf8Bytes(rej), ct).ConfigureAwait(false);
             return;
@@ -276,8 +250,7 @@ public sealed class TcpAesGcmSession : ISession
         await SendMessageAsync(SessionMessageType.FileAccept, BuildFileIdPayload(offer.FileId), ct).ConfigureAwait(false);
     }
 
-    private async Task HandleFileChunkAsync(byte[] payload, CancellationToken ct)
-    {
+    private async Task HandleFileChunkAsync(byte[] payload, CancellationToken ct) {
         if (_rxFile is null || _rxHash is null) return;
 
         if (!TryParseFileChunkPayload(payload, out var fileId, out var chunkIndex, out var data))
@@ -295,8 +268,7 @@ public sealed class TcpAesGcmSession : ISession
         _rxWritten += data.Length;
     }
 
-    private async Task HandleFileEndAsync(byte[] payload, CancellationToken ct)
-    {
+    private async Task HandleFileEndAsync(byte[] payload, CancellationToken ct) {
         if (_rxFile is null || _rxHash is null || _rxPath is null) return;
 
         if (!TryParseFileEndPayload(payload, out var fileId, out var senderHash))
@@ -318,8 +290,7 @@ public sealed class TcpAesGcmSession : ISession
         // Notify UI where file went
         FileSaved?.Invoke(_rxPath);
 
-        if (_rxWritten != _rxExpectedSize)
-        {
+        if (_rxWritten != _rxExpectedSize) {
             // PoC: size mismatch; skip ACK for now (hook FileReject later)
             _rxPath = null;
             _rxExpectedSize = 0;
@@ -333,8 +304,7 @@ public sealed class TcpAesGcmSession : ISession
         await SendMessageAsync(SessionMessageType.FileAck, ackPayload, ct).ConfigureAwait(false);
 
         // (Optional) also log mismatch
-        if (!CryptographicOperations.FixedTimeEquals(localHash, senderHash))
-        {
+        if (!CryptographicOperations.FixedTimeEquals(localHash, senderHash)) {
             // PoC: you can surface this later
         }
 
@@ -345,42 +315,36 @@ public sealed class TcpAesGcmSession : ISession
         _rxExpectedChunkIndex = 0;
     }
 
-    private void HandleFileAck(byte[] payload)
-    {
+    private void HandleFileAck(byte[] payload) {
         if (!TryParseFileAckPayload(payload, out var fileId, out var hash))
             return;
 
         FileAcked?.Invoke(fileId, Convert.ToHexString(hash));
     }
 
-    private void HandleFileAccept(byte[] payload)
-    {
+    private void HandleFileAccept(byte[] payload) {
         if (!TryParseFileIdPayload(payload, out var id)) return;
 
-        lock (_txLock)
-        {
+        lock (_txLock) {
             if (_txOfferTcs is null || id != _txOfferFileId) return;
             _txOfferTcs.TrySetResult(true);
         }
     }
 
-    private void HandleFileReject(byte[] payload)
-    {
+    private void HandleFileReject(byte[] payload) {
         FileReject? rej = null;
         try { rej = JsonSerializer.Deserialize<FileReject>(payload); } catch { }
 
         if (rej is null) return;
 
-        lock (_txLock)
-        {
+        lock (_txLock) {
             if (_txOfferTcs is null || rej.FileId != _txOfferFileId) return;
             _txRejectReason = rej.Reason;
             _txOfferTcs.TrySetResult(false);
         }
     }
 
-    private async Task<bool> WaitForOfferDecisionAsync(Guid fileId, CancellationToken ct)
-    {
+    private async Task<bool> WaitForOfferDecisionAsync(Guid fileId, CancellationToken ct) {
         TaskCompletionSource<bool>? tcs;
         lock (_txLock) tcs = _txOfferTcs;
 
@@ -392,8 +356,7 @@ public sealed class TcpAesGcmSession : ISession
 
     // ---------------- Payload formats ----------------
     // Chunk: [fileId(16)][chunkIndex(4 LE)][data...]
-    private static byte[] BuildFileChunkPayload(Guid fileId, int chunkIndex, ReadOnlySpan<byte> data)
-    {
+    private static byte[] BuildFileChunkPayload(Guid fileId, int chunkIndex, ReadOnlySpan<byte> data) {
         var buf = new byte[16 + 4 + data.Length];
         fileId.TryWriteBytes(buf.AsSpan(0, 16));
         BinaryPrimitives.WriteInt32LittleEndian(buf.AsSpan(16, 4), chunkIndex);
@@ -401,8 +364,7 @@ public sealed class TcpAesGcmSession : ISession
         return buf;
     }
 
-    private static bool TryParseFileChunkPayload(byte[] payload, out Guid fileId, out int chunkIndex, out ReadOnlyMemory<byte> data)
-    {
+    private static bool TryParseFileChunkPayload(byte[] payload, out Guid fileId, out int chunkIndex, out ReadOnlyMemory<byte> data) {
         fileId = default;
         chunkIndex = 0;
         data = default;
@@ -416,8 +378,7 @@ public sealed class TcpAesGcmSession : ISession
     }
 
     // End: [fileId(16)][sha256(32)]
-    private static byte[] BuildFileEndPayload(Guid fileId, ReadOnlySpan<byte> sha256)
-    {
+    private static byte[] BuildFileEndPayload(Guid fileId, ReadOnlySpan<byte> sha256) {
         if (sha256.Length != 32) throw new ArgumentException("SHA-256 must be 32 bytes.");
         var buf = new byte[16 + 32];
         fileId.TryWriteBytes(buf.AsSpan(0, 16));
@@ -425,8 +386,7 @@ public sealed class TcpAesGcmSession : ISession
         return buf;
     }
 
-    private static bool TryParseFileEndPayload(byte[] payload, out Guid fileId, out byte[] sha256)
-    {
+    private static bool TryParseFileEndPayload(byte[] payload, out Guid fileId, out byte[] sha256) {
         fileId = default;
         sha256 = Array.Empty<byte>();
 
@@ -438,8 +398,7 @@ public sealed class TcpAesGcmSession : ISession
     }
 
     // Ack: [fileId(16)][sha256(32)]
-    private static byte[] BuildFileAckPayload(Guid fileId, ReadOnlySpan<byte> sha256)
-    {
+    private static byte[] BuildFileAckPayload(Guid fileId, ReadOnlySpan<byte> sha256) {
         if (sha256.Length != 32) throw new ArgumentException("SHA-256 must be 32 bytes.");
         var buf = new byte[48];
         fileId.TryWriteBytes(buf.AsSpan(0, 16));
@@ -447,8 +406,7 @@ public sealed class TcpAesGcmSession : ISession
         return buf;
     }
 
-    private static bool TryParseFileAckPayload(byte[] payload, out Guid fileId, out byte[] sha256)
-    {
+    private static bool TryParseFileAckPayload(byte[] payload, out Guid fileId, out byte[] sha256) {
         fileId = default;
         sha256 = Array.Empty<byte>();
         if (payload.Length != 48) return false;
@@ -457,37 +415,32 @@ public sealed class TcpAesGcmSession : ISession
         return true;
     }
 
-    private static byte[] BuildFileIdPayload(Guid id)
-    {
+    private static byte[] BuildFileIdPayload(Guid id) {
         var buf = new byte[16];
         id.TryWriteBytes(buf);
         return buf;
     }
 
-    private static bool TryParseFileIdPayload(byte[] payload, out Guid id)
-    {
+    private static bool TryParseFileIdPayload(byte[] payload, out Guid id) {
         id = default;
         if (payload.Length != 16) return false;
         id = new Guid(payload.AsSpan(0, 16));
         return true;
     }
 
-    private static string SanitizeName(string name)
-    {
+    private static string SanitizeName(string name) {
         foreach (var c in Path.GetInvalidFileNameChars())
             name = name.Replace(c, '_');
         return name;
     }
 
-    private sealed class FileOffer
-    {
+    private sealed class FileOffer {
         public Guid FileId { get; set; }
         public string Name { get; set; } = "file.bin";
         public long Size { get; set; }
     }
 
-    private sealed class FileReject
-    {
+    private sealed class FileReject {
         public Guid FileId { get; set; }
         public string Reason { get; set; } = "Rejected";
     }

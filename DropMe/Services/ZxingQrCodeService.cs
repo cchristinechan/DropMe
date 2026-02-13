@@ -39,15 +39,13 @@ public sealed class ZxingQrCodeService : IQrCodeService {
         for (int y = 0; y < height; y++) {
             // white row
             for (int i = 0; i < row.Length; i += 4) {
-                if (useRgba)
-                {
+                if (useRgba) {
                     row[i + 0] = 0xFF; // R
                     row[i + 1] = 0xFF; // G
                     row[i + 2] = 0xFF; // B
                     row[i + 3] = 0xFF; // A
                 }
-                else
-                {
+                else {
                     row[i + 0] = 0xFF; // B
                     row[i + 1] = 0xFF; // G
                     row[i + 2] = 0xFF; // R
@@ -64,15 +62,13 @@ public sealed class ZxingQrCodeService : IQrCodeService {
 
                     if (matrix[mx, my] == 1) {
                         int px = x * 4;
-                        if (useRgba)
-                        {
+                        if (useRgba) {
                             row[px + 0] = 0x00;
                             row[px + 1] = 0x00;
                             row[px + 2] = 0x00;
                             row[px + 3] = 0xFF;
                         }
-                        else
-                        {
+                        else {
                             row[px + 0] = 0x00;
                             row[px + 1] = 0x00;
                             row[px + 2] = 0x00;

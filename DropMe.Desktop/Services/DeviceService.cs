@@ -5,15 +5,12 @@ using DropMe.Services;
 
 namespace DropMe.Desktop.Services;
 
-public sealed class DeviceService : IDeviceService
-{
+public sealed class DeviceService : IDeviceService {
     public string GetDeviceString() {
         return "Desktop";
     }
-    public string GetLocalLanIp()
-    {
-        foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
-        {
+    public string GetLocalLanIp() {
+        foreach (var ni in NetworkInterface.GetAllNetworkInterfaces()) {
             if (ni.OperationalStatus != OperationalStatus.Up)
                 continue;
 
@@ -21,10 +18,8 @@ public sealed class DeviceService : IDeviceService
                 continue;
 
             var props = ni.GetIPProperties();
-            foreach (var ua in props.UnicastAddresses)
-            {
-                if (ua.Address.AddressFamily == AddressFamily.InterNetwork)
-                {
+            foreach (var ua in props.UnicastAddresses) {
+                if (ua.Address.AddressFamily == AddressFamily.InterNetwork) {
                     var ip = ua.Address.ToString();
 
                     // Skip APIPA / localhost

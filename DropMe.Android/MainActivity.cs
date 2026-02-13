@@ -25,16 +25,14 @@ public class MainActivity : AvaloniaMainActivity<App> {
     public static AndroidX.Activity.ComponentActivity? CurrentActivity { get; private set; }
     private const int CameraRequestCode = 1001;
 
-    protected override void OnCreate(Bundle? savedInstanceState)
-    {
+    protected override void OnCreate(Bundle? savedInstanceState) {
         base.OnCreate(savedInstanceState);
         CurrentActivity = this;
 
         EnsureCameraPermission();
     }
 
-    private void EnsureCameraPermission()
-    {
+    private void EnsureCameraPermission() {
         if (ContextCompat.CheckSelfPermission(this, Manifest.Permission.Camera) == Permission.Granted)
             return;
 

@@ -11,10 +11,8 @@ public class DeviceService : IDeviceService {
         return "Android";
     }
 
-    public string GetLocalLanIp()
-    {
-        foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
-        {
+    public string GetLocalLanIp() {
+        foreach (var ni in NetworkInterface.GetAllNetworkInterfaces()) {
             if (ni.OperationalStatus != OperationalStatus.Up)
                 continue;
 

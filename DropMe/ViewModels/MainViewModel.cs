@@ -75,8 +75,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         QrDecoder decoder,
         IQrCodeService qr,
         SessionFactory sessionFactory,
-        IDeviceService device)
-    {
+        IDeviceService device) {
         _camera = camera;
         _decoder = decoder;
         _qr = qr;
@@ -92,11 +91,9 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     }
 
 
-    
-    public void GenerateQr()
-    {
-        try
-        {
+
+    public void GenerateQr() {
+        try {
             Status = "Generating QR…";
 
             var psk = new byte[32];
@@ -118,41 +115,35 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             var text = ConnectionInviteCodec.Encode(invite);
             var bmp = _qr.Generate(text, pixelsPerModule: 10);
 
-            Dispatcher.UIThread.Post(() =>
-            {
+            Dispatcher.UIThread.Post(() => {
                 QrImage = bmp;
                 Status = "QR generated";
             });
 
             _ = StartHostingAsync(5050);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             Status = $"QR error: {ex.Message}";
         }
     }
 
 
-    private async Task StartHostingAsync(int port)
-    {
-        try
-        {
+    private async Task StartHostingAsync(int port) {
+        try {
             _sessionCts?.Cancel();
             _sessionCts = new CancellationTokenSource();
 
             _session = new TcpHostSession(new System.Net.IPEndPoint(System.Net.IPAddress.Any, port));
             Status = "Waiting for peer…";
 
-            if (_session is TcpHostSession h)
-            {
+            if (_session is TcpHostSession h) {
                 h.FileSaved += path =>
                     Dispatcher.UIThread.Post(() => Status = $"Received and saved: {path}");
 
                 h.FileAcked += (_, sha) =>
                     Dispatcher.UIThread.Post(() => Status = $"Delivered ✅ SHA256={sha}");
 
-                h.FileOfferDecision = offer =>
-                {
+                h.FileOfferDecision = offer => {
                     Dispatcher.UIThread.Post(() =>
                         Status = $"Incoming file: {offer.Name} ({offer.Size} bytes)");
                     return Task.FromResult(true);
@@ -164,8 +155,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             Status = $"Connected to {_session.Peer}";
             OnPropertyChanged(nameof(IsConnected));
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             Status = $"Host error: {ex.Message}";
         }
     }
@@ -180,13 +170,11 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         Status = "Starting camera...";
         DecodedText = null;
 
-        try
-        {
+        try {
             await _camera.StartAsync(_scanCts.Token);
             Status = "Scanning... show a QR to the camera.";
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             Status = $"Camera error: {ex.Message}";
         }
     }
@@ -209,8 +197,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private DateTime _lastDecode = DateTime.MinValue;
 
     private void OnFrameArrived(CameraFrame frame) {
-        if (!_firstFrameSeen)
-        {
+        if (!_firstFrameSeen) {
             _firstFrameSeen = true;
             Dispatcher.UIThread.Post(() =>
                 Status = $"Camera frame: {frame.Width}x{frame.Height} stride={frame.Stride}");
@@ -229,13 +216,11 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         }
     }
 
-    private void RenderPreview()
-    {
+    private void RenderPreview() {
         byte[]? bytes;
         int w, h, stride;
 
-        lock (_frameLock)
-        {
+        lock (_frameLock) {
             bytes = _latestFrameBytes;
             w = _latestWidth;
             h = _latestHeight;
@@ -256,20 +241,16 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             pixelFormat,
             AlphaFormat.Unpremul);
 
-        using (var fb = bmp.Lock())
-        {
+        using (var fb = bmp.Lock()) {
             int rows = Math.Min(h, fb.Size.Height);
             int dstStride = fb.RowBytes;
 
-            if (stride == dstStride)
-            {
+            if (stride == dstStride) {
                 Marshal.Copy(bytes, 0, fb.Address, rows * dstStride);
             }
-            else
-            {
+            else {
                 int colsBytes = Math.Min(stride, dstStride);
-                for (int y = 0; y < rows; y++)
-                {
+                for (int y = 0; y < rows; y++) {
                     Marshal.Copy(bytes, y * stride, fb.Address + (y * dstStride), colsBytes);
                 }
             }
@@ -335,31 +316,27 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             _sessionCts = new CancellationTokenSource();
             _session = _sessionFactory.Create(invite);
 
-            if (_session is TcpAesGcmSession s)
-            {
+            if (_session is TcpAesGcmSession s) {
                 s.FileSaved += path =>
                     Dispatcher.UIThread.Post(() => Status = $"Received and saved: {path}");
 
                 s.FileAcked += (_, sha) =>
                     Dispatcher.UIThread.Post(() => Status = $"Delivered ✅ SHA256={sha}");
 
-                s.FileOfferDecision = offer =>
-                {
+                s.FileOfferDecision = offer => {
                     Dispatcher.UIThread.Post(() =>
                         Status = $"Incoming file: {offer.Name} ({offer.Size} bytes)");
                     return Task.FromResult(true);
                 };
             }
-            else if (_session is TcpHostSession h)
-            {
+            else if (_session is TcpHostSession h) {
                 h.FileSaved += path =>
                     Dispatcher.UIThread.Post(() => Status = $"Received and saved: {path}");
 
                 h.FileAcked += (_, sha) =>
                     Dispatcher.UIThread.Post(() => Status = $"Delivered ✅ SHA256={sha}");
 
-                h.FileOfferDecision = offer =>
-                {
+                h.FileOfferDecision = offer => {
                     Dispatcher.UIThread.Post(() =>
                         Status = $"Incoming file: {offer.Name} ({offer.Size} bytes)");
                     return Task.FromResult(true);
@@ -404,8 +381,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             Preview = Preview;
         }
     }
-    public async Task SendFileAsync()
-    {
+    public async Task SendFileAsync() {
         if (_session is null)
             return;
 
@@ -414,8 +390,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             "helloworld.txt");
 
         // PoC: ensure file exists
-        if (!File.Exists(path))
-        {
+        if (!File.Exists(path)) {
             await File.WriteAllTextAsync(
                 path,
                 "Hello world from DropMe 👋\n");

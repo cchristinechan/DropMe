@@ -13,16 +13,14 @@ using DropMe.Services;
 
 namespace DropMe.Android.Services;
 
-public sealed class AndroidCameraService : ICameraService
-{
+public sealed class AndroidCameraService : ICameraService {
     private ProcessCameraProvider? _cameraProvider;
     private ImageAnalysis? _analysis;
     private CancellationTokenSource? _loopCts;
 
     public event Action<CameraFrame>? FrameArrived;
 
-    public async Task StartAsync(CancellationToken ct = default)
-    {
+    public async Task StartAsync(CancellationToken ct = default) {
         _loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         var activity = MainActivity.CurrentActivity
@@ -37,19 +35,15 @@ public sealed class AndroidCameraService : ICameraService
 
         _analysis = analysisBuilder.Build();
 
-        _analysis.SetAnalyzer(ContextCompat.GetMainExecutor(activity), new Analyzer(image =>
-        {
-            if (_loopCts?.IsCancellationRequested == true)
-            {
+        _analysis.SetAnalyzer(ContextCompat.GetMainExecutor(activity), new Analyzer(image => {
+            if (_loopCts?.IsCancellationRequested == true) {
                 image.Close();
                 return;
             }
 
-            try
-            {
+            try {
                 var planes = image.GetPlanes();
-                if (planes is null || planes.Length == 0)
-                {
+                if (planes is null || planes.Length == 0) {
                     image.Close();
                     return;
                 }
@@ -67,23 +61,20 @@ public sealed class AndroidCameraService : ICameraService
 
                 FrameArrived?.Invoke(new CameraFrame(width, height, bytes, stride));
             }
-            finally
-            {
+            finally {
                 image.Close();
             }
         }));
 
         var cameraSelector = CameraSelector.DefaultBackCamera;
 
-        await RunOnUiThreadAsync(activity, () =>
-        {
+        await RunOnUiThreadAsync(activity, () => {
             provider.UnbindAll();
             provider.BindToLifecycle((ILifecycleOwner)activity, cameraSelector, _analysis);
         }).ConfigureAwait(false);
     }
 
-    public Task StopAsync(CancellationToken ct = default)
-    {
+    public Task StopAsync(CancellationToken ct = default) {
         _loopCts?.Cancel();
         _loopCts = null;
 
@@ -91,8 +82,7 @@ public sealed class AndroidCameraService : ICameraService
         _analysis = null;
 
         var activity = MainActivity.CurrentActivity;
-        if (activity is not null && _cameraProvider is not null)
-        {
+        if (activity is not null && _cameraProvider is not null) {
             activity.RunOnUiThread(() => _cameraProvider.UnbindAll());
         }
 
@@ -102,19 +92,15 @@ public sealed class AndroidCameraService : ICameraService
 
     public async ValueTask DisposeAsync() => await StopAsync();
 
-    private static Task<ProcessCameraProvider> GetCameraProviderAsync(Context context)
-    {
+    private static Task<ProcessCameraProvider> GetCameraProviderAsync(Context context) {
         var future = ProcessCameraProvider.GetInstance(context);
         var tcs = new TaskCompletionSource<ProcessCameraProvider>();
 
-        future.AddListener(new Java.Lang.Runnable(() =>
-        {
-            try
-            {
+        future.AddListener(new Java.Lang.Runnable(() => {
+            try {
                 tcs.TrySetResult((ProcessCameraProvider)future.Get());
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 tcs.TrySetException(ex);
             }
         }), ContextCompat.GetMainExecutor(context));
@@ -122,23 +108,19 @@ public sealed class AndroidCameraService : ICameraService
         return tcs.Task;
     }
 
-    private static Task RunOnUiThreadAsync(global::Android.App.Activity activity, Action action)
-    {
+    private static Task RunOnUiThreadAsync(global::Android.App.Activity activity, Action action) {
         var tcs = new TaskCompletionSource<bool>();
-        activity.RunOnUiThread(() =>
-        {
+        activity.RunOnUiThread(() => {
             try { action(); tcs.SetResult(true); }
             catch (Exception ex) { tcs.SetException(ex); }
         });
         return tcs.Task;
     }
 
-    private sealed class Analyzer(Action<IImageProxy> onFrame) : Java.Lang.Object, ImageAnalysis.IAnalyzer
-    {
+    private sealed class Analyzer(Action<IImageProxy> onFrame) : Java.Lang.Object, ImageAnalysis.IAnalyzer {
         public Size? DefaultTargetResolution => null;
-        
-        public void Analyze(IImageProxy image)
-        {
+
+        public void Analyze(IImageProxy image) {
             onFrame(image);
         }
     }
