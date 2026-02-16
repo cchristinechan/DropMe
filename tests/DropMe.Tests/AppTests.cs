@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using DropMe.Services;
+using DropMe.Services.Session;
 using DropMe.ViewModels;
 using DropMe.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +23,9 @@ public class Tests {
         Assert.That(App.Services, Is.Not.Null);
 
         // Check necessary services exist
-        Assert.DoesNotThrow(() => App.Services.GetRequiredService<MainViewModel>());
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<IWorkManager>());
+        Assert.DoesNotThrow(() => App.Services.GetRequiredService<IFileTransfer>());
+        Assert.DoesNotThrow(() => App.Services.GetRequiredService<IQrCodeService>());
+        Assert.DoesNotThrow(() => App.Services.GetRequiredService<SessionFactory>());
     }
 }
