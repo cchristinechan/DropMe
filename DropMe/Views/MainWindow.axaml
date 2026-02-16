@@ -7,5 +7,10 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="DropMe.Views.MainWindow"
         Icon="/Assets/avalonia-logo.ico"
+        Width="1200"
+        Height="850"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
         Title="DropMe">
+        <ContentControl x:Name="MainContent" />
 </Window>

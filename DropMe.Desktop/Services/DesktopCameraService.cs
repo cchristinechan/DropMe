@@ -19,8 +19,10 @@ public sealed class DesktopCameraService : ICameraService {
 
         if (!_cap.IsOpened())
             throw new InvalidOperationException("Could not open camera 0.");
-        _cap.Set(VideoCaptureProperties.FrameWidth, 640);
-        _cap.Set(VideoCaptureProperties.FrameHeight, 480);
+
+        _cap.Set(VideoCaptureProperties.FourCC, VideoWriter.FourCC('M', 'J', 'P', 'G'));
+        _cap.Set(VideoCaptureProperties.FrameWidth, 1280);
+        _cap.Set(VideoCaptureProperties.FrameHeight, 720);
         _cap.Set(VideoCaptureProperties.Fps, 30);
         _loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _ = Task.Run(() => Loop(_loopCts.Token), _loopCts.Token);

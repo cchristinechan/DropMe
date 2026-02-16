@@ -2,6 +2,7 @@
 using System.IO;
 using System.ComponentModel;
 using System.Net;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Threading;
@@ -17,6 +18,10 @@ using DropMe.Services.Session;
 namespace DropMe.ViewModels;
 
 public sealed class MainViewModel : INotifyPropertyChanged {
+    // Keep true while testing two app instances on the same computer.
+    // Set to false later to block same-machine loopback connections.
+    private const bool AllowSameMachineConnectionsForTesting = true;
+
     private readonly ICameraService _camera;
     private readonly QrDecoder _decoder;
     private readonly IQrCodeService _qr;
@@ -29,16 +34,88 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private DispatcherTimer? _renderTimer;
     private ISession? _session;
     private CancellationTokenSource? _sessionCts;
+    private CancellationTokenSource? _sessionMonitorCts;
+    private bool _isStoppingSession;
     private int _qrHandled = 0;
-    private bool _firstFrameSeen;
     private readonly SessionFactory _sessionFactory;
     private readonly IDeviceService _device;
+    private string? _lastGeneratedInviteText;
+    private string? _localInviteSessionId;
 
 
     public bool IsConnected => _session?.State == SessionState.Connected;
 
+    public bool IsScanning => _scanCts is not null;
+    public bool ShowGeneratedQr => !IsScanning;
+    public string MainCardTitle => IsScanning ? "Camera Preview" : "Your QR Code";
+    public string ScanButtonText => IsScanning ? "Stop scanning" : "Scan QR";
 
+    private string? _sessionId;
+    public string? SessionId {
+        get => _sessionId;
+        private set { _sessionId = value; OnPropertyChanged(); }
+    }
 
+    private string _sessionStatus = "Not connected";
+    public string SessionStatus {
+        get => _sessionStatus;
+        private set { _sessionStatus = value; OnPropertyChanged(); }
+    }
+
+    private string? _sessionMessage;
+    public string? SessionMessage {
+        get => _sessionMessage;
+        private set { _sessionMessage = value; OnPropertyChanged(); }
+    }
+
+    private string? _homeSessionMessage;
+    public string? HomeSessionMessage {
+        get => _homeSessionMessage;
+        private set { _homeSessionMessage = value; OnPropertyChanged(); }
+    }
+
+    public event Action? SessionConnected;
+    public event Action? SessionEnded;
+
+    public Func<FileOfferInfo, System.Threading.Tasks.Task<bool>>? FileOfferDecisionUi;
+    public Func<Task<string?>>? PickFilePathUi;
+    public Func<Task<string?>>? PickDownloadFolderUi;
+
+    public sealed record FileOfferInfo(Guid FileId, string Name, long Size);
+
+    private TaskCompletionSource<bool>? _pendingFileOfferTcs;
+
+    private bool _hasPendingFileOffer;
+    public bool HasPendingFileOffer {
+        get => _hasPendingFileOffer;
+        private set { _hasPendingFileOffer = value; OnPropertyChanged(); }
+    }
+
+    private string? _pendingFileOfferMessage;
+    public string? PendingFileOfferMessage {
+        get => _pendingFileOfferMessage;
+        private set { _pendingFileOfferMessage = value; OnPropertyChanged(); }
+    }
+
+    private string? _pendingFileOfferName;
+    public string? PendingFileOfferName {
+        get => _pendingFileOfferName;
+        private set { _pendingFileOfferName = value; OnPropertyChanged(); }
+    }
+
+    private string? _pendingFileOfferSizeText;
+    public string? PendingFileOfferSizeText {
+        get => _pendingFileOfferSizeText;
+        private set { _pendingFileOfferSizeText = value; OnPropertyChanged(); }
+    }
+
+    private string _downloadFolder = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+        "DropMeReceived");
+    public string DownloadFolder {
+        get => _downloadFolder;
+        private set { _downloadFolder = value; OnPropertyChanged(); }
+    }
 
 
     private CancellationTokenSource? _scanCts;
@@ -94,17 +171,16 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
     public void GenerateQr() {
         try {
-            Status = "Generating QR…";
-
             var psk = new byte[32];
             RandomNumberGenerator.Fill(psk);
 
             var ip = _device.GetLocalLanIp();
+            var port = ReserveAvailableTcpPort();
 
             var invite = new ConnectionInvite(
                 V: 2,
                 Ip: ip,
-                Port: 5050,
+                Port: port,
                 Sid: Guid.NewGuid().ToString("N"),
                 Psk: ConnectionInviteCodec.Base64UrlEncode(psk),
                 Transport: "lan",
@@ -112,47 +188,78 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                 Bssid: null
             );
 
+            SessionId = invite.Sid;
+            _localInviteSessionId = invite.Sid;
+
             var text = ConnectionInviteCodec.Encode(invite);
+            _lastGeneratedInviteText = text;
             var bmp = _qr.Generate(text, pixelsPerModule: 10);
 
             Dispatcher.UIThread.Post(() => {
                 QrImage = bmp;
-                Status = "QR generated";
             });
 
-            _ = StartHostingAsync(5050);
+            _ = StartHostingAsync(port);
         }
         catch (Exception ex) {
             Status = $"QR error: {ex.Message}";
         }
     }
 
+    private static int ReserveAvailableTcpPort() {
+        var listener = new TcpListener(IPAddress.Any, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
+    }
+
 
     private async Task StartHostingAsync(int port) {
         try {
+            _sessionMonitorCts?.Cancel();
+            _sessionMonitorCts?.Dispose();
+            _sessionMonitorCts = null;
+
             _sessionCts?.Cancel();
+            _sessionCts?.Dispose();
             _sessionCts = new CancellationTokenSource();
 
+            if (_session is not null) {
+                try {
+                    await _session.StopAsync();
+                }
+                catch {
+                    // Best effort: old session may already be closed/canceled.
+                }
+
+                _session = null;
+            }
+
             _session = new TcpHostSession(new System.Net.IPEndPoint(System.Net.IPAddress.Any, port));
-            Status = "Waiting for peer…";
 
             if (_session is TcpHostSession h) {
                 h.FileSaved += path =>
-                    Dispatcher.UIThread.Post(() => Status = $"Received and saved: {path}");
+                    Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
                 h.FileAcked += (_, sha) =>
-                    Dispatcher.UIThread.Post(() => Status = $"Delivered ✅ SHA256={sha}");
+                    Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered ✅ SHA256={sha}");
 
-                h.FileOfferDecision = offer => {
-                    Dispatcher.UIThread.Post(() =>
-                        Status = $"Incoming file: {offer.Name} ({offer.Size} bytes)");
-                    return Task.FromResult(true);
+                h.FileOfferDecision = async offer => {
+                    var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
+                    return FileOfferDecisionUi is null ? true : await FileOfferDecisionUi(info);
                 };
             }
 
+            ApplyDownloadFolderToSession(_session);
             await _session.StartAsync(_sessionCts.Token);
+            StartSessionMonitor(_session, _sessionCts.Token);
 
             Status = $"Connected to {_session.Peer}";
+            SessionStatus = "Connected";
+            HomeSessionMessage = null;
+            Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
+
             OnPropertyChanged(nameof(IsConnected));
         }
         catch (Exception ex) {
@@ -169,6 +276,11 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         _scanCts = new CancellationTokenSource();
         Status = "Starting camera...";
         DecodedText = null;
+        HomeSessionMessage = null;
+        OnPropertyChanged(nameof(IsScanning));
+        OnPropertyChanged(nameof(ShowGeneratedQr));
+        OnPropertyChanged(nameof(MainCardTitle));
+        OnPropertyChanged(nameof(ScanButtonText));
 
         try {
             await _camera.StartAsync(_scanCts.Token);
@@ -190,6 +302,10 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
         await _camera.StopAsync();
         Status = "Scan stopped.";
+        OnPropertyChanged(nameof(IsScanning));
+        OnPropertyChanged(nameof(ShowGeneratedQr));
+        OnPropertyChanged(nameof(MainCardTitle));
+        OnPropertyChanged(nameof(ScanButtonText));
 
     }
 
@@ -197,12 +313,6 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private DateTime _lastDecode = DateTime.MinValue;
 
     private void OnFrameArrived(CameraFrame frame) {
-        if (!_firstFrameSeen) {
-            _firstFrameSeen = true;
-            Dispatcher.UIThread.Post(() =>
-                Status = $"Camera frame: {frame.Width}x{frame.Height} stride={frame.Stride}");
-        }
-
         lock (_frameLock) {
             _latestWidth = frame.Width;
             _latestHeight = frame.Height;
@@ -301,15 +411,36 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     }
     private async Task HandleQrDecodedAsync(string decoded) {
         try {
-            await StopScanAsync();
+            if (string.Equals(decoded, _lastGeneratedInviteText, StringComparison.Ordinal)) {
+                Status = "Ignored your own QR code.";
+                Interlocked.Exchange(ref _qrHandled, 0);
+                return;
+            }
 
             Status = "Parsing invite…";
 
-
             if (!ConnectionInviteCodec.TryDecode(decoded, out var invite) || invite is null) {
                 Status = "Invalid invite";
+                Interlocked.Exchange(ref _qrHandled, 0);
                 return;
             }
+
+            if (!AllowSameMachineConnectionsForTesting &&
+                string.Equals(invite.Ip, _device.GetLocalLanIp(), StringComparison.OrdinalIgnoreCase)) {
+                Status = "Blocked: this QR points to your own computer.";
+                Interlocked.Exchange(ref _qrHandled, 0);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_localInviteSessionId) &&
+                string.Equals(invite.Sid, _localInviteSessionId, StringComparison.Ordinal)) {
+                Status = "Ignored your own QR code.";
+                Interlocked.Exchange(ref _qrHandled, 0);
+                return;
+            }
+
+            await StopScanAsync();
+            SessionId = invite.Sid;
 
             Status = "Connecting to peer…";
 
@@ -318,40 +449,99 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
             if (_session is TcpAesGcmSession s) {
                 s.FileSaved += path =>
-                    Dispatcher.UIThread.Post(() => Status = $"Received and saved: {path}");
+                    Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
                 s.FileAcked += (_, sha) =>
-                    Dispatcher.UIThread.Post(() => Status = $"Delivered ✅ SHA256={sha}");
+                    Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered ✅ SHA256={sha}");
 
-                s.FileOfferDecision = offer => {
-                    Dispatcher.UIThread.Post(() =>
-                        Status = $"Incoming file: {offer.Name} ({offer.Size} bytes)");
-                    return Task.FromResult(true);
+                s.FileOfferDecision = async offer => {
+                    var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
+                    return FileOfferDecisionUi is null ? true : await FileOfferDecisionUi(info);
                 };
             }
             else if (_session is TcpHostSession h) {
                 h.FileSaved += path =>
-                    Dispatcher.UIThread.Post(() => Status = $"Received and saved: {path}");
+                    Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
                 h.FileAcked += (_, sha) =>
-                    Dispatcher.UIThread.Post(() => Status = $"Delivered ✅ SHA256={sha}");
+                    Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered ✅ SHA256={sha}");
 
-                h.FileOfferDecision = offer => {
-                    Dispatcher.UIThread.Post(() =>
-                        Status = $"Incoming file: {offer.Name} ({offer.Size} bytes)");
-                    return Task.FromResult(true);
+                h.FileOfferDecision = async offer => {
+                    var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
+                    return FileOfferDecisionUi is null ? true : await FileOfferDecisionUi(info);
                 };
             }
 
-
+            ApplyDownloadFolderToSession(_session);
             await _session.StartAsync(_sessionCts.Token);
+            StartSessionMonitor(_session, _sessionCts.Token);
 
             Status = $"Connected to {invite.Ip}:{invite.Port}";
+            SessionStatus = "Connected";
+            HomeSessionMessage = null;
+            Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
+
             OnPropertyChanged(nameof(IsConnected));
         }
         catch (Exception ex) {
             Status = $"Connection failed: {ex.Message}";
+            Interlocked.Exchange(ref _qrHandled, 0);
         }
+    }
+
+    public async Task StopSessionAsync(bool resetToReady = true, string? homeMessage = null) {
+        try {
+            _isStoppingSession = true;
+            RejectPendingFileOffer();
+            _sessionMonitorCts?.Cancel();
+            _sessionMonitorCts?.Dispose();
+            _sessionMonitorCts = null;
+
+            _sessionCts?.Cancel();
+            _sessionCts?.Dispose();
+            _sessionCts = null;
+
+            if (_session is not null) {
+                await _session.StopAsync();
+                _session = null;
+            }
+
+            SessionId = null;
+            SessionStatus = "Not connected";
+            SessionMessage = null;
+            if (resetToReady)
+                Status = "Ready";
+            if (!string.IsNullOrWhiteSpace(homeMessage))
+                HomeSessionMessage = homeMessage;
+
+            OnPropertyChanged(nameof(IsConnected));
+            SessionEnded?.Invoke();
+        }
+        catch (Exception ex) {
+            Status = $"End session error: {ex.Message}";
+        }
+        finally {
+            _isStoppingSession = false;
+        }
+    }
+
+    public async Task PrepareMainPageAsync(string? homeMessage = null, bool regenerateQr = true) {
+        if (IsScanning)
+            await StopScanAsync();
+
+        Interlocked.Exchange(ref _qrHandled, 0);
+        Preview = null;
+
+        if (regenerateQr)
+            GenerateQr();
+
+        if (!string.IsNullOrWhiteSpace(homeMessage))
+            HomeSessionMessage = homeMessage;
+
+        OnPropertyChanged(nameof(IsScanning));
+        OnPropertyChanged(nameof(ShowGeneratedQr));
+        OnPropertyChanged(nameof(MainCardTitle));
+        OnPropertyChanged(nameof(ScanButtonText));
     }
 
     private void CopyBytesToPreview(byte[] rgba, int width, int height, int srcStride) {
@@ -385,20 +575,123 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         if (_session is null)
             return;
 
-        var path = Path.Combine(
-            AppContext.BaseDirectory,
-            "helloworld.txt");
+        try {
+            var path = PickFilePathUi is null
+                ? null
+                : await PickFilePathUi();
 
-        // PoC: ensure file exists
-        if (!File.Exists(path)) {
-            await File.WriteAllTextAsync(
-                path,
-                "Hello world from DropMe 👋\n");
+            if (string.IsNullOrWhiteSpace(path)) {
+                Status = "Send canceled.";
+                return;
+            }
+
+            Status = "Sending file…";
+            await _session.SendFileAsync(path, CancellationToken.None);
+            Status = "File sent.";
         }
+        catch (Exception ex) {
+            SessionMessage = $"Send failed: {ex.Message}";
+            Status = "Send failed.";
+        }
+    }
 
-        Status = "Sending file…";
-        await _session.SendFileAsync(path, CancellationToken.None);
-        Status = "File sent.";
+    public async Task ChooseDownloadFolderAsync() {
+        try {
+            var selected = PickDownloadFolderUi is null
+                ? null
+                : await PickDownloadFolderUi();
+
+            if (string.IsNullOrWhiteSpace(selected)) {
+                Status = "Download folder unchanged.";
+                return;
+            }
+
+            DownloadFolder = selected;
+            ApplyDownloadFolderToSession(_session);
+            Status = "Download folder updated.";
+        }
+        catch (Exception ex) {
+            Status = $"Folder selection failed: {ex.Message}";
+        }
+    }
+
+    private void ApplyDownloadFolderToSession(ISession? session) {
+        if (session is TcpAesGcmSession aes)
+            aes.DownloadDirectory = DownloadFolder;
+        else if (session is TcpHostSession host)
+            host.DownloadDirectory = DownloadFolder;
+    }
+
+    public Task<bool> RequestFileOfferDecisionAsync(FileOfferInfo info) {
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var previous = Interlocked.Exchange(ref _pendingFileOfferTcs, tcs);
+        previous?.TrySetResult(false);
+
+        var sizeKb = Math.Max(1, (int)Math.Ceiling(info.Size / 1024d));
+        Dispatcher.UIThread.Post(() => {
+            PendingFileOfferName = info.Name;
+            PendingFileOfferSizeText = $"{sizeKb} KB";
+            PendingFileOfferMessage = "Incoming file offer";
+            HasPendingFileOffer = true;
+        });
+
+        return tcs.Task;
+    }
+
+    public void AcceptPendingFileOffer() {
+        ResolvePendingFileOffer(true);
+    }
+
+    public void RejectPendingFileOffer() {
+        ResolvePendingFileOffer(false);
+    }
+
+    private void ResolvePendingFileOffer(bool accepted) {
+        var tcs = Interlocked.Exchange(ref _pendingFileOfferTcs, null);
+        tcs?.TrySetResult(accepted);
+
+        Dispatcher.UIThread.Post(() => {
+            HasPendingFileOffer = false;
+            PendingFileOfferMessage = null;
+            PendingFileOfferName = null;
+            PendingFileOfferSizeText = null;
+        });
+    }
+
+    private void StartSessionMonitor(ISession session, CancellationToken sessionToken) {
+        _sessionMonitorCts?.Cancel();
+        _sessionMonitorCts?.Dispose();
+        _sessionMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(sessionToken);
+
+        var monitorToken = _sessionMonitorCts.Token;
+        _ = Task.Run(async () => {
+            try {
+                while (!monitorToken.IsCancellationRequested) {
+                    var state = session.State;
+                    if (state is SessionState.Closed or SessionState.Error) {
+                        if (_isStoppingSession)
+                            return;
+
+                        Dispatcher.UIThread.Post(async () => {
+                            if (_isStoppingSession)
+                                return;
+
+                            await StopSessionAsync(
+                                resetToReady: false,
+                                homeMessage: "Session disconnected.");
+                            await PrepareMainPageAsync(
+                                homeMessage: "Session disconnected.",
+                                regenerateQr: true);
+                            Status = "Session ended: peer disconnected.";
+                        });
+                        return;
+                    }
+
+                    await Task.Delay(250, monitorToken);
+                }
+            }
+            catch (OperationCanceledException) { }
+        }, monitorToken);
     }
 
 

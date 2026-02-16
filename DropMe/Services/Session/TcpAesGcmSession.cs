@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -31,6 +32,7 @@ public sealed class TcpAesGcmSession : ISession {
     private TaskCompletionSource<bool>? _txOfferTcs;
     private Guid _txOfferFileId;
     private string? _txRejectReason;
+    private readonly Dictionary<Guid, byte[]> _txExpectedAckHashes = new();
 
     public Func<FileOfferInfo, Task<bool>>? FileOfferDecision { get; set; }
 
@@ -41,6 +43,7 @@ public sealed class TcpAesGcmSession : ISession {
 
     public SessionState State { get; private set; } = SessionState.Idle;
     public string Peer => _endpoint.ToString();
+    public string? DownloadDirectory { get; set; }
 
     public TcpAesGcmSession(IPEndPoint endpoint) => _endpoint = endpoint;
 
@@ -123,6 +126,10 @@ public sealed class TcpAesGcmSession : ISession {
         }
 
         var hash = sha.GetHashAndReset(); // 32 bytes
+        lock (_txLock) {
+            _txExpectedAckHashes[fileId] = (byte[])hash.Clone();
+        }
+
         var endPayload = BuildFileEndPayload(fileId, hash);
         await SendMessageAsync(SessionMessageType.FileDone, endPayload, ct).ConfigureAwait(false);
     }
@@ -131,6 +138,9 @@ public sealed class TcpAesGcmSession : ISession {
         State = SessionState.Closed;
         try { _rxFile?.Dispose(); } catch { }
         try { _rxHash?.Dispose(); } catch { }
+        lock (_txLock) {
+            _txExpectedAckHashes.Clear();
+        }
         _stream?.Dispose();
         _client?.Dispose();
         return Task.CompletedTask;
@@ -240,7 +250,9 @@ public sealed class TcpAesGcmSession : ISession {
         _rxWritten = 0;
         _rxExpectedChunkIndex = 0;
 
-        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "DropMeReceived");
+        var dir = string.IsNullOrWhiteSpace(DownloadDirectory)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "DropMeReceived")
+            : DownloadDirectory;
         Directory.CreateDirectory(dir);
 
         _rxPath = Path.Combine(dir, $"recv_{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeName(offer.Name)}");
@@ -284,40 +296,49 @@ public sealed class TcpAesGcmSession : ISession {
         _rxHash.Dispose();
         _rxHash = null;
 
-        var localHex = Convert.ToHexString(localHash);
-        var senderHex = Convert.ToHexString(senderHash);
-
-        // Notify UI where file went
-        FileSaved?.Invoke(_rxPath);
-
         if (_rxWritten != _rxExpectedSize) {
-            // PoC: size mismatch; skip ACK for now (hook FileReject later)
-            _rxPath = null;
-            _rxExpectedSize = 0;
-            _rxWritten = 0;
-            _rxExpectedChunkIndex = 0;
+            await SendTransferRejectAsync(fileId, "Size mismatch", ct).ConfigureAwait(false);
+            TryDeleteFile(_rxPath);
+            ResetReceiveState();
             return;
         }
 
-        // ACK back with OUR computed hash (proof receiver wrote what it got)
+        if (!CryptographicOperations.FixedTimeEquals(localHash, senderHash)) {
+            await SendTransferRejectAsync(fileId, "SHA-256 mismatch", ct).ConfigureAwait(false);
+            TryDeleteFile(_rxPath);
+            ResetReceiveState();
+            return;
+        }
+
+        // Notify UI where file went only when integrity checks pass.
+        FileSaved?.Invoke(_rxPath);
+
+        // ACK back with our computed hash (must match sender hash at this point).
         var ackPayload = BuildFileAckPayload(fileId, localHash);
         await SendMessageAsync(SessionMessageType.FileAck, ackPayload, ct).ConfigureAwait(false);
 
-        // (Optional) also log mismatch
-        if (!CryptographicOperations.FixedTimeEquals(localHash, senderHash)) {
-            // PoC: you can surface this later
-        }
-
-        // reset receive state
-        _rxPath = null;
-        _rxExpectedSize = 0;
-        _rxWritten = 0;
-        _rxExpectedChunkIndex = 0;
+        ResetReceiveState();
     }
 
     private void HandleFileAck(byte[] payload) {
         if (!TryParseFileAckPayload(payload, out var fileId, out var hash))
             return;
+
+        byte[]? expectedHash = null;
+        lock (_txLock) {
+            if (_txExpectedAckHashes.TryGetValue(fileId, out var h))
+                expectedHash = h;
+        }
+
+        if (expectedHash is null)
+            return;
+
+        if (!CryptographicOperations.FixedTimeEquals(expectedHash, hash))
+            return;
+
+        lock (_txLock) {
+            _txExpectedAckHashes.Remove(fileId);
+        }
 
         FileAcked?.Invoke(fileId, Convert.ToHexString(hash));
     }
@@ -352,6 +373,31 @@ public sealed class TcpAesGcmSession : ISession {
 
         using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
         return await tcs.Task.ConfigureAwait(false);
+    }
+
+    private async Task SendTransferRejectAsync(Guid fileId, string reason, CancellationToken ct) {
+        var rej = new FileReject { FileId = fileId, Reason = reason };
+        await SendMessageAsync(SessionMessageType.FileReject, JsonSerializer.SerializeToUtf8Bytes(rej), ct).ConfigureAwait(false);
+    }
+
+    private static void TryDeleteFile(string? path) {
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        try {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch {
+            // best effort cleanup
+        }
+    }
+
+    private void ResetReceiveState() {
+        _rxPath = null;
+        _rxExpectedSize = 0;
+        _rxWritten = 0;
+        _rxExpectedChunkIndex = 0;
     }
 
     // ---------------- Payload formats ----------------
@@ -445,3 +491,4 @@ public sealed class TcpAesGcmSession : ISession {
         public string Reason { get; set; } = "Rejected";
     }
 }
+

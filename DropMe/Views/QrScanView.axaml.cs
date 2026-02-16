@@ -8,4 +8,7 @@ public partial class QrScanView : UserControl {
     public QrScanView() {
         InitializeComponent();
     }
+    private void InitializeComponent() {
+        AvaloniaXamlLoader.Load(this);
+    }
 }
