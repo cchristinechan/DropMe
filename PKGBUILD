@@ -3,14 +3,20 @@ pkgver="1.0.0"
 pkgrel="1"
 pkgdesc="Peer to peer secure file transfer tool"
 arch=("x86_64")
-depends=("dotnet-host" "dotnet-runtime")
-makedepends=("dotnet-sdk" "git")
-checkdepends=("xorg-server-xvfb" "dotnet-runtime" "libx11" "libice" "libsm" "fontconfig" "gnu-free-fonts")
-source=("git+https://gitlab.scss.tcd.ie/sweng26_group3/sweng26_group3.git")
-sha256sums=("SKIP")
+depends=("dotnet-host" "dotnet-runtime" "glibc" "libx11" "libice" "libsm" "fontconfig" "tesseract" "opencv" "hdf5" "vtk" "libstdc++" "libgcc")
+makedepends=("dotnet-sdk" "git" "cmake")
+checkdepends=("xorg-server-xvfb" "fontconfig" "gnu-free-fonts")
+source=("git+https://gitlab.scss.tcd.ie/sweng26_group3/sweng26_group3.git" "git+https://github.com/shimat/opencvsharp.git")
+sha256sums=("SKIP" "SKIP")
 license=("custom")
 
 build() {
+    cd ${srcdir}/opencvsharp/src/OpenCvSharpExtern
+    mkdir build
+    cd build
+    cmake .. -D CMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+    cmake --build . --config Release
+
     cd ${srcdir}/sweng26_group3/DropMe.Desktop
     dotnet publish -c release --os linux --arch x64
 }
@@ -25,7 +31,7 @@ check() {
 }
 
 package() {
-    depends=("glibc" "libx11" "libice" "libsm" "fontconfig")
+    install -Dm755 ${srcdir}/opencvsharp/src/OpenCvSharpExtern/build/libOpenCvSharpExtern.so ${pkgdir}/usr/lib/libOpenCvSharpExtern.so
 
     install -d "${pkgdir}/usr/lib/DropMe"
     cp ${srcdir}/sweng26_group3/DropMe.Desktop/bin/release/net10.0/linux-x64/publish/* ${pkgdir}/usr/lib/DropMe/
