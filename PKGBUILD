@@ -9,6 +9,7 @@ checkdepends=("xorg-server-xvfb" "fontconfig" "gnu-free-fonts")
 source=("git+https://gitlab.scss.tcd.ie/sweng26_group3/sweng26_group3.git" "git+https://github.com/shimat/opencvsharp.git")
 sha256sums=("SKIP" "SKIP")
 license=("custom")
+options=(!debug !strip)
 
 build() {
     cd ${srcdir}/opencvsharp/src/OpenCvSharpExtern
