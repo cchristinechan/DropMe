@@ -3,11 +3,11 @@
 namespace DropMe.Services.Session;
 
 public sealed class SessionFactory {
-    public ISession Create(ConnectionInvite invite) {
+    public ISession Create(IStorageService storageService, ConnectionInvite invite) {
         var ep = new IPEndPoint(
             IPAddress.Parse(invite.Ip),
             invite.Port);
 
-        return new TcpAesGcmSession(ep);
+        return new TcpAesGcmSession(storageService, ep);
     }
 }
