@@ -81,6 +81,7 @@ public sealed class TcpAesGcmSession : ISession {
         if (_stream is null) throw new InvalidOperationException("Not connected.");
 
         var fileId = Guid.NewGuid();
+
         var offer = new FileOffer {
             FileId = fileId,
             Name = filename,
@@ -253,9 +254,14 @@ public sealed class TcpAesGcmSession : ISession {
         //    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "DropMeReceived")
         //    : DownloadDirectory;
         //Directory.CreateDirectory(dir);
-        _rxStream =
+        var output =
             _storageService.OpenDownloadFileWriteStreamAsync(
                 $"recv_{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeName(offer.Name)}");
+
+        if (output is var (stream, path)) {
+            _rxStream = stream;
+            _rxPath = path;
+        }
         
         _rxHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 

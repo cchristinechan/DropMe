@@ -22,6 +22,9 @@ public class DesktopStorageService : IStorageService {
         }
     }
 
-    public Stream? OpenDownloadFileWriteStreamAsync(string fileName)
-        => File.OpenWrite(Path.Combine(_downloadsFolder, fileName));
+    public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName) {
+        var path = Path.Combine(_downloadsFolder, fileName);   
+        var stream = File.OpenWrite(path);
+        return (stream, path);
+    }
 }

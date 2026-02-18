@@ -28,12 +28,15 @@ public class AndroidStorageService : IStorageService {
         }
     }
 
-    public Stream? OpenDownloadFileWriteStreamAsync(string fileName) {
+    public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName) {
         var context = AndroidApplication.Context;
         var folder = DocumentFile.FromTreeUri(context, _downloadsFolder);
         
         var file = folder?.FindFile(fileName)
                    ?? folder?.CreateFile("application/octet-stream", fileName);
-        return context.ContentResolver.OpenOutputStream(file.Uri);
+        var stream = context.ContentResolver.OpenOutputStream(file.Uri);
+        if (stream is not null) {
+            return (stream, file.Uri!.ToString()!);
+        }
     }
 }

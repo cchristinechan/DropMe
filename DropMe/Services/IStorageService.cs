@@ -8,5 +8,5 @@ public interface IStorageService {
     // Opens a dialog for the user to pick a downloads folder
     public Task PickDownloadsFolderAsync(Visual? visual);
     // Opens a stream in the downloads folder to write a file to
-    public Stream? OpenDownloadFileWriteStreamAsync(string fileName);
+    public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName);
 }
