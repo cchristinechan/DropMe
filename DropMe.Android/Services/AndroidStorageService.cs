@@ -38,5 +38,8 @@ public class AndroidStorageService : IStorageService {
         if (stream is not null) {
             return (stream, file.Uri!.ToString()!);
         }
+        else {
+            return null;
+        }
     }
 }
