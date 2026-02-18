@@ -22,7 +22,7 @@ sealed class Program {
         // Add desktop specific services here
         services.AddSingleton<IDeviceService, DeviceService>();
         services.AddSingleton<ICameraService, DesktopCameraService>();
-
+        services.AddSingleton<IStorageService, DesktopStorageService>();
 
         App.Services = services.BuildServiceProvider();
 

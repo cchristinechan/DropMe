@@ -39,6 +39,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private int _qrHandled = 0;
     private readonly SessionFactory _sessionFactory;
     private readonly IDeviceService _device;
+    private IStorageService _storageService;
     private string? _lastGeneratedInviteText;
     private string? _localInviteSessionId;
 
@@ -78,6 +79,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     public event Action? SessionEnded;
 
     public Func<FileOfferInfo, System.Threading.Tasks.Task<bool>>? FileOfferDecisionUi;
+    // Opens a file picker, lets user choose file, and opens a stream for reading to it
     public Func<Task<(string, Stream)?>>? PickFileStreamUi;
     public Func<Task<string?>>? PickDownloadFolderUi;
 
@@ -236,7 +238,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                 _session = null;
             }
 
-            _session = new TcpHostSession(new System.Net.IPEndPoint(System.Net.IPAddress.Any, port));
+            _session = new TcpHostSession(_storageService, new System.Net.IPEndPoint(System.Net.IPAddress.Any, port));
 
             if (_session is TcpHostSession h) {
                 h.FileSaved += path =>
@@ -445,7 +447,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             Status = "Connecting to peer…";
 
             _sessionCts = new CancellationTokenSource();
-            _session = _sessionFactory.Create(invite);
+            _session = _sessionFactory.Create(_storageService, invite);
 
             if (_session is TcpAesGcmSession s) {
                 s.FileSaved += path =>
@@ -617,10 +619,12 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     }
 
     private void ApplyDownloadFolderToSession(ISession? session) {
+        throw new Exception("FIX ME");
+        /*
         if (session is TcpAesGcmSession aes)
             aes.DownloadDirectory = DownloadFolder;
         else if (session is TcpHostSession host)
-            host.DownloadDirectory = DownloadFolder;
+            host.DownloadDirectory = DownloadFolder;*/
     }
 
     public Task<bool> RequestFileOfferDecisionAsync(FileOfferInfo info) {

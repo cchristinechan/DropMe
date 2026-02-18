@@ -26,6 +26,7 @@
     <PackageReference Include="Xamarin.AndroidX.Camera.Camera2" />
     <PackageReference Include="Xamarin.AndroidX.Camera.Lifecycle" />
     <PackageReference Include="Xamarin.AndroidX.Camera.View" />
+    <PackageReference Include="Xamarin.AndroidX.DocumentFile" />
   </ItemGroup>
 
     <ItemGroup>

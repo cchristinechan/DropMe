@@ -12,7 +12,7 @@ public sealed class TcpHostSession : ISession {
     private TcpListener? _listener;
     private TcpClient? _client;
     private TcpAesGcmSession? _session;
-    private string? _downloadDirectory;
+    private IStorageService _storageService;
 
     private Func<TcpAesGcmSession.FileOfferInfo, Task<bool>>? _fileOfferDecision;
 
@@ -30,17 +30,10 @@ public sealed class TcpHostSession : ISession {
 
     public SessionState State => _session?.State ?? SessionState.Idle;
     public string Peer => _session?.Peer ?? "waiting…";
-    public string? DownloadDirectory {
-        get => _downloadDirectory;
-        set {
-            _downloadDirectory = value;
-            if (_session is not null)
-                _session.DownloadDirectory = value;
-        }
-    }
 
-    public TcpHostSession(IPEndPoint listenEp) {
+    public TcpHostSession(IStorageService storageService, IPEndPoint listenEp) {
         _listenEp = listenEp;
+        _storageService = storageService;
     }
 
     public async Task StartAsync(CancellationToken ct) {
@@ -50,8 +43,7 @@ public sealed class TcpHostSession : ISession {
         _client = await _listener.AcceptTcpClientAsync(ct);
 
         var ep = (IPEndPoint?)_client.Client.RemoteEndPoint ?? _listenEp;
-        _session = new TcpAesGcmSession(ep);
-        _session.DownloadDirectory = _downloadDirectory;
+        _session = new TcpAesGcmSession(_storageService, ep);
         _session.AttachAcceptedClient(_client);
 
         _session.FileSaved += path => FileSaved?.Invoke(path);

@@ -99,6 +99,8 @@ public partial class MainView : UserControl {
             AllowMultiple = false
         });
 
+        //Console.WriteLine(folders[0].);
+        
         if (folders.Count == 0)
             return null;
 
