@@ -37,7 +37,8 @@ public partial class App : Application {
             desktop.MainWindow = new MainWindow {
                 DataContext = viewmodel
             };
-        } else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
             view.DataContext = viewmodel;
             singleViewPlatform.MainView = view;
         }

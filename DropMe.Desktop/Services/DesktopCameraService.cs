@@ -18,7 +18,7 @@ public sealed class DesktopCameraService : ICameraService {
 
         if (!_cap.IsOpened())
             throw new InvalidOperationException("Could not open camera 0.");
-        
+
         _loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _ = Task.Run(() => Loop(_loopCts.Token), _loopCts.Token);
         return Task.CompletedTask;
