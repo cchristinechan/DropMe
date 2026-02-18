@@ -16,12 +16,19 @@
     <PackageVersion Include="Avalonia.Android" Version="11.3.11" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
+    <PackageVersion Include="OpenCvSharp4" Version="4.11.0.20250507" />
+    <PackageVersion Include="OpenCvSharp4.runtime.win" Version="4.11.0.20250507" />
     <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.15" />
+    <PackageVersion Include="Xamarin.AndroidX.Camera.Core" Version="1.3.4.3" />
+    <PackageVersion Include="Xamarin.AndroidX.Camera.Camera2" Version="1.3.4.3" />
+    <PackageVersion Include="Xamarin.AndroidX.Camera.Lifecycle" Version="1.3.4.3" />
+    <PackageVersion Include="Xamarin.AndroidX.Camera.View" Version="1.3.4.3" />
     <!-- Nunit testing -->
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
     <PackageVersion Include="NUnit" Version="4.3.2" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.7.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="5.0.0" />
+    <PackageVersion Include="ZXing.Net" Version="0.16.11" />
   </ItemGroup>
 </Project>

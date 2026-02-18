@@ -26,8 +26,12 @@ public partial class App : Application {
             throw new InvalidOperationException("You must set the Services property prior to calling OnFrameworkInitializationCompleted()");
         }
 
-        var view = new MainView();
+        var view = new TransferPage();
         var viewmodel = Services.GetRequiredService<MainViewModel>();
+
+        // var view = new MainView();
+        // var viewmodel = Services.GetRequiredService<MainViewModel>();
+
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
@@ -35,14 +39,22 @@ public partial class App : Application {
             DisableAvaloniaDataAnnotationValidation();
 
             desktop.MainWindow = new MainWindow {
-                Content = view,
-                DataContext = viewmodel
+                DataContext = viewmodel,
+                Content = new MainView() {
+                    DataContext = viewmodel
+                }
             };
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
             view.DataContext = viewmodel;
-            singleViewPlatform.MainView = view;
+            singleViewPlatform.MainView = new MainView() {
+                DataContext = viewmodel
+            };
         }
+        // else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
+        //     view.DataContext = viewmodel;
+        //     singleViewPlatform.MainView = view;
+        // }
 
         base.OnFrameworkInitializationCompleted();
     }

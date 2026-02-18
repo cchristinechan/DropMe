@@ -20,11 +20,14 @@ sealed class Program {
         services.AddCrossPlatformServices();
 
         // Add desktop specific services here
-        services.AddSingleton<IDeviceService, DropMe.Desktop.Services.DeviceService>();
+        services.AddSingleton<IDeviceService, DeviceService>();
+        services.AddSingleton<ICameraService, DesktopCameraService>();
+
 
         App.Services = services.BuildServiceProvider();
 
         return AppBuilder.Configure<App>()
+            .UseSkia()
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();

@@ -1,0 +1,116 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:DropMe.ViewModels"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    x:Class="DropMe.Views.TransferPage"
+    x:DataType="vm:MainViewModel">
+  <UserControl.Styles>
+    <Style Selector="UserControl">
+      <Setter Property="Background" Value="#CFE6F5"/>
+    </Style>
+
+    <Style Selector="TextBlock.Title">
+      <Setter Property="FontFamily" Value="Georgia"/>
+      <Setter Property="FontSize" Value="78"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="TextBlock.Subtitle">
+      <Setter Property="FontFamily" Value="Georgia"/>
+      <Setter Property="FontSize" Value="36"/>
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+
+    <Style Selector="TextBlock.Body">
+      <Setter Property="FontSize" Value="20"/>
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="Button.Pill">
+      <Setter Property="Background" Value="White"/>
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="999"/>
+      <Setter Property="Padding" Value="34,18"/>
+      <Setter Property="FontSize" Value="24"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="Button.Pill:pointerover > ContentPresenter">
+      <Setter Property="Background" Value="#A0A0A0"/>
+    </Style>
+
+    <Style Selector="Button.Pill:pressed > ContentPresenter">
+      <Setter Property="Background" Value="#8F8F8F"/>
+    </Style>
+
+    <Style Selector="Border.Card">
+      <Setter Property="Background" Value="White"/>
+      <Setter Property="CornerRadius" Value="26"/>
+      <Setter Property="Padding" Value="18"/>
+      <Setter Property="Width" Value="360"/>
+      <Setter Property="Height" Value="360"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid Background="#CFE6F5">
+    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="22" Margin="40">
+      <StackPanel Spacing="4" HorizontalAlignment="Center">
+        <TextBlock Classes="Title" Text="DropMe"/>
+        <TextBlock Classes="Subtitle" Text="Secure file transfer for all"/>
+      </StackPanel>
+
+      <TextBlock Classes="Body"
+                 Width="820"
+                 TextWrapping="Wrap"
+                 Text="Scan a QR code to join a secure transfer session, or share your generated QR with the other device."/>
+
+      <StackPanel Orientation="Horizontal" Spacing="24" HorizontalAlignment="Center" Margin="0,10,0,0">
+        <Button Classes="Pill" Content="{Binding ScanButtonText}" Click="ToggleScan_Click"/>
+        <Button Classes="Pill"
+                Content="Generate New QR"
+                IsVisible="{Binding ShowGeneratedQr}"
+                Click="GenerateQr_Click"/>
+      </StackPanel>
+
+      <TextBlock Text="{Binding HomeSessionMessage}"
+                 FontSize="16"
+                 Foreground="#9A2A2A"
+                 HorizontalAlignment="Center"
+                 TextWrapping="Wrap"
+                 MaxWidth="800"/>
+
+      <Border Classes="Card" HorizontalAlignment="Center" Margin="0,8,0,0">
+        <Grid>
+          <TextBlock Text="{Binding MainCardTitle}"
+                     FontSize="16"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Top"
+                     Margin="0,4,0,0"/>
+
+          <Image Source="{Binding QrImage}"
+                 IsVisible="{Binding ShowGeneratedQr}"
+                 Margin="12,18,12,12"
+                 Stretch="Uniform"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Center"/>
+
+          <Image Source="{Binding Preview}"
+                 IsVisible="{Binding IsScanning}"
+                 Margin="12,18,12,12"
+                 Stretch="Uniform"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Center"/>
+        </Grid>
+      </Border>
+    </StackPanel>
+  </Grid>
+</UserControl>

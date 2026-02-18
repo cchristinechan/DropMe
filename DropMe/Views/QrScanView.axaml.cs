@@ -1,18 +1,13 @@
-using System;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-using Avalonia.Platform.Storage;
-using Avalonia.Threading;
-using DropMe.ViewModels;
 
 namespace DropMe.Views;
 
-public partial class MainWindow : Window {
-
-    public MainWindow() {
+public partial class QrScanView : UserControl {
+    public QrScanView() {
         InitializeComponent();
     }
-
     private void InitializeComponent() {
         AvaloniaXamlLoader.Load(this);
     }
