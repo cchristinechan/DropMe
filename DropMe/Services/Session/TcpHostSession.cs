@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -60,9 +61,9 @@ public sealed class TcpHostSession : ISession {
         await _session.StartAsAcceptedAsync(ct);
     }
 
-    public Task SendFileAsync(string path, CancellationToken ct) {
+    public Task SendFileAsync(Stream file, string filename, CancellationToken ct) {
         if (_session is null) throw new InvalidOperationException("Not connected.");
-        return _session.SendFileAsync(path, ct);
+        return _session.SendFileAsync(file, filename, ct);
     }
 
     public async Task StopAsync() {

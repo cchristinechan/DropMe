@@ -74,17 +74,14 @@ public sealed class TcpAesGcmSession : ISession {
         _ = Task.Run(() => KeepAliveLoop(ct), ct);
     }
 
-    public async Task SendFileAsync(string path, CancellationToken ct) {
+    public async Task SendFileAsync(Stream file, string filename, CancellationToken ct) {
         if (_stream is null) throw new InvalidOperationException("Not connected.");
-
-        var fi = new FileInfo(path);
-        if (!fi.Exists) throw new FileNotFoundException("File not found.", path);
 
         var fileId = Guid.NewGuid();
         var offer = new FileOffer {
             FileId = fileId,
-            Name = fi.Name,
-            Size = fi.Length
+            Name = filename,
+            Size = file.Length
         };
 
         lock (_txLock) {
@@ -109,14 +106,13 @@ public sealed class TcpAesGcmSession : ISession {
 
         // Stream chunks + compute hash while sending
         using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        await using var fs = File.OpenRead(path);
 
         const int chunkSize = 64 * 1024;
         var buffer = new byte[chunkSize];
         int chunkIndex = 0;
 
         while (true) {
-            int n = await fs.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false);
+            int n = await file.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false);
             if (n <= 0) break;
 
             sha.AppendData(buffer, 0, n);

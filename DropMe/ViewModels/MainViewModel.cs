@@ -78,7 +78,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     public event Action? SessionEnded;
 
     public Func<FileOfferInfo, System.Threading.Tasks.Task<bool>>? FileOfferDecisionUi;
-    public Func<Task<string?>>? PickFilePathUi;
+    public Func<Task<(string, Stream)?>>? PickFileStreamUi;
     public Func<Task<string?>>? PickDownloadFolderUi;
 
     public sealed record FileOfferInfo(Guid FileId, string Name, long Size);
@@ -576,18 +576,19 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             return;
 
         try {
-            var path = PickFilePathUi is null
+            var file = PickFileStreamUi is null
                 ? null
-                : await PickFilePathUi();
+                : await PickFileStreamUi();
 
-            if (string.IsNullOrWhiteSpace(path)) {
+            if (file is var (filename, filestream)) {
+                Status = "Sending file…";
+                await _session.SendFileAsync(filestream, filename, CancellationToken.None);
+                Status = "File sent.";
+            }
+            else {
                 Status = "Send canceled.";
                 return;
             }
-
-            Status = "Sending file…";
-            await _session.SendFileAsync(path, CancellationToken.None);
-            Status = "File sent.";
         }
         catch (Exception ex) {
             SessionMessage = $"Send failed: {ex.Message}";

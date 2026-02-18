@@ -50,9 +50,8 @@ public sealed class TcpSession : ISession {
         }
     }
 
-    public async Task SendFileAsync(string path, CancellationToken ct) {
-        using var fs = File.OpenRead(path);
-        await fs.CopyToAsync(_stream!, ct);
+    public async Task SendFileAsync(Stream fstream, string filename, CancellationToken ct) {
+        await fstream.CopyToAsync(_stream!, ct);
         await _stream!.FlushAsync(ct);
     }
 
@@ -85,7 +84,4 @@ public sealed class TcpSession : ISession {
         await _stream.WriteAsync(new byte[] { 0x00 }, ct);
         await _stream.FlushAsync(ct);
     }
-
-
-
 }

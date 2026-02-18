@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using DropMe.ViewModels;
 using System;
+using System.IO;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
@@ -22,7 +23,7 @@ public partial class MainView : UserControl {
             if (_vm is not null) {
                 _vm.SessionConnected -= OnSessionConnected;
                 _vm.SessionEnded -= OnSessionEnded;
-                _vm.PickFilePathUi = null;
+                _vm.PickFileStreamUi = null;
                 _vm.PickDownloadFolderUi = null;
             }
 
@@ -30,7 +31,7 @@ public partial class MainView : UserControl {
             if (_vm is not null) {
                 _vm.SessionConnected += OnSessionConnected;
                 _vm.SessionEnded += OnSessionEnded;
-                _vm.PickFilePathUi = PickFilePathAsync;
+                _vm.PickFileStreamUi = PickFileStreamAsync;
                 _vm.PickDownloadFolderUi = PickDownloadFolderAsync;
             }
 
@@ -77,21 +78,19 @@ public partial class MainView : UserControl {
         };
     }
 
-    private async System.Threading.Tasks.Task<string?> PickFilePathAsync() {
-        // Do android shit
+    private async System.Threading.Tasks.Task<(string, Stream)?> PickFileStreamAsync() {
         var files = await TopLevel.GetTopLevel(this)?.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
             Title = "Select file to send",
             AllowMultiple = false
         });
 
-        if (files.Count == 0)
-            return null;
+        if (files.Count > 0) {
+            var filename = files[0].Name;
+            var stream = await files[0].OpenReadAsync();
 
-        var local = files[0].TryGetLocalPath();
-        if (!string.IsNullOrWhiteSpace(local))
-            return local;
-
-        return files[0].Path.IsFile ? files[0].Path.LocalPath : null;
+            return (filename, stream);
+        }
+        return null;
     }
 
     private async System.Threading.Tasks.Task<string?> PickDownloadFolderAsync() {
