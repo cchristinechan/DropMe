@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:material="clr-namespace:Material.Styles.Themes;assembly=Material.Styles"
              xmlns:local="using:DropMe"
              x:Class="DropMe.App"
              RequestedThemeVariant="Default">
@@ -10,6 +11,9 @@
     </Application.DataTemplates>
 
     <Application.Styles>
-        <FluentTheme />
+        <material:MaterialTheme BaseTheme="Inherit"
+                                PrimaryColor="Blue"
+                                SecondaryColor="Cyan"/>
+        <StyleInclude Source="avares://DropMe/Styles/WaterTheme.axaml"/>
     </Application.Styles>
 </Application>

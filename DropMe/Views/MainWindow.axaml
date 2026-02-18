@@ -2,14 +2,49 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:DropMe.ViewModels"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="DropMe.Views.MainWindow"
-        Icon="/Assets/avalonia-logo.ico"
-        Width="1200"
-        Height="850"
+        x:DataType="vm:MainViewModel"
+        Width="430"
+        Height="900"
+        MinWidth="390"
+        MinHeight="700"
+        MaxWidth="500"
+        MaxHeight="980"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         Title="DropMe">
-        <ContentControl x:Name="MainContent" />
+    <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0" Classes="AppBar" Margin="12,12,12,8">
+            <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Image Source="/Assets/dropme-logo.png" Classes="LogoImage"/>
+                        <StackPanel Spacing="0">
+                            <TextBlock Classes="NavTitle" Text="DropMe"/>
+                            <TextBlock Classes="NavSubtitle" Text="DropMe secure file transfer"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            x:Name="ThemeToggleButton"
+                            Classes="OutlinedAction"
+                            Click="ThemeToggle_Click"
+                            Height="36"
+                            MinWidth="110"
+                            VerticalAlignment="Center"
+                            Content="Dark Mode"/>
+                </Grid>
+
+                <Border Classes="SubCard" Padding="12,6">
+                    <TextBlock Classes="BodyMuted"
+                               Text="{Binding SessionStatus, StringFormat='Session: {0}'}"/>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <ContentControl Grid.Row="1" x:Name="MainContent" Margin="12,0,12,12"/>
+    </Grid>
 </Window>
 

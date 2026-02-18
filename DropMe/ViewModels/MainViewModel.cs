@@ -50,6 +50,18 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     public string MainCardTitle => IsScanning ? "Camera Preview" : "Your QR Code";
     public string ScanButtonText => IsScanning ? "Stop scanning" : "Scan QR";
 
+    private bool _isDarkTheme;
+    public bool IsDarkTheme {
+        get => _isDarkTheme;
+        private set {
+            _isDarkTheme = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ThemeModePillText));
+        }
+    }
+
+    public string ThemeModePillText => IsDarkTheme ? "Dark" : "Light";
+
     private string? _sessionId;
     public string? SessionId {
         get => _sessionId;
@@ -65,14 +77,26 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private string? _sessionMessage;
     public string? SessionMessage {
         get => _sessionMessage;
-        private set { _sessionMessage = value; OnPropertyChanged(); }
+        private set {
+            _sessionMessage = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasSessionMessage));
+        }
     }
+
+    public bool HasSessionMessage => !string.IsNullOrWhiteSpace(SessionMessage);
 
     private string? _homeSessionMessage;
     public string? HomeSessionMessage {
         get => _homeSessionMessage;
-        private set { _homeSessionMessage = value; OnPropertyChanged(); }
+        private set {
+            _homeSessionMessage = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasHomeSessionMessage));
+        }
     }
+
+    public bool HasHomeSessionMessage => !string.IsNullOrWhiteSpace(HomeSessionMessage);
 
     public event Action? SessionConnected;
     public event Action? SessionEnded;
@@ -243,7 +267,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                     Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
                 h.FileAcked += (_, sha) =>
-                    Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered ✅ SHA256={sha}");
+                    Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered : SHA256={sha}");
 
                 h.FileOfferDecision = async offer => {
                     var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
@@ -542,6 +566,13 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         OnPropertyChanged(nameof(ShowGeneratedQr));
         OnPropertyChanged(nameof(MainCardTitle));
         OnPropertyChanged(nameof(ScanButtonText));
+    }
+
+    public void SetThemeMode(bool isDarkTheme) {
+        if (IsDarkTheme == isDarkTheme)
+            return;
+
+        IsDarkTheme = isDarkTheme;
     }
 
     private void CopyBytesToPreview(byte[] rgba, int width, int height, int srcStride) {
