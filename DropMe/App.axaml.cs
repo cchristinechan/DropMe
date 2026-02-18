@@ -29,6 +29,10 @@ public partial class App : Application {
         var view = new TransferPage();
         var viewmodel = Services.GetRequiredService<MainViewModel>();
 
+        // var view = new MainView();
+        // var viewmodel = Services.GetRequiredService<MainViewModel>();
+
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
@@ -47,6 +51,10 @@ public partial class App : Application {
                 DataContext = viewmodel
             };
         }
+        // else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
+        //     view.DataContext = viewmodel;
+        //     singleViewPlatform.MainView = view;
+        // }
 
         base.OnFrameworkInitializationCompleted();
     }

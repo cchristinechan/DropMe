@@ -12,3 +12,4 @@
         Title="DropMe">
         <ContentControl x:Name="MainContent" />
 </Window>
+
