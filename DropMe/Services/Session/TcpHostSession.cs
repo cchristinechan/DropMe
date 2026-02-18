@@ -12,7 +12,7 @@ public sealed class TcpHostSession : ISession {
     private TcpListener? _listener;
     private TcpClient? _client;
     private TcpAesGcmSession? _session;
-    private IStorageService _storageService;
+    private readonly IStorageService _storageService;
 
     private Func<TcpAesGcmSession.FileOfferInfo, Task<bool>>? _fileOfferDecision;
 

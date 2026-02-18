@@ -43,7 +43,7 @@ public sealed class TcpAesGcmSession : ISession {
 
     public SessionState State { get; private set; } = SessionState.Idle;
     public string Peer => _endpoint.ToString();
-    private IStorageService _storageService;
+    private readonly IStorageService _storageService;
 
     public TcpAesGcmSession(IStorageService storageService, IPEndPoint endpoint) {
         _endpoint = endpoint;

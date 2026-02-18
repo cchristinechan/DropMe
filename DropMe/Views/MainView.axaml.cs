@@ -93,21 +93,7 @@ public partial class MainView : UserControl {
         return null;
     }
 
-    private async System.Threading.Tasks.Task<string?> PickDownloadFolderAsync() {
-        var folders = await TopLevel.GetTopLevel(this)?.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions {
-            Title = "Select download folder",
-            AllowMultiple = false
-        });
-
-        //Console.WriteLine(folders[0].);
-        
-        if (folders.Count == 0)
-            return null;
-
-        var local = folders[0].TryGetLocalPath();
-        if (!string.IsNullOrWhiteSpace(local))
-            return local;
-
-        return folders[0].Path.LocalPath;
+    private async System.Threading.Tasks.Task PickDownloadFolderAsync() {
+        await _vm.DoPickDownloadsFolder(this);
     }
 }
