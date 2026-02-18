@@ -6,6 +6,7 @@
         <entry key="DropMe/App.axaml" value="DropMe.Desktop/DropMe.Desktop.csproj" />
         <entry key="DropMe/Views/MainView.axaml" value="DropMe.Desktop/DropMe.Desktop.csproj" />
         <entry key="DropMe/Views/MainWindow.axaml" value="DropMe.Desktop/DropMe.Desktop.csproj" />
+        <entry key="DropMe/Views/QrScanView.axaml" value="DropMe.Desktop/DropMe.Desktop.csproj" />
         <entry key="DropMe/Views/Session.axaml" value="DropMe.Desktop/DropMe.Desktop.csproj" />
         <entry key="DropMe/Views/TransferPage.axaml" value="DropMe.Desktop/DropMe.Desktop.csproj" />
       </map>

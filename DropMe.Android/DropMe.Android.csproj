@@ -19,10 +19,14 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia.Android" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-        <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" />
-    </ItemGroup>
+    <PackageReference Include="Avalonia.Android" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" />
+    <PackageReference Include="Xamarin.AndroidX.Camera.Core" />
+    <PackageReference Include="Xamarin.AndroidX.Camera.Camera2" />
+    <PackageReference Include="Xamarin.AndroidX.Camera.Lifecycle" />
+    <PackageReference Include="Xamarin.AndroidX.Camera.View" />
+  </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\DropMe\DropMe.csproj" />

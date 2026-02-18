@@ -38,11 +38,18 @@ public partial class App : Application {
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
 
-            // desktop.MainWindow = new MainWindow {
-            //     Content = view,
-            //     DataContext = viewmodel
-            // };
-            desktop.MainWindow = new MainWindow();
+            desktop.MainWindow = new MainWindow {
+                DataContext = viewmodel,
+                Content = new MainView() {
+                    DataContext = viewmodel
+                }
+            };
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
+            view.DataContext = viewmodel;
+            singleViewPlatform.MainView = new MainView() {
+                DataContext = viewmodel
+            };
         }
         // else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
         //     view.DataContext = viewmodel;

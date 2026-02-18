@@ -17,6 +17,12 @@ public static class StreamIoExtensions {
         }
     }
 
+    public static void WriteUInt32LE(this Span<byte> span, uint value) =>
+        BinaryPrimitives.WriteUInt32LittleEndian(span, value);
+
+    public static uint ReadUInt32LE(this ReadOnlySpan<byte> span) =>
+        BinaryPrimitives.ReadUInt32LittleEndian(span);
+
     public static async Task WriteUInt32LEAsync(this Stream stream, uint value, CancellationToken ct = default) {
         Span<byte> b = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(b, value);
