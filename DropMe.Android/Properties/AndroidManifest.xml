@@ -1,10 +1,25 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.INTERNET" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:installLocation="auto">
+    <!-- Internet Permission -->
+	<uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-
-    <uses-feature android:name="android.hardware.camera" android:required="true" />
-	<application android:label="DropMe" android:icon="@drawable/Icon" />
+    
+    <!-- QR_Code Scanning Permission -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <application android:label="DropMe" android:icon="@drawable/Icon" />
+    
+    <!-- Bluetooth Permission -->
+    <!-- Bluetooth: Legacy (Required for Android 11 / API 30 and below) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    
+    <!-- Bluetooth: Modern (For Android 12 /API 31 and higher) -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" 
+                     android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    
+    
 </manifest>
