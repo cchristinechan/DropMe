@@ -237,7 +237,8 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                 h.FileSaved += path =>
                     Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
-                h.FileAcked += (_, sha) => { Console.WriteLine("Delivered");
+                h.FileAcked += (_, sha) => {
+                    Console.WriteLine("Delivered");
                     Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered ✅ SHA256={sha}");
                 };
 
@@ -595,7 +596,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             await PickDownloadFolderUi();
         }
     }
-    
+
     public Task<bool> RequestFileOfferDecisionAsync(FileOfferInfo info) {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var previous = Interlocked.Exchange(ref _pendingFileOfferTcs, tcs);
@@ -667,7 +668,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             catch (OperationCanceledException) { }
         }, monitorToken);
     }
-    
+
     public async Task DoPickDownloadsFolder(Visual? visual) => await _storageService.PickDownloadsFolderAsync(visual);
 
     public event PropertyChangedEventHandler? PropertyChanged;

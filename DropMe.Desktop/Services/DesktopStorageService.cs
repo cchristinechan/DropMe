@@ -13,9 +13,9 @@ public class DesktopStorageService : IStorageService {
     public async Task PickDownloadsFolderAsync(Visual? visual) {
         var folders = await TopLevel.GetTopLevel(visual)?
             .StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions {
-            Title = "Select download folder",
-            AllowMultiple = false
-        });
+                Title = "Select download folder",
+                AllowMultiple = false
+            });
 
         if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path) {
             _downloadsFolder = path;
@@ -23,7 +23,7 @@ public class DesktopStorageService : IStorageService {
     }
 
     public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName) {
-        var path = Path.Combine(_downloadsFolder, fileName);   
+        var path = Path.Combine(_downloadsFolder, fileName);
         var stream = File.OpenWrite(path);
         return (stream, path);
     }

@@ -31,7 +31,7 @@ public class AndroidStorageService : IStorageService {
     public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName) {
         var context = AndroidApplication.Context;
         var folder = DocumentFile.FromTreeUri(context, _downloadsFolder);
-        
+
         var file = folder?.FindFile(fileName)
                    ?? folder?.CreateFile("application/octet-stream", fileName);
         var stream = context.ContentResolver.OpenOutputStream(file.Uri);

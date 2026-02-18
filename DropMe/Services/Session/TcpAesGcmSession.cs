@@ -262,7 +262,7 @@ public sealed class TcpAesGcmSession : ISession {
             _rxStream = stream;
             _rxPath = path;
         }
-        
+
         _rxHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 
         await SendMessageAsync(SessionMessageType.FileAccept, BuildFileIdPayload(offer.FileId), ct).ConfigureAwait(false);
