@@ -20,6 +20,8 @@
                 <TextBlock Text="{Binding SessionId}" TextWrapping="Wrap"/>
                 <TextBlock Classes="BodyMuted"
                            Text="{Binding SessionStatus, StringFormat='Status: {0}'}"/>
+                <TextBlock Classes="BodyMuted"
+                           Text="{Binding DownloadFolder, StringFormat='Download to: {0}'}"/>
               </StackPanel>
             </Border>
           </StackPanel>
@@ -53,6 +55,10 @@
         <Border Classes="AppCard">
           <StackPanel Spacing="10">
             <TextBlock Classes="SectionTitle" Text="Actions"/>
+            <Button Classes="FilledAction"
+                    Height="44"
+                    Content="Choose Download Folder"
+                    Click="ChooseDownloadFolder_Click"/>
             <Button Classes="FilledAction"
                     Height="44"
                     Content="Send Files"

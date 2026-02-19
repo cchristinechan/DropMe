@@ -5,6 +5,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using DropMe.ViewModels;
 namespace DropMe.Views;
+
 public partial class MainWindow : Window {
     public MainWindow() {
         InitializeComponent();
