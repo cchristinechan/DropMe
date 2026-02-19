@@ -1,0 +1,178 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <LinearGradientBrush x:Key="WaterBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#ECF7FF"/>
+            <GradientStop Offset="0.55" Color="#DDEFFE"/>
+            <GradientStop Offset="1" Color="#F6FBFF"/>
+          </LinearGradientBrush>
+          <SolidColorBrush x:Key="WaterSurfaceBrush" Color="#F9FCFF"/>
+          <SolidColorBrush x:Key="WaterSurfaceAltBrush" Color="#EAF5FF"/>
+          <SolidColorBrush x:Key="WaterOutlineBrush" Color="#9DC8E6"/>
+          <SolidColorBrush x:Key="WaterPrimaryBrush" Color="#0E6FA7"/>
+          <SolidColorBrush x:Key="WaterPrimaryPressedBrush" Color="#0B5E8E"/>
+          <SolidColorBrush x:Key="WaterOnPrimaryBrush" Color="#F8FCFF"/>
+          <SolidColorBrush x:Key="WaterTextBrush" Color="#0E2232"/>
+          <SolidColorBrush x:Key="WaterSubtleTextBrush" Color="#35546B"/>
+          <SolidColorBrush x:Key="WaterDangerBrush" Color="#BD3F4C"/>
+          <SolidColorBrush x:Key="WaterDangerPressedBrush" Color="#A33641"/>
+          <SolidColorBrush x:Key="WaterOverlayBrush" Color="#8A081B2A"/>
+          <SolidColorBrush x:Key="WaterSuccessBrush" Color="#2E7D63"/>
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+          <LinearGradientBrush x:Key="WaterBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#091A2A"/>
+            <GradientStop Offset="0.5" Color="#0D2338"/>
+            <GradientStop Offset="1" Color="#102B43"/>
+          </LinearGradientBrush>
+          <SolidColorBrush x:Key="WaterSurfaceBrush" Color="#132C44"/>
+          <SolidColorBrush x:Key="WaterSurfaceAltBrush" Color="#1A3959"/>
+          <SolidColorBrush x:Key="WaterOutlineBrush" Color="#2F5F84"/>
+          <SolidColorBrush x:Key="WaterPrimaryBrush" Color="#67B9EA"/>
+          <SolidColorBrush x:Key="WaterPrimaryPressedBrush" Color="#4EA9DD"/>
+          <SolidColorBrush x:Key="WaterOnPrimaryBrush" Color="#04233A"/>
+          <SolidColorBrush x:Key="WaterTextBrush" Color="#EAF4FD"/>
+          <SolidColorBrush x:Key="WaterSubtleTextBrush" Color="#B5CEE0"/>
+          <SolidColorBrush x:Key="WaterDangerBrush" Color="#E06F7B"/>
+          <SolidColorBrush x:Key="WaterDangerPressedBrush" Color="#D65968"/>
+          <SolidColorBrush x:Key="WaterOverlayBrush" Color="#AA020B12"/>
+          <SolidColorBrush x:Key="WaterSuccessBrush" Color="#78D1AF"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource WaterBackgroundBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource WaterTextBrush}"/>
+    <Setter Property="FontFamily" Value="Inter, Segoe UI, Arial"/>
+  </Style>
+
+  <Style Selector="UserControl">
+    <Setter Property="Background" Value="{DynamicResource WaterBackgroundBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource WaterTextBrush}"/>
+  </Style>
+
+  <Style Selector="Border.AppBar">
+    <Setter Property="Background" Value="{DynamicResource WaterSurfaceBrush}"/>
+    <Setter Property="CornerRadius" Value="20"/>
+    <Setter Property="Padding" Value="14,10"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource WaterOutlineBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+
+  <Style Selector="Border.AppCard">
+    <Setter Property="Background" Value="{DynamicResource WaterSurfaceBrush}"/>
+    <Setter Property="CornerRadius" Value="22"/>
+    <Setter Property="Padding" Value="18"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource WaterOutlineBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+
+  <Style Selector="Border.SubCard">
+    <Setter Property="Background" Value="{DynamicResource WaterSurfaceAltBrush}"/>
+    <Setter Property="CornerRadius" Value="16"/>
+    <Setter Property="Padding" Value="12"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource WaterOutlineBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+
+  <Style Selector="TextBlock.NavTitle">
+    <Setter Property="FontSize" Value="21"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource WaterTextBrush}"/>
+  </Style>
+
+  <Style Selector="TextBlock.NavSubtitle">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource WaterSubtleTextBrush}"/>
+  </Style>
+
+  <Style Selector="TextBlock.PageTitle">
+    <Setter Property="FontSize" Value="30"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource WaterTextBrush}"/>
+  </Style>
+
+  <Style Selector="TextBlock.SectionTitle">
+    <Setter Property="FontSize" Value="18"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource WaterTextBrush}"/>
+  </Style>
+
+  <Style Selector="TextBlock.BodyMuted">
+    <Setter Property="Foreground" Value="{DynamicResource WaterSubtleTextBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <Style Selector="Image.LogoImage">
+    <Setter Property="Width" Value="42"/>
+    <Setter Property="Height" Value="42"/>
+    <Setter Property="Stretch" Value="Uniform"/>
+  </Style>
+
+  <Style Selector="Button.FilledAction">
+    <Setter Property="Background" Value="{DynamicResource WaterPrimaryBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource WaterOnPrimaryBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="13"/>
+    <Setter Property="Padding" Value="16,12"/>
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style Selector="Button.FilledAction:pointerover > ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource WaterPrimaryPressedBrush}"/>
+  </Style>
+
+  <Style Selector="Button.FilledAction:pressed > ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource WaterPrimaryPressedBrush}"/>
+  </Style>
+
+  <Style Selector="Button.OutlinedAction">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource WaterTextBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource WaterOutlineBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="13"/>
+    <Setter Property="Padding" Value="16,12"/>
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style Selector="Button.OutlinedAction:pointerover > ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource WaterSurfaceAltBrush}"/>
+  </Style>
+
+  <Style Selector="Button.OutlinedAction:pressed > ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource WaterSurfaceAltBrush}"/>
+  </Style>
+
+  <Style Selector="Button.DangerAction">
+    <Setter Property="Background" Value="{DynamicResource WaterDangerBrush}"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="13"/>
+    <Setter Property="Padding" Value="16,12"/>
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style Selector="Button.DangerAction:pointerover > ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource WaterDangerPressedBrush}"/>
+  </Style>
+
+  <Style Selector="Button.DangerAction:pressed > ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource WaterDangerPressedBrush}"/>
+  </Style>
+</Styles>
