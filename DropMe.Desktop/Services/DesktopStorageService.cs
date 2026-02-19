@@ -28,5 +28,5 @@ public class DesktopStorageService : IStorageService {
         return (stream, path);
     }
 
-    public string? GetDirectoryLabel() => _downloadsFolder;
+    public string? GetDownloadDirectoryLabel() => _downloadsFolder;
 }

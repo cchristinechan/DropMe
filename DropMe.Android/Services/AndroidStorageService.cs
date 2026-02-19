@@ -44,7 +44,7 @@ public class AndroidStorageService : IStorageService {
         return null;
     }
 
-    public string? GetDirectoryLabel() {
+    public string? GetDownloadDirectoryLabel() {
         return _downloadsFolder is not null ?
             _downloadsFolder!.ToString() :
             AndroidApplication.Context.FilesDir?.Path.ToString();
