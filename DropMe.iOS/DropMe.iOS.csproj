@@ -11,6 +11,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <BundleResource Include="Resources\Icon.png" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\DropMe\DropMe.csproj"/>
     </ItemGroup>
 </Project>

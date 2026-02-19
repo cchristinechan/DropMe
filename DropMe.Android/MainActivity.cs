@@ -16,7 +16,7 @@ using AndroidX.Activity;
 namespace DropMe.Android;
 
 [Activity(
-    Label = "DropMe.Android",
+    Label = "DropMe",
     Theme = "@style/MyTheme.NoActionBar",
     Icon = "@drawable/icon",
     MainLauncher = true,
