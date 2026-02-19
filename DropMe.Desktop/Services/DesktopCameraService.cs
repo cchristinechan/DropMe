@@ -46,15 +46,14 @@ public sealed class DesktopCameraService : ICameraService {
                 using var rgba = new Mat();
                 Cv2.CvtColor(mat, rgba, ColorConversionCodes.BGR2BGRA);
 
-
                 int width = rgba.Width;
                 int height = rgba.Height;
                 int stride = (int)rgba.Step();
 
                 var bytes = new byte[stride * height];
                 Marshal.Copy(rgba.Data, bytes, 0, bytes.Length);
-
-                FrameArrived?.Invoke(new CameraFrame(width, height, bytes, stride));
+                // DETECT ROTATION
+                FrameArrived?.Invoke(new CameraFrame(width, height, bytes, stride, (int)_cap.Roll));
 
                 if ((++n % 30) == 0)
                     System.Diagnostics.Debug.WriteLine($"Camera frames: {n} ({width}x{height})");

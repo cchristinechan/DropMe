@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Android.App;
 using Android.Content;
 using Android.Util;
+using Android.Views;
 using AndroidX.Camera.Core;
 using AndroidX.Camera.Lifecycle;
 using AndroidX.Core.Content;
@@ -58,8 +59,9 @@ public sealed class AndroidCameraService : ICameraService {
                 var width = image.Width;
                 var height = image.Height;
                 var stride = plane.RowStride;
+                var rotation = image.ImageInfo.RotationDegrees;
 
-                FrameArrived?.Invoke(new CameraFrame(width, height, bytes, stride));
+                FrameArrived?.Invoke(new CameraFrame(width, height, bytes, stride, rotation));
             }
             finally {
                 image.Close();

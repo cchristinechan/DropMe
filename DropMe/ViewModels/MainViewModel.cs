@@ -29,6 +29,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private int _latestStride;
     private int _latestWidth;
     private int _latestHeight;
+    private int _latestRotation;
     private readonly object _frameLock = new();
     private int _previewFrameCounter = 0;
     private DispatcherTimer? _renderTimer;
@@ -342,6 +343,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             _latestWidth = frame.Width;
             _latestHeight = frame.Height;
             _latestStride = frame.Stride;
+            _latestRotation = frame.Rotation;
 
             int needed = frame.Stride * frame.Height;
             if (_latestFrameBytes == null || _latestFrameBytes.Length != needed)
@@ -353,13 +355,14 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
     private void RenderPreview() {
         byte[]? bytes;
-        int w, h, stride;
+        int w, h, stride, rotation;
 
         lock (_frameLock) {
             bytes = _latestFrameBytes;
             w = _latestWidth;
             h = _latestHeight;
             stride = _latestStride;
+            rotation = _latestRotation;
         }
 
         if (bytes is null || w <= 0 || h <= 0)
@@ -370,25 +373,49 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             ? PixelFormat.Rgba8888
             : PixelFormat.Bgra8888;
 
+        // Determine rotated dimensions
+        int bmpWidth = rotation % 180 == 0 ? w : h;
+        int bmpHeight = rotation % 180 == 0 ? h : w;
         var bmp = new WriteableBitmap(
-            new PixelSize(w, h),
+            new PixelSize(bmpWidth, bmpHeight),
             new Vector(96, 96),
             pixelFormat,
             AlphaFormat.Unpremul);
 
         using (var fb = bmp.Lock()) {
-            int rows = Math.Min(h, fb.Size.Height);
+            //int rows = Math.Min(h, fb.Size.Height);
             int dstStride = fb.RowBytes;
 
-            if (stride == dstStride) {
-                Marshal.Copy(bytes, 0, fb.Address, rows * dstStride);
-            }
-            else {
-                int colsBytes = Math.Min(stride, dstStride);
-                for (int y = 0; y < rows; y++) {
-                    Marshal.Copy(bytes, y * stride, fb.Address + (y * dstStride), colsBytes);
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    int srcIndex = y * stride + x * 4;
+                    int pixel = BitConverter.ToInt32(bytes, srcIndex);
+
+                    int newX = 0, newY = 0;
+
+                    switch (rotation) {
+                        case 0:
+                            newX = x;
+                            newY = y;
+                            break;
+                        case 90:
+                            newX = h - 1 - y;
+                            newY = x;
+                            break;
+                        case 180:
+                            newX = w - 1 - x;
+                            newY = h - 1 - y;
+                            break;
+                        case 270:
+                            newX = y;
+                            newY = w - 1 - x;
+                            break;
+                    }
+
+                    Marshal.WriteInt32(fb.Address + newY * dstStride + newX * 4, pixel);
                 }
             }
+
         }
 
         // Assign NEW reference => Image will redraw, guaranteed
@@ -403,7 +430,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             CameraFrame? snapshot = null;
             lock (_frameLock) {
                 if (_latestFrameBytes is not null)
-                    snapshot = new CameraFrame(_latestWidth, _latestHeight, (byte[])_latestFrameBytes.Clone(), _latestStride);
+                    snapshot = new CameraFrame(_latestWidth, _latestHeight, (byte[])_latestFrameBytes.Clone(), _latestStride, _latestRotation);
             }
 
             if (snapshot is not null) {
