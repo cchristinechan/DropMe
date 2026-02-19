@@ -73,6 +73,11 @@
                                        FontSize="13"
                                        FontWeight="SemiBold"
                                        Foreground="#0F1F2F"/>
+                            <TextBlock Text="{Binding DownloadFolder}"
+                                       FontSize="12"
+                                       MaxWidth="230"
+                                       TextWrapping="Wrap"
+                                       Foreground="#0F1F2F"/>
                             <Button Classes="SessionButton"
                                     Content="Choose Folder"
                                     HorizontalAlignment="Left"

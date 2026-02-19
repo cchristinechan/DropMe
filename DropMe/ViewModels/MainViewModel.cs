@@ -75,6 +75,12 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         private set { _homeSessionMessage = value; OnPropertyChanged(); }
     }
 
+    private string? _downloadFolder = null;
+    public string? DownloadFolder {
+        get => _downloadFolder;
+        private set { _downloadFolder = value; OnPropertyChanged(); }
+    }
+
     public event Action? SessionConnected;
     public event Action? SessionEnded;
 
@@ -156,6 +162,8 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
         _camera.FrameArrived += OnFrameArrived;
         Status = "Ready";
+
+        DownloadFolder = _storageService.GetDownloadDirectoryLabel();
 
         _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         _renderTimer.Tick += (_, _) => RenderPreview();
@@ -669,7 +677,10 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         }, monitorToken);
     }
 
-    public async Task DoPickDownloadsFolder(Visual? visual) => await _storageService.PickDownloadsFolderAsync(visual);
+    public async Task DoPickDownloadsFolder(Visual? visual) {
+        await _storageService.PickDownloadsFolderAsync(visual);
+        DownloadFolder = _storageService.GetDownloadDirectoryLabel();
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
