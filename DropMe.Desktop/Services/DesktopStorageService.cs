@@ -27,4 +27,6 @@ public class DesktopStorageService : IStorageService {
         var stream = File.OpenWrite(path);
         return (stream, path);
     }
+
+    public string? GetDirectoryLabel() => _downloadsFolder;
 }
