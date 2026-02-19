@@ -29,11 +29,11 @@ public class AndroidStorageService : IStorageService {
     }
 
     public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName) {
+        Console.WriteLine("OPENING!");
         var context = AndroidApplication.Context;
-
+        Console.WriteLine("Got context");
         // Use internal files by default, maybe later change this to external
-        var folder = DocumentFile.FromTreeUri(context, _downloadsFolder)
-                     ?? DocumentFile.FromFile(context.FilesDir);
+        var folder = _downloadsFolder is not null ? DocumentFile.FromTreeUri(context, _downloadsFolder) : DocumentFile.FromFile(context.FilesDir);
 
         var file = folder?.FindFile(fileName)
                    ?? folder?.CreateFile("application/octet-stream", fileName);
@@ -45,8 +45,23 @@ public class AndroidStorageService : IStorageService {
     }
 
     public string? GetDownloadDirectoryLabel() {
-        return _downloadsFolder is not null ?
+        var path = _downloadsFolder is not null ?
             _downloadsFolder!.ToString() :
             AndroidApplication.Context.FilesDir?.Path.ToString();
+        if (path is not null) {
+            return NormalisePath(path);
+        }
+
+        return null;
+    }
+
+    private string NormalisePath(string str) {
+        const string treeSegment = "/tree/";
+        if (str.StartsWith("content://") && str.Contains(treeSegment)) {
+            int startIndex = str.IndexOf(treeSegment) + treeSegment.Length;
+            string decodedPart = str.Substring(startIndex);
+            return Uri.UnescapeDataString(decodedPart);
+        }
+        return str;
     }
 }

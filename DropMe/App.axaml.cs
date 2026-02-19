@@ -26,11 +26,10 @@ public partial class App : Application {
             throw new InvalidOperationException("You must set the Services property prior to calling OnFrameworkInitializationCompleted()");
         }
 
-        var view = new TransferPage();
         var viewmodel = Services.GetRequiredService<MainViewModel>();
 
-        // var view = new MainView();
-        // var viewmodel = Services.GetRequiredService<MainViewModel>();
+        var view = new MainView();
+
 
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {

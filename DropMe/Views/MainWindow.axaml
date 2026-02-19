@@ -10,6 +10,5 @@
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         Title="DropMe">
-        <ContentControl x:Name="MainContent" />
+    <ContentControl x:Name="MainContent" />
 </Window>
-
