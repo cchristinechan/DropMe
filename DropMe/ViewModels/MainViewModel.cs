@@ -74,7 +74,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         get => _homeSessionMessage;
         private set { _homeSessionMessage = value; OnPropertyChanged(); }
     }
-    
+
     private string? _downloadFolder = null;
     public string? DownloadFolder {
         get => _downloadFolder;
