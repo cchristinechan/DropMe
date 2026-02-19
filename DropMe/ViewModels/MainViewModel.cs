@@ -39,6 +39,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private int _qrHandled = 0;
     private readonly SessionFactory _sessionFactory;
     private readonly IDeviceService _device;
+    private readonly IStorageService _storageService;
     private string? _lastGeneratedInviteText;
     private string? _localInviteSessionId;
 
@@ -102,8 +103,9 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     public event Action? SessionEnded;
 
     public Func<FileOfferInfo, System.Threading.Tasks.Task<bool>>? FileOfferDecisionUi;
-    public Func<Task<string?>>? PickFilePathUi;
-    public Func<Task<string?>>? PickDownloadFolderUi;
+    // Opens a file picker, lets user choose file, and opens a stream for reading to it
+    public Func<Task<(string, Stream)?>>? PickFileStreamUi;
+    public Func<Task>? PickDownloadFolderUi;
 
     public sealed record FileOfferInfo(Guid FileId, string Name, long Size);
 
@@ -132,15 +134,6 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         get => _pendingFileOfferSizeText;
         private set { _pendingFileOfferSizeText = value; OnPropertyChanged(); }
     }
-
-    private string _downloadFolder = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-        "DropMeReceived");
-    public string DownloadFolder {
-        get => _downloadFolder;
-        private set { _downloadFolder = value; OnPropertyChanged(); }
-    }
-
 
     private CancellationTokenSource? _scanCts;
 
@@ -176,12 +169,14 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         QrDecoder decoder,
         IQrCodeService qr,
         SessionFactory sessionFactory,
-        IDeviceService device) {
+        IDeviceService device,
+        IStorageService storageService) {
         _camera = camera;
         _decoder = decoder;
         _qr = qr;
         _sessionFactory = sessionFactory;
         _device = device;
+        _storageService = storageService;
 
         _camera.FrameArrived += OnFrameArrived;
         Status = "Ready";
@@ -260,7 +255,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                 _session = null;
             }
 
-            _session = new TcpHostSession(new System.Net.IPEndPoint(System.Net.IPAddress.Any, port));
+            _session = new TcpHostSession(_storageService, new System.Net.IPEndPoint(System.Net.IPAddress.Any, port));
 
             if (_session is TcpHostSession h) {
                 h.FileSaved += path =>
@@ -275,7 +270,6 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                 };
             }
 
-            ApplyDownloadFolderToSession(_session);
             await _session.StartAsync(_sessionCts.Token);
             StartSessionMonitor(_session, _sessionCts.Token);
 
@@ -469,7 +463,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             Status = "Connecting to peer…";
 
             _sessionCts = new CancellationTokenSource();
-            _session = _sessionFactory.Create(invite);
+            _session = _sessionFactory.Create(_storageService, invite);
 
             if (_session is TcpAesGcmSession s) {
                 s.FileSaved += path =>
@@ -496,7 +490,6 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                 };
             }
 
-            ApplyDownloadFolderToSession(_session);
             await _session.StartAsync(_sessionCts.Token);
             StartSessionMonitor(_session, _sessionCts.Token);
 
@@ -607,18 +600,19 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             return;
 
         try {
-            var path = PickFilePathUi is null
+            var file = PickFileStreamUi is null
                 ? null
-                : await PickFilePathUi();
+                : await PickFileStreamUi();
 
-            if (string.IsNullOrWhiteSpace(path)) {
+            if (file is var (filename, filestream)) {
+                Status = "Sending file…";
+                await _session.SendFileAsync(filestream, filename, CancellationToken.None);
+                Status = "File sent.";
+            }
+            else {
                 Status = "Send canceled.";
                 return;
             }
-
-            Status = "Sending file…";
-            await _session.SendFileAsync(path, CancellationToken.None);
-            Status = "File sent.";
         }
         catch (Exception ex) {
             SessionMessage = $"Send failed: {ex.Message}";
@@ -627,30 +621,9 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     }
 
     public async Task ChooseDownloadFolderAsync() {
-        try {
-            var selected = PickDownloadFolderUi is null
-                ? null
-                : await PickDownloadFolderUi();
-
-            if (string.IsNullOrWhiteSpace(selected)) {
-                Status = "Download folder unchanged.";
-                return;
-            }
-
-            DownloadFolder = selected;
-            ApplyDownloadFolderToSession(_session);
-            Status = "Download folder updated.";
+        if (PickDownloadFolderUi is not null) {
+            await PickDownloadFolderUi();
         }
-        catch (Exception ex) {
-            Status = $"Folder selection failed: {ex.Message}";
-        }
-    }
-
-    private void ApplyDownloadFolderToSession(ISession? session) {
-        if (session is TcpAesGcmSession aes)
-            aes.DownloadDirectory = DownloadFolder;
-        else if (session is TcpHostSession host)
-            host.DownloadDirectory = DownloadFolder;
     }
 
     public Task<bool> RequestFileOfferDecisionAsync(FileOfferInfo info) {
@@ -725,9 +698,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         }, monitorToken);
     }
 
-
-
-
+    public async Task DoPickDownloadsFolder(Visual? visual) => await _storageService.PickDownloadsFolderAsync(visual);
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DropMe.Services.Session;
@@ -8,6 +9,6 @@ public interface ISession {
     string Peer { get; }
 
     Task StartAsync(CancellationToken ct);
-    Task SendFileAsync(string path, CancellationToken ct);
+    Task SendFileAsync(Stream file, string filename, CancellationToken ct);
     Task StopAsync();
 }

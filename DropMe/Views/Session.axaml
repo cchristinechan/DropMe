@@ -26,19 +26,6 @@
         </Border>
 
         <Border Classes="AppCard">
-          <StackPanel Spacing="10">
-            <TextBlock Classes="SectionTitle" Text="Download Folder"/>
-            <Border Classes="SubCard">
-              <TextBlock Text="{Binding DownloadFolder}" TextWrapping="Wrap"/>
-            </Border>
-            <Button Classes="OutlinedAction"
-                    Height="42"
-                    Content="Choose Folder"
-                    Click="ChooseDownloadFolder_Click"/>
-          </StackPanel>
-        </Border>
-
-        <Border Classes="AppCard">
           <StackPanel Spacing="12">
             <TextBlock Classes="SectionTitle" Text="Connected Peers"/>
             <Border Classes="SubCard" ClipToBounds="True">

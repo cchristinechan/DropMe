@@ -20,7 +20,7 @@ public sealed class TcpAesGcmSession : ISession {
     private readonly SemaphoreSlim _writeLock = new(1, 1);
 
     // receive-side file state (PoC: only one file at a time)
-    private FileStream? _rxFile;
+    private Stream? _rxStream;
     private Guid _rxFileId;
     private long _rxExpectedSize;
     private long _rxWritten;
@@ -43,9 +43,12 @@ public sealed class TcpAesGcmSession : ISession {
 
     public SessionState State { get; private set; } = SessionState.Idle;
     public string Peer => _endpoint.ToString();
-    public string? DownloadDirectory { get; set; }
+    private readonly IStorageService _storageService;
 
-    public TcpAesGcmSession(IPEndPoint endpoint) => _endpoint = endpoint;
+    public TcpAesGcmSession(IStorageService storageService, IPEndPoint endpoint) {
+        _endpoint = endpoint;
+        _storageService = storageService;
+    }
 
     public void AttachAcceptedClient(TcpClient client) {
         _client = client;
@@ -74,17 +77,15 @@ public sealed class TcpAesGcmSession : ISession {
         _ = Task.Run(() => KeepAliveLoop(ct), ct);
     }
 
-    public async Task SendFileAsync(string path, CancellationToken ct) {
+    public async Task SendFileAsync(Stream file, string filename, CancellationToken ct) {
         if (_stream is null) throw new InvalidOperationException("Not connected.");
 
-        var fi = new FileInfo(path);
-        if (!fi.Exists) throw new FileNotFoundException("File not found.", path);
-
         var fileId = Guid.NewGuid();
+
         var offer = new FileOffer {
             FileId = fileId,
-            Name = fi.Name,
-            Size = fi.Length
+            Name = filename,
+            Size = file.Length
         };
 
         lock (_txLock) {
@@ -109,14 +110,13 @@ public sealed class TcpAesGcmSession : ISession {
 
         // Stream chunks + compute hash while sending
         using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        await using var fs = File.OpenRead(path);
 
         const int chunkSize = 64 * 1024;
         var buffer = new byte[chunkSize];
         int chunkIndex = 0;
 
         while (true) {
-            int n = await fs.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false);
+            int n = await file.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false);
             if (n <= 0) break;
 
             sha.AppendData(buffer, 0, n);
@@ -136,7 +136,7 @@ public sealed class TcpAesGcmSession : ISession {
 
     public Task StopAsync() {
         State = SessionState.Closed;
-        try { _rxFile?.Dispose(); } catch { }
+        try { _rxStream?.Dispose(); } catch { }
         try { _rxHash?.Dispose(); } catch { }
         lock (_txLock) {
             _txExpectedAckHashes.Clear();
@@ -242,7 +242,7 @@ public sealed class TcpAesGcmSession : ISession {
         }
 
         // PoC: overwrite any current receive
-        _rxFile?.Dispose();
+        _rxStream?.Dispose();
         _rxHash?.Dispose();
 
         _rxFileId = offer.FileId;
@@ -250,20 +250,26 @@ public sealed class TcpAesGcmSession : ISession {
         _rxWritten = 0;
         _rxExpectedChunkIndex = 0;
 
-        var dir = string.IsNullOrWhiteSpace(DownloadDirectory)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "DropMeReceived")
-            : DownloadDirectory;
-        Directory.CreateDirectory(dir);
+        //var dir = string.IsNullOrWhiteSpace(DownloadDirectory)
+        //    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "DropMeReceived")
+        //    : DownloadDirectory;
+        //Directory.CreateDirectory(dir);
+        var output =
+            _storageService.OpenDownloadFileWriteStreamAsync(
+                $"recv_{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeName(offer.Name)}");
 
-        _rxPath = Path.Combine(dir, $"recv_{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeName(offer.Name)}");
-        _rxFile = File.Create(_rxPath);
+        if (output is var (stream, path)) {
+            _rxStream = stream;
+            _rxPath = path;
+        }
+
         _rxHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 
         await SendMessageAsync(SessionMessageType.FileAccept, BuildFileIdPayload(offer.FileId), ct).ConfigureAwait(false);
     }
 
     private async Task HandleFileChunkAsync(byte[] payload, CancellationToken ct) {
-        if (_rxFile is null || _rxHash is null) return;
+        if (_rxStream is null || _rxHash is null) return;
 
         if (!TryParseFileChunkPayload(payload, out var fileId, out var chunkIndex, out var data))
             return;
@@ -275,22 +281,22 @@ public sealed class TcpAesGcmSession : ISession {
 
         _rxExpectedChunkIndex++;
 
-        await _rxFile.WriteAsync(data, ct).ConfigureAwait(false);
+        await _rxStream.WriteAsync(data, ct).ConfigureAwait(false);
         _rxHash.AppendData(data.Span);
         _rxWritten += data.Length;
     }
 
     private async Task HandleFileEndAsync(byte[] payload, CancellationToken ct) {
-        if (_rxFile is null || _rxHash is null || _rxPath is null) return;
+        if (_rxStream is null || _rxHash is null || _rxPath is null) return;
 
         if (!TryParseFileEndPayload(payload, out var fileId, out var senderHash))
             return;
 
         if (fileId != _rxFileId) return;
 
-        await _rxFile.FlushAsync(ct).ConfigureAwait(false);
-        _rxFile.Dispose();
-        _rxFile = null;
+        await _rxStream.FlushAsync(ct).ConfigureAwait(false);
+        await _rxStream.DisposeAsync();
+        _rxStream = null;
 
         var localHash = _rxHash.GetHashAndReset();
         _rxHash.Dispose();

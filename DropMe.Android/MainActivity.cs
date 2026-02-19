@@ -49,6 +49,7 @@ public class MainActivity : AvaloniaMainActivity<App> {
         // Add platform specific services here
         services.AddSingleton<IDeviceService, DeviceService>();
         services.AddSingleton<ICameraService, AndroidCameraService>();
+        services.AddSingleton<IStorageService, AndroidStorageService>();
 
         App.Services = services.BuildServiceProvider();
 
