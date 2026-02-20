@@ -38,6 +38,12 @@ package() {
     cp ${srcdir}/sweng26_group3/DropMe.Desktop/bin/release/net10.0/linux-x64/publish/* ${pkgdir}/usr/lib/DropMe/
     rm ${pkgdir}/usr/lib/DropMe/*.pdb
 
+    install -d ${pkgdir}/usr/share/icons/hicolor/256x256/apps/
+    cp ${srcdir}/sweng26_group3/linux/Icon.png ${pkgdir}/usr/share/icons/hicolor/256x256/apps/DropMe.png
+
+    install -d ${pkgdir}/usr/share/applications/
+    cp ${srcdir}/sweng26_group3/linux/DropMe.desktop ${pkgdir}/usr/share/applications/DropMe.desktop
+
     install -m 755 "${srcdir}/sweng26_group3/DropMe.Desktop/bin/release/net10.0/linux-x64/publish/DropMe.Desktop" "${pkgdir}/usr/lib/DropMe/DropMe.Desktop"
 
     install -d "${pkgdir}/usr/bin"
