@@ -39,7 +39,7 @@ package() {
     rm ${pkgdir}/usr/lib/DropMe/*.pdb
 
     install -d ${pkgdir}/usr/share/icons/hicolor/256x256/apps/
-    cp ${srcdir}/sweng26_group3/DropMe.Desktop/Icon.png ${pkgdir}/usr/share/icons/hicolor/256x256/apps/DropMe.png
+    cp ${srcdir}/sweng26_group3/linux/Icon.png ${pkgdir}/usr/share/icons/hicolor/256x256/apps/DropMe.png
 
     install -d ${pkgdir}/usr/share/applications/
     cp ${srcdir}/sweng26_group3/linux/DropMe.desktop ${pkgdir}/usr/share/applications/DropMe.desktop
