@@ -28,5 +28,13 @@ public class DesktopStorageService : IStorageService {
         return (stream, path);
     }
 
+    public Stream ReadConfig() {
+        throw new NotImplementedException();
+    }
+
+    public Stream WriteConfig() {
+        throw new NotImplementedException();
+    }
+    
     public string? GetDownloadDirectoryLabel() => _downloadsFolder;
 }

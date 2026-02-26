@@ -12,4 +12,8 @@ public interface IStorageService {
     // Do NOT use this to create/open files, use OpenDownloadFileWriteStream to directly open a stream
     // Maybe change to be an onDownloadDirectoryChanged event
     public string? GetDownloadDirectoryLabel();
+    // Returns a read stream to the config file
+    public Stream ReadConfig();
+    // Truncates the config file and returns a write stream to the empty file
+    public Stream WriteConfig();
 }
