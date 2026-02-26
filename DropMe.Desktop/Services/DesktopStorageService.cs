@@ -37,25 +37,23 @@ public class DesktopStorageService : IStorageService {
 
     public Stream ReadConfig() {
         while (true) {
-            try
-            {
+            try {
                 Directory.CreateDirectory(_configFolder);
                 return new FileStream(_configFile, FileMode.OpenOrCreate, FileAccess.ReadWrite);
             }
             catch (DirectoryNotFoundException) { /* retry */ }
         }
     }
-    
+
     public Stream WriteConfig() {
         while (true) {
-            try
-            {
+            try {
                 Directory.CreateDirectory(_configFolder);
                 return new FileStream(_configFile, FileMode.Create, FileAccess.Write);
             }
             catch (DirectoryNotFoundException) { /* retry */ }
         }
     }
-    
+
     public string? GetDownloadDirectoryLabel() => _downloadsFolder;
 }

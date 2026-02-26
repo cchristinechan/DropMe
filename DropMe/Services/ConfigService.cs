@@ -14,15 +14,15 @@ public class ConfigService(IStorageService storageService) {
 
         using var ostream = storageService.WriteConfig();
         using var writer = new System.IO.StreamWriter(ostream);
-        
+
         var serialised = System.Text.Json.JsonSerializer.Serialize(table);
-        
+
         writer.Write(serialised);
         writer.Flush();
-        
+
         return previous;
     }
-    
+
     public async Task<string?> InsertKVPairAsync(string key, string value) {
         var table = await GetHashTableAsync();
         var previous = table.GetValueOrDefault(key);
@@ -30,12 +30,12 @@ public class ConfigService(IStorageService storageService) {
 
         await using var ostream = storageService.WriteConfig();
         await using var writer = new System.IO.StreamWriter(ostream);
-        
+
         var serialised = System.Text.Json.JsonSerializer.Serialize(table);
-        
+
         await writer.WriteAsync(serialised);
         await writer.FlushAsync();
-        
+
         return previous;
     }
 
@@ -52,7 +52,7 @@ public class ConfigService(IStorageService storageService) {
             return new Dictionary<string, string>();
         }
     }
-    
+
     private async Task<Dictionary<string, string>> ReadConfigFileAsync() {
         await using var istream = storageService.ReadConfig();
         try {
@@ -72,6 +72,6 @@ public class ConfigService(IStorageService storageService) {
     private async Task<Dictionary<string, string>> GetHashTableAsync() {
         return _hashtable ??= await ReadConfigFileAsync();
     }
-    
+
     private Dictionary<string, string>? _hashtable;
 }
