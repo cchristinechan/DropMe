@@ -23,15 +23,13 @@ public class AndroidStorageService : IStorageService {
 
         if (folders.Count > 0) {
             _downloadsFolder = AndroidNet.Uri.Parse(folders[0].Path.ToString());
-            AndroidApplication.Context.ContentResolver.TakePersistableUriPermission(_downloadsFolder,
-                ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
+            //AndroidApplication.Context.ContentResolver.TakePersistableUriPermission(_downloadsFolder,
+            //    ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
         }
     }
 
     public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName) {
-        Console.WriteLine("OPENING!");
         var context = AndroidApplication.Context;
-        Console.WriteLine("Got context");
         // Use internal files by default, maybe later change this to external
         var folder = _downloadsFolder is not null ? DocumentFile.FromTreeUri(context, _downloadsFolder) : DocumentFile.FromFile(context.FilesDir);
 
@@ -53,6 +51,14 @@ public class AndroidStorageService : IStorageService {
         }
 
         return null;
+    }
+
+    public Stream ReadConfig() {
+        throw new NotImplementedException();
+    }
+
+    public Stream WriteConfig() {
+        throw new NotImplementedException();
     }
 
     private string NormalisePath(string str) {

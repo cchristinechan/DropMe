@@ -25,7 +25,6 @@ sealed class Program {
         services.AddSingleton<IStorageService, DesktopStorageService>();
 
         App.Services = services.BuildServiceProvider();
-
         return AppBuilder.Configure<App>()
             .UseSkia()
             .UsePlatformDetect()

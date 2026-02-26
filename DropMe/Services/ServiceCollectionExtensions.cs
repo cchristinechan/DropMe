@@ -15,7 +15,7 @@ public static class ServiceCollectionExtensions {
         services.AddSingleton<IQrCodeService, ZxingQrCodeService>();
         //Session Factory
         services.AddSingleton<SessionFactory>();
-
+        services.AddSingleton<ConfigService>();
         // Register cross platform services here
         services.AddTransient<MainViewModel>();
 
