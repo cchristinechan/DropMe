@@ -10,6 +10,13 @@ namespace DropMe.Desktop.Services;
 
 public class DesktopStorageService : IStorageService {
     private string _downloadsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "DropMeReceived");
+    private readonly string _configFolder = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "DropMe");
+    private readonly string _configFile = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "DropMe",
+        "config.json");
     public async Task PickDownloadsFolderAsync(Visual? visual) {
         var folders = await TopLevel.GetTopLevel(visual)?
             .StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions {
@@ -29,11 +36,25 @@ public class DesktopStorageService : IStorageService {
     }
 
     public Stream ReadConfig() {
-        throw new NotImplementedException();
+        while (true) {
+            try
+            {
+                Directory.CreateDirectory(_configFolder);
+                return new FileStream(_configFile, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+            }
+            catch (DirectoryNotFoundException) { /* retry */ }
+        }
     }
-
+    
     public Stream WriteConfig() {
-        throw new NotImplementedException();
+        while (true) {
+            try
+            {
+                Directory.CreateDirectory(_configFolder);
+                return new FileStream(_configFile, FileMode.Create, FileAccess.Write);
+            }
+            catch (DirectoryNotFoundException) { /* retry */ }
+        }
     }
     
     public string? GetDownloadDirectoryLabel() => _downloadsFolder;
