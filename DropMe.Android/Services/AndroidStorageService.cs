@@ -58,9 +58,12 @@ public class AndroidStorageService : IStorageService {
     }
 
     public Stream ReadConfig() => File.Open(configFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+    public Stream ReadConfig() => File.Open(configFilePath, FileMode.OpenOrCreate,  FileAccess.ReadWrite);
 
     public Stream WriteConfig() => File.Open(configFilePath, FileMode.Truncate, FileAccess.Write);
 
+    public Stream WriteConfig() => File.Open(configFilePath, FileMode.Truncate,  FileAccess.Write);
+    
     private string NormalisePath(string str) {
         const string treeSegment = "/tree/";
         if (str.StartsWith("content://") && str.Contains(treeSegment)) {
