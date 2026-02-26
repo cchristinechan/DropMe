@@ -13,6 +13,10 @@ using AndroidNet = Android.Net;
 namespace DropMe.Android.Services;
 
 public class AndroidStorageService : IStorageService {
+    const string CONFIG_FILE_NAME = "config.json";
+
+    private readonly string configFilePath =
+        Path.Combine(AndroidApplication.Context.FilesDir!.AbsolutePath, CONFIG_FILE_NAME);
     private AndroidNet.Uri? _downloadsFolder;
     public async Task PickDownloadsFolderAsync(Visual? visual) {
         var folders = await TopLevel.GetTopLevel(visual)?
@@ -53,13 +57,9 @@ public class AndroidStorageService : IStorageService {
         return null;
     }
 
-    public Stream ReadConfig() {
-        throw new NotImplementedException();
-    }
+    public Stream ReadConfig() => File.Open(configFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
 
-    public Stream WriteConfig() {
-        throw new NotImplementedException();
-    }
+    public Stream WriteConfig() => File.Open(configFilePath, FileMode.Truncate, FileAccess.Write);
 
     private string NormalisePath(string str) {
         const string treeSegment = "/tree/";
