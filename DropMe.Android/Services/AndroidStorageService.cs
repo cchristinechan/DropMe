@@ -13,6 +13,10 @@ using AndroidNet = Android.Net;
 namespace DropMe.Android.Services;
 
 public class AndroidStorageService : IStorageService {
+    const string CONFIG_FILE_NAME = "config.json";
+
+    private readonly string configFilePath =
+        Path.Combine(AndroidApplication.Context.FilesDir!.AbsolutePath, CONFIG_FILE_NAME);
     private AndroidNet.Uri? _downloadsFolder;
     public async Task PickDownloadsFolderAsync(Visual? visual) {
         var folders = await TopLevel.GetTopLevel(visual)?
@@ -23,15 +27,13 @@ public class AndroidStorageService : IStorageService {
 
         if (folders.Count > 0) {
             _downloadsFolder = AndroidNet.Uri.Parse(folders[0].Path.ToString());
-            AndroidApplication.Context.ContentResolver.TakePersistableUriPermission(_downloadsFolder,
-                ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
+            //AndroidApplication.Context.ContentResolver.TakePersistableUriPermission(_downloadsFolder,
+            //    ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
         }
     }
 
     public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName) {
-        Console.WriteLine("OPENING!");
         var context = AndroidApplication.Context;
-        Console.WriteLine("Got context");
         // Use internal files by default, maybe later change this to external
         var folder = _downloadsFolder is not null ? DocumentFile.FromTreeUri(context, _downloadsFolder) : DocumentFile.FromFile(context.FilesDir);
 
@@ -54,6 +56,10 @@ public class AndroidStorageService : IStorageService {
 
         return null;
     }
+
+    public Stream ReadConfig() => File.Open(configFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+
+    public Stream WriteConfig() => File.Open(configFilePath, FileMode.Truncate, FileAccess.Write);
 
     private string NormalisePath(string str) {
         const string treeSegment = "/tree/";
