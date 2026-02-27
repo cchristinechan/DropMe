@@ -1,8 +1,9 @@
 [Desktop Entry]
-Encoding=UTF-8
 Version=1.0
 Type=Application
 Terminal=false
 Exec=/usr/bin/dropme
 Name=DropMe
+Comment=Secure peer to peer file sharing.
 Icon=/usr/share/icons/hicolor/256x256/apps/DropMe.png
+Categories=Utility
