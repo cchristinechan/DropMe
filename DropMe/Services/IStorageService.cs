@@ -4,6 +4,9 @@ using Avalonia;
 
 namespace DropMe.Services;
 
+/// <summary>
+/// Interface for storage services required to be implemented by supported platforms.
+/// </summary>
 public interface IStorageService {
     /// <summary>
     /// Opens a dialogue for the user to pick a downloads folder for dropme to use.
