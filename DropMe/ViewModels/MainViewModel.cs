@@ -37,7 +37,6 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private CancellationTokenSource? _sessionMonitorCts;
     private bool _isStoppingSession;
     private int _qrHandled = 0;
-    private readonly SessionFactory _sessionFactory;
     private readonly IDeviceService _device;
     private readonly IStorageService _storageService;
     private string? _lastGeneratedInviteText;
@@ -173,13 +172,11 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         ICameraService camera,
         QrDecoder decoder,
         IQrCodeService qr,
-        SessionFactory sessionFactory,
         IDeviceService device,
         IStorageService storageService) {
         _camera = camera;
         _decoder = decoder;
         _qr = qr;
-        _sessionFactory = sessionFactory;
         _device = device;
         _storageService = storageService;
 
@@ -192,8 +189,6 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         _renderTimer.Tick += (_, _) => RenderPreview();
         _renderTimer.Start();
     }
-
-
 
     public void GenerateQr() {
         try {
@@ -262,9 +257,9 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                 _session = null;
             }
 
-            _session = new TcpHostSession(_storageService, new System.Net.IPEndPoint(System.Net.IPAddress.Any, port));
+            _session = new TcpServerSession(_storageService, new IPEndPoint(IPAddress.Any, port));
 
-            if (_session is TcpHostSession h) {
+            if (_session is TcpServerSession h) {
                 h.FileSaved += path =>
                     Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
@@ -273,11 +268,13 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
                 h.FileOfferDecision = async offer => {
                     var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
-                    return FileOfferDecisionUi is null ? true : await FileOfferDecisionUi(info);
+                    return FileOfferDecisionUi is null || await FileOfferDecisionUi(info);
                 };
             }
 
+            await _session.Connect(_sessionCts.Token);
             await _session.StartAsync(_sessionCts.Token);
+
             StartSessionMonitor(_session, _sessionCts.Token);
 
             Status = $"Connected to {_session.Peer}";
@@ -470,21 +467,13 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             Status = "Connecting to peer…";
 
             _sessionCts = new CancellationTokenSource();
-            _session = _sessionFactory.Create(_storageService, invite);
 
-            if (_session is TcpAesGcmSession s) {
-                s.FileSaved += path =>
-                    Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
+            var ep = new IPEndPoint(
+                IPAddress.Parse(invite.Ip),
+                invite.Port);
+            _session = new TcpClientSession(_storageService, ep);
 
-                s.FileAcked += (_, sha) =>
-                    Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered ✅ SHA256={sha}");
-
-                s.FileOfferDecision = async offer => {
-                    var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
-                    return FileOfferDecisionUi is null ? true : await FileOfferDecisionUi(info);
-                };
-            }
-            else if (_session is TcpHostSession h) {
+            if (_session is TcpClientSession h) {
                 h.FileSaved += path =>
                     Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
@@ -497,6 +486,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                 };
             }
 
+            await _session.Connect(_sessionCts.Token);
             await _session.StartAsync(_sessionCts.Token);
             StartSessionMonitor(_session, _sessionCts.Token);
 
