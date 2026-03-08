@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 
 namespace DropMe.Services.Session;
 
-public sealed class TcpHostSession(IStorageService storageService, IPEndPoint listenEp) : ISession {
-    private TcpListener? _listener;
+public sealed class TcpSession(IStorageService storageService, IPEndPoint listenEp) : ISession {
+    private TcpClient? _client;
     private AesGcmFileTransfer<NetworkStream>? _transferService;
 
     private Func<AesGcmFileTransfer<NetworkStream>.FileOfferInfo, Task<bool>>? _fileOfferDecision;
@@ -27,28 +27,24 @@ public sealed class TcpHostSession(IStorageService storageService, IPEndPoint li
     public SessionState State { get; private set; } = SessionState.Idle;
     public string Peer => _transferService?.PeerName ?? "waiting…";
 
-    public async Task StartAsync(CancellationToken ct) {
-        State =  SessionState.Idle;
-        _listener = new TcpListener(listenEp);
-        _listener.Start();
+    public async Task Connect(CancellationToken ct) {
+        State = SessionState.Idle;
+        var listener = new TcpListener(listenEp);
+        listener.Start();
+        _client = await listener.AcceptTcpClientAsync(ct);
+        listener.Stop();
+    }
 
-        using var client = await _listener.AcceptTcpClientAsync(ct);
-        var ep = (IPEndPoint?)client.Client.RemoteEndPoint ?? listenEp;
-        
-        _transferService = new AesGcmFileTransfer<NetworkStream>(client.GetStream(), ep.ToString(), storageService);
+    public async Task StartAsync(CancellationToken ct) {
+        if (_client is null) throw new InvalidOperationException("Not connected.");
+        var ep = (IPEndPoint?)_client.Client.RemoteEndPoint ?? listenEp;
+        State = SessionState.Connected;
+        _transferService = new AesGcmFileTransfer<NetworkStream>(_client.GetStream(), ep.ToString(), storageService);
         _transferService.FileSaved += path => FileSaved?.Invoke(path);
         _transferService.FileAcked += (id, sha) => FileAcked?.Invoke(id, sha);
         _transferService.FileOfferDecision = _fileOfferDecision;
-        try {
-            await _transferService.Start(ct).ConfigureAwait(false);
-            State = SessionState.Connected;
-        }
-        catch (OperationCanceledException e) {
 
-        }
-        catch (Exception e) {
-            State = SessionState.Error;
-        }
+        await _transferService.Start(ct);
     }
 
     public Task SendFileAsync(Stream file, string filename, CancellationToken ct) {
@@ -59,9 +55,15 @@ public sealed class TcpHostSession(IStorageService storageService, IPEndPoint li
     public async Task StopAsync() {
         if (_transferService is not null) {
             State = SessionState.Closed;
-            await _transferService.StopAsync();
+            try {
+                await _transferService.StopAsync();
+            }
+            catch (ObjectDisposedException) {
+                // Logging?
+            }
+            catch (Exception ex) {
+                // Logging?
+            }
         }
-
-        _listener?.Stop();
     }
 }
