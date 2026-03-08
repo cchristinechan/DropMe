@@ -8,6 +8,7 @@ public interface ISession {
     SessionState State { get; }
     string Peer { get; }
 
+    Task Connect(CancellationToken ct);
     Task StartAsync(CancellationToken ct);
     Task SendFileAsync(Stream file, string filename, CancellationToken ct);
     Task StopAsync();

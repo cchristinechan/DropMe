@@ -1,17 +1,17 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using DropMe.Services.Session;
 
-namespace DropMe.Services.Session;
+namespace DropMe.Services;
 
-public sealed class TcpServerSession(IStorageService storageService, IPEndPoint listenEp) : ISession {
-    private TcpClient? _client;
+public sealed class TcpClientSession(IStorageService storageService, IPEndPoint serverEp) : ISession {
     private AesGcmFileTransfer<NetworkStream>? _transferService;
-
     private Func<AesGcmFileTransfer<NetworkStream>.FileOfferInfo, Task<bool>>? _fileOfferDecision;
+    private TcpClient? _client;
 
     public event Action<string>? FileSaved;
     public event Action<Guid, string /*sha256 hex*/>? FileAcked;
@@ -29,16 +29,16 @@ public sealed class TcpServerSession(IStorageService storageService, IPEndPoint 
 
     public async Task Connect(CancellationToken ct) {
         State = SessionState.Connecting;
-        var listener = new TcpListener(listenEp);
-        listener.Start();
-        _client = await listener.AcceptTcpClientAsync(ct);
-        listener.Stop();
+
+        _client = new TcpClient();
+        await _client.ConnectAsync(serverEp, ct).ConfigureAwait(false);
+
         State = SessionState.Connected;
     }
 
     public async Task StartAsync(CancellationToken ct) {
         if (_client is null) throw new InvalidOperationException("Not connected.");
-        var ep = (IPEndPoint?)_client.Client.RemoteEndPoint ?? listenEp;
+        var ep = (IPEndPoint?)_client.Client.RemoteEndPoint ?? serverEp;
         State = SessionState.Connected;
         _transferService = new AesGcmFileTransfer<NetworkStream>(_client.GetStream(), ep.ToString(), storageService);
         _transferService.FileSaved += path => FileSaved?.Invoke(path);
