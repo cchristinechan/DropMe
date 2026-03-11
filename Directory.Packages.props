@@ -14,10 +14,10 @@
     <PackageVersion Include="Avalonia.iOS" Version="11.3.11" />
     <PackageVersion Include="Avalonia.Browser" Version="11.3.11" />
     <PackageVersion Include="Avalonia.Android" Version="11.3.11" />
-    <PackageVersion Include="InTheHand.BluetoothLE" Version="4.0.44" />
     <PackageVersion Include="Material.Avalonia" Version="3.13.4" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.3" />
     <PackageVersion Include="OpenCvSharp4" Version="4.11.0.20250507" />
     <PackageVersion Include="OpenCvSharp4.runtime.win" Version="4.11.0.20250507" />
     <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.15" />
@@ -33,5 +33,12 @@
     <PackageVersion Include="NUnit3TestAdapter" Version="5.0.0" />
     <PackageVersion Include="Xamarin.AndroidX.DocumentFile" Version="1.1.0.2" />
     <PackageVersion Include="ZXing.Net" Version="0.16.11" />
+    <!-- Bluetooth library -->
+    <PackageVersion Include="DotNet.ReproducibleBuilds" Version="1.2.25" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <PackageVersion Include="MSBuild.Sdk.Extras" Version="3.0.44" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+    <PackageVersion Include="Linux.Bluetooth" Version="5.67.1" />
+    <PackageVersion Include="Tmds.DBus" Version="0.90.3" />
   </ItemGroup>
 </Project>
