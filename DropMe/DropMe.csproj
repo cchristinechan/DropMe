@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFrameworks>net10.0-android;net8.0</TargetFrameworks>
+        <EnableWindowsTargeting>true</EnableWindowsTargeting>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -20,10 +21,10 @@
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="InTheHand.BluetoothLE" />
         <PackageReference Include="Material.Avalonia" />
         <PackageReference Include="CommunityToolkit.Mvvm" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+        <PackageReference Include="Tmds.DBus" />
         <PackageReference Include="ZXing.Net" />
     </ItemGroup>
 
@@ -32,5 +33,9 @@
         <DependentUpon>MainView.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\libs\32feet\InTheHand.Net.Bluetooth\InTheHand.Net.Bluetooth.csproj"><SetTargetFramework>TargetFramework=$(TargetFramework)</SetTargetFramework></ProjectReference>
     </ItemGroup>
 </Project>
