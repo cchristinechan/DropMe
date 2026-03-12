@@ -1,7 +1,10 @@
+using System;
 using DropMe.ViewModels;
 using DropMe.Views;
 using Microsoft.Extensions.DependencyInjection;
 using DropMe.Services.Session;
+using InTheHand.Net.Sockets;
+
 namespace DropMe.Services;
 
 public static class ServiceCollectionExtensions {
@@ -19,6 +22,11 @@ public static class ServiceCollectionExtensions {
         services.AddSingleton<ConfigService>();
         // Register cross platform services here
         services.AddTransient<MainViewModel>();
+        services.AddSingleton<IPermissionsService, DefaultPermissionsService>();
 
+        // Currently not supporting mac os or ios for bluetooth
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsAndroid()) {
+            services.AddTransient<IBluetoothListener>(sp => new BluetoothListener(new Guid("bc8659c9-3aa7-4faf-ba42-c5feb93d1a3e")));
+        }
     }
 }
