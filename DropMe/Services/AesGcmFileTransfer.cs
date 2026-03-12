@@ -15,8 +15,6 @@ public class AesGcmFileTransfer<T>(T stream, string peerName, IStorageService st
     where T : Stream {
     public Func<FileOfferInfo, Task<bool>>? FileOfferDecision { get; set; }
 
-    public sealed record FileOfferInfo(Guid FileId, string Name, long Size);
-
     public event Action<string>? FileSaved;
     public event Action<Guid, string /*sha256 hex*/>? FileAcked;
 
