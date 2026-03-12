@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using DropMe.Services.Session;
+using DropMe.ViewModels;
 
 namespace DropMe.Services;
 
