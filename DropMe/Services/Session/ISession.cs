@@ -9,7 +9,7 @@ namespace DropMe.Services.Session;
 public interface ISession {
     SessionState State { get; }
     string Peer { get; }
-    
+
     public event Action<string>? FileSaved;
     public event Action<Guid, string /*sha256 hex*/>? FileAcked;
 
