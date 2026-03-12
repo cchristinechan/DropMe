@@ -24,7 +24,6 @@
         <PackageReference Include="Material.Avalonia" />
         <PackageReference Include="CommunityToolkit.Mvvm" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-        <PackageReference Include="Tmds.DBus" />
         <PackageReference Include="ZXing.Net" />
     </ItemGroup>
 
