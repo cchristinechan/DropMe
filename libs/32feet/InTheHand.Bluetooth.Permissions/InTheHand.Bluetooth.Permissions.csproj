@@ -1,7 +1,7 @@
-﻿<Project Sdk="MSBuild.Sdk.Extras/3.0.44">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 	<Sdk Name="DotNet.ReproducibleBuilds.Isolated" Version="1.2.4" />
 	<PropertyGroup>
-		<TargetFrameworks>netstandard2.0;monoandroid10.0;xamarinios10;uap10.0;net7.0;net7.0-android;net7.0-ios;net7.0-maccatalyst;net8.0-android;net8.0-ios;net8.0-maccatalyst</TargetFrameworks>
+		<TargetFrameworks>net8.0;net10.0-android;</TargetFrameworks>
 		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net7.0-windows10.0.19041.0;net8.0-windows10.0.19041.0</TargetFrameworks>
 		<!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
 		<!-- <TargetFrameworks>$(TargetFrameworks);net7.0-tizen</TargetFrameworks> -->
@@ -40,12 +40,13 @@
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
 		<RootNamespace>InTheHand.Bluetooth.Permissions</RootNamespace>
+		<UseMauiEssentials>true</UseMauiEssentials>
 	</PropertyGroup>
 	
 	<ItemGroup>
-		<PackageReference Include="DotNet.ReproducibleBuilds" Version="1.2.4" PrivateAssets="All" />
-		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
-		<PackageReference Include="MSBuild.Sdk.Extras" Version="3.0.44" PrivateAssets="All" />
+		<PackageReference Include="DotNet.ReproducibleBuilds" />
+		<PackageReference Include="Microsoft.SourceLink.GitHub" />
+		<PackageReference Include="MSBuild.Sdk.Extras" />
 	</ItemGroup>
 	
 	<PropertyGroup Condition=" '$(TargetFramework)' == 'uap10.0' ">
@@ -65,56 +66,26 @@
 		<None Include="README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 	
-	<ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
-		<PackageReference Include="Xamarin.Essentials" Version="1.7.7" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" '$(TargetFramework)' == 'monoandroid10.0' ">
-		<PackageReference Include="Xamarin.Essentials" Version="1.7.7" />
-		<Compile Include="Platforms\Android\*.cs" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" '$(TargetFramework)' == 'xamarinios10' ">
-		<PackageReference Include="Xamarin.Essentials" Version="1.7.7" />
-		<Compile Include="Platforms\iOS\*.cs" />
-	</ItemGroup>
-	
 	<ItemGroup Condition=" '$(TargetFramework)' == 'uap10.0' ">
-		<PackageReference Include="Xamarin.Essentials" Version="1.7.7" />
+		<PackageReference Include="Xamarin.Essentials" />
 		<Compile Include="Platforms\Uwp\*.cs" />
 	</ItemGroup>
-	
-	<ItemGroup Condition=" '$(TargetFramework)' == 'net7.0-android' ">
-		<Compile Include="Platforms\Android\*.cs" />
-	</ItemGroup>
 
-	<ItemGroup Condition=" '$(TargetFramework)' == 'net7.0-ios' ">
-		<Compile Include="Platforms\iOS\*.cs" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" '$(TargetFramework)' == 'net7.0-maccatalyst' ">
-		<Compile Include="Platforms\MacCatalyst\*.cs" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" '$(TargetFramework)' == 'net7.0-windows10.0.19041.0' ">
+	<ItemGroup Condition=" '$(TargetFramework)' == 'net8.0-windows10.0.19041.0' ">
 		<Compile Include="Platforms\Windows\*.cs" />
 	</ItemGroup>
 
-	<ItemGroup Condition=" '$(TargetFramework)' == 'net8.0-android' ">
+	<ItemGroup Condition=" '$(TargetFramework)' == 'net10.0-android' ">
 		<Compile Include="Platforms\Android\*.cs" />
 		<PackageReference Update="Microsoft.Maui.Controls" Version="8.0.40" />
 		<PackageReference Update="Microsoft.Maui.Controls.Compatibility" Version="8.0.40" />
 	</ItemGroup>
 
-	<ItemGroup Condition=" '$(TargetFramework)' == 'net8.0-ios' ">
-		<Compile Include="Platforms\iOS\*.cs" />
-		<PackageReference Update="Microsoft.Maui.Controls" Version="8.0.40" />
-		<PackageReference Update="Microsoft.Maui.Controls.Compatibility" Version="8.0.40" />
+	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+	  <PackageReference Include="Microsoft.Maui.Essentials" />
 	</ItemGroup>
 
-	<ItemGroup Condition=" '$(TargetFramework)' == 'net8.0-maccatalyst' ">
-		<Compile Include="Platforms\MacCatalyst\*.cs" />
-		<PackageReference Update="Microsoft.Maui.Controls" Version="8.0.40" />
-		<PackageReference Update="Microsoft.Maui.Controls.Compatibility" Version="8.0.40" />
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
+	  <PackageReference Include="Microsoft.Maui.Essentials" />
 	</ItemGroup>
 </Project>
