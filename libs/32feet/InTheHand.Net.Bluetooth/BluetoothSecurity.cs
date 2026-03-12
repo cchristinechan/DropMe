@@ -34,10 +34,11 @@ namespace InTheHand.Net.Bluetooth
                 case PlatformID.Unix:
                     _bluetoothSecurity = new LinuxBluetoothSecurity();
                     break;
+                /*
                 case PlatformID.Win32NT:
                     //detect Windows 10
                     _bluetoothSecurity = new Win32BluetoothSecurity();
-                    break;
+                    break;*/
             }
 #endif
             if (_bluetoothSecurity == null)

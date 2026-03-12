@@ -33,12 +33,13 @@ namespace InTheHand.Net.Bluetooth
 #else
             switch (Environment.OSVersion.Platform)
             {
-                /*case PlatformID.Unix:
+                case PlatformID.Unix:
                     _bluetoothDevicePicker = new LinuxBluetoothDevicePicker();
-                    break;*/
+                    break;
+                /*
                 case PlatformID.Win32NT:
                     _bluetoothDevicePicker = new Win32BluetoothDevicePicker();
-                    break;
+                    break;*/
             }
 #endif
             if (_bluetoothDevicePicker == null)
