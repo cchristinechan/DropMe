@@ -11,12 +11,11 @@ public sealed class TcpServerSession(IStorageService storageService, IPEndPoint 
     private TcpClient? _client;
     private AesGcmFileTransfer<NetworkStream>? _transferService;
 
-    private Func<AesGcmFileTransfer<NetworkStream>.FileOfferInfo, Task<bool>>? _fileOfferDecision;
+    private Func<FileOfferInfo, Task<bool>>? _fileOfferDecision;
 
-    public event Action<string>? FileSaved;
-    public event Action<Guid, string /*sha256 hex*/>? FileAcked;
+    public event Action<Guid, string>? FileAcked;
 
-    public Func<AesGcmFileTransfer<NetworkStream>.FileOfferInfo, Task<bool>>? FileOfferDecision {
+    public Func<FileOfferInfo, Task<bool>>? FileOfferDecision {
         get => _fileOfferDecision;
         set {
             _fileOfferDecision = value;
@@ -26,6 +25,7 @@ public sealed class TcpServerSession(IStorageService storageService, IPEndPoint 
 
     public SessionState State { get; private set; } = SessionState.Idle;
     public string Peer => _transferService?.PeerName ?? "waiting…";
+    public event Action<string>? FileSaved;
 
     public async Task Connect(CancellationToken ct) {
         State = SessionState.Connecting;
