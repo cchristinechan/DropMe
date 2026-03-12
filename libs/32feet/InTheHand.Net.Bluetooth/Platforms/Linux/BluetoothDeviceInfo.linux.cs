@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Linux.Bluetooth.Extensions;
+using Tmds.DBus;
 
 namespace InTheHand.Net.Sockets
 {
@@ -87,6 +88,26 @@ namespace InTheHand.Net.Sockets
             }
 
             return services;
+        }
+
+        public async Task<PairState> PairAsync() {
+            try {
+                await _device.PairAsync();
+                return PairState.PairAccepted;
+            }
+            catch (DBusException e) {
+                switch (e.ErrorName) {
+                    case "org.bluez.Error.AuthenticationFailed":
+           
+                    case "org.bluez.Error.AuthenticationTimeout":
+                        return PairState.PairRejected;
+
+                    case "org.bluez.Error.AlreadyExists":
+                        return PairState.AlreadyPaired;
+                    
+                    default: throw;
+                }
+            } 
         }
 
         private bool _connected;

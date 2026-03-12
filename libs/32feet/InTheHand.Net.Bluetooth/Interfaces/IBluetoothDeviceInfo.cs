@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace InTheHand.Net.Bluetooth
 {
-    internal interface IBluetoothDeviceInfo
+    public interface IBluetoothDeviceInfo
     {
         void Refresh();
 
