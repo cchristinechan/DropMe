@@ -17,7 +17,7 @@ namespace InTheHand.Net.Sockets
     /// Provides information about an available device obtained by the client during device discovery.
     /// </summary>
     [DebuggerDisplay("({DeviceAddress.ToString(\"C\")}) {DeviceName}")]
-    public sealed partial class BluetoothDeviceInfo : IEquatable<BluetoothDeviceInfo>
+    public sealed partial class BluetoothDeviceInfo : IEquatable<BluetoothDeviceInfo>, IBluetoothDeviceInfo
     {
         private readonly IBluetoothDeviceInfo _bluetoothDeviceInfo;
 
@@ -50,10 +50,11 @@ namespace InTheHand.Net.Sockets
                     // check for macOS goes here
                     _bluetoothDeviceInfo = new LinuxBluetoothDeviceInfo(address);
                     break;
+                /*
                 case PlatformID.Win32NT:
                     // check for Windows 10 goes here
                     _bluetoothDeviceInfo = new Win32BluetoothDeviceInfo(address);
-                    break;
+                    break;*/
             }
 #endif
             if (_bluetoothDeviceInfo == null)
