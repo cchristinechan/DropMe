@@ -30,7 +30,7 @@ namespace InTheHand.Net.Sockets
             // Validate that the object path is a valid dbus object path
             var objPathEnd = string.IsNullOrEmpty(ServiceName) ? Process.GetCurrentProcess().Id.ToString() : ServiceName;
             var dbusObjectPath = $"/com/32feet/{objPathEnd}";
-            _sdpServer = new BluetoothSdpServer(dbusObjectPath);
+            _sdpServer = new BluetoothSdpServer(dbusObjectPath, ServiceName);
             _sdpServer.OnClientConnected += OnClientConnected;
             Task.Run(async () => await _sdpServer.StartAsync(ServiceUuid)).Wait();
             Console.WriteLine($"Sdp server advertising {ServiceUuid} using dbus object {dbusObjectPath} for bluez communication");
