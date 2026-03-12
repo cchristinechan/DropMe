@@ -42,9 +42,10 @@ namespace InTheHand.Net.Bluetooth
                         case PlatformID.Unix:
                             radio = LinuxBluetoothRadio.GetDefault();
                             break;
+                        /*
                         case PlatformID.Win32NT:
                             radio = Win32BluetoothRadio.GetDefault();
-                            break;
+                            break;*/
                     }
 #endif
                     if (radio == null)
