@@ -98,12 +98,36 @@ namespace InTheHand.Net.Sockets
 
             var t = Task.Run(async () =>
             {
-                await adapter.StartDiscoveryAsync();
-                await Task.Delay(5000);
+                Console.WriteLine("Starting discovery");
+                try {
+                    var filter = new Dictionary<string, object>
+                    {
+                        { "Transport", "bredr" },
+                        { "DuplicateData", false }
+                    };
+                    await adapter.SetDiscoveryFilterAsync(filter);
+                    await adapter.StartDiscoveryAsync();
+                }
+                catch (Exception e) {
+                    Console.WriteLine(e.Message);
+                }
+                
+                await Task.Delay(12800);
+                Console.WriteLine("Delay over");
                 await adapter.StopDiscoveryAsync();
+                Console.WriteLine("Discovery stopped");
                 waitable.Set();
                 result.TrySetResult(true);
             }, cancellationToken);
+            Console.WriteLine("Discovering known devices");
+            var existingDevices = await adapter.GetDevicesAsync();
+            foreach (var d in existingDevices) {
+                var linuxInfo = (LinuxBluetoothDeviceInfo)d;
+                await linuxInfo.Init();
+                var deviceInfo = new BluetoothDeviceInfo(linuxInfo);
+                if (deviceInfo.DeviceAddress != BluetoothAddress.None)
+                    yield return deviceInfo;
+            }
 
             while (!t.IsCompleted)
             {
@@ -118,7 +142,7 @@ namespace InTheHand.Net.Sockets
         public void Connect(BluetoothAddress address, Guid service)
         {
             var ep = new BluetoothEndPoint(address, service);
-
+            
             Connect(ep);
         }
 
@@ -137,6 +161,13 @@ namespace InTheHand.Net.Sockets
         public async Task ConnectAsync(BluetoothAddress address, Guid service)
         {
             Connect(address, service);
+        }
+
+        public Task<PairState> PairAsync(IBluetoothDeviceInfo device) {
+            if (device is LinuxBluetoothDeviceInfo info) {
+                return info.PairAsync();
+            }
+            throw new PlatformNotSupportedException("Linux method called on non linux object");
         }
 
         public void Close()

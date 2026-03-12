@@ -170,13 +170,42 @@ namespace InTheHand.Net.Sockets
         }
 #endif
 
+        public async Task<PairState> PairAsync(IBluetoothDeviceInfo device) {
+            var nativeDevice = ((BluetoothAdapter)_radio).GetRemoteDevice(device.DeviceAddress.ToString("C"));
+
+            if (nativeDevice.BondState == Bond.Bonded) {
+                return PairState.AlreadyPaired;
+            }
+            
+            var handlerThread = new HandlerThread("pair_ht");
+            handlerThread.Start();
+            var looper = handlerThread.Looper;
+            var handler = new Handler(looper);
+        
+            var bondRecv = new BluetoothBondReceiver();
+        
+            var filter = new IntentFilter();
+            filter.AddAction(BluetoothDevice.ActionBondStateChanged);
+        
+            AndroidActivity.CurrentActivity.RegisterReceiver(bondRecv, filter, null, handler);
+            try {
+                var bond = nativeDevice.CreateBond();
+                Console.WriteLine($"Bond: {bond}");
+                await bondRecv.BondTcs.Task;
+            }
+            finally {
+                AndroidActivity.CurrentActivity.UnregisterReceiver(bondRecv);
+                handlerThread.QuitSafely();
+                handlerThread.Dispose();
+            }
+
+            return PairState.PairRejected;
+        }
+        
         public void Connect(BluetoothAddress address, Guid service)
         {
             var nativeDevice = ((BluetoothAdapter)_radio).GetRemoteDevice(address.ToString("C"));
-            var bond = nativeDevice.CreateBond();
-            Console.WriteLine($"Bond: {bond}");
-
-            Thread.Sleep(20000);
+            
             Console.WriteLine($"Device info: {nativeDevice.Name} bonded {nativeDevice.BondState}");
             if (!Authenticate && !Encrypt)
             {
@@ -308,5 +337,34 @@ namespace InTheHand.Net.Sockets
             Dispose(true);
         }
         #endregion
+        
+        private class BluetoothBondReceiver : BroadcastReceiver {
+            public TaskCompletionSource<PairState> BondTcs = new TaskCompletionSource<PairState>();
+            public override void OnReceive(Context context, Intent intent)
+            {
+                if (intent.Action == BluetoothDevice.ActionBondStateChanged)
+                {
+                    // Get the device associated with the intent
+                    var device = (BluetoothDevice)intent.GetParcelableExtra(BluetoothDevice.ExtraDevice);
+            
+                    // Get the current and previous bond states
+                    int newState = intent.GetIntExtra(BluetoothDevice.ExtraBondState, (int)Bond.None);
+                    int prevState = intent.GetIntExtra(BluetoothDevice.ExtraPreviousBondState, (int)Bond.None);
+                    
+                    System.Diagnostics.Debug.WriteLine($"Device: {device.Name}, Bond State: {newState}, Previous: {prevState}");
+
+                    switch ((Bond)newState) {
+                        case Bond.Bonded:
+                            BondTcs.TrySetResult(PairState.PairAccepted);
+                            break;
+                        case Bond.None:
+                            BondTcs.TrySetResult(PairState.PairRejected);
+                            break;
+                        case Bond.Bonding:
+                            break;
+                    }
+                }
+            }
+        }
     }
 }
