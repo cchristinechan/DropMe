@@ -17,7 +17,7 @@ namespace InTheHand.Net.Sockets
     /// <summary>
     /// Listens for connections from Bluetooth RFCOMM network clients.
     /// </summary>
-    public sealed class BluetoothListener : IDisposable
+    public sealed class BluetoothListener : IDisposable, IBluetoothListener
     {
         private readonly IBluetoothListener _bluetoothListener;
 
@@ -64,9 +64,10 @@ namespace InTheHand.Net.Sockets
                 case PlatformID.Unix:
                     _bluetoothListener = new LinuxBluetoothListener();
                     break;
+                /*
                 case PlatformID.Win32NT:
                     _bluetoothListener = new Win32BluetoothListener();
-                    break;
+                    break;*/
             }
 #endif
             Console.WriteLine("Type: " +  _bluetoothListener.GetType().Name);
@@ -138,6 +139,8 @@ namespace InTheHand.Net.Sockets
         /// </summary>
         public bool Active { get => _bluetoothListener.Active; }
 
+        public Guid ServiceUuid { get => _bluetoothListener.ServiceUuid; set => _bluetoothListener.ServiceUuid = value; }
+
         /// <summary>
         /// Get or set the Service Class flags that this service adds to the host 
         /// device&#x2019;s Class Of Device field.
@@ -182,7 +185,7 @@ namespace InTheHand.Net.Sockets
         /// (or a record wasn&#x2019;t supplied at initialization).
         /// </note>
         /// </remarks>
-        public ServiceRecord ServiceRecord { get => _bluetoothListener.ServiceRecord; private set => _bluetoothListener.ServiceRecord = value; }
+        public ServiceRecord ServiceRecord { get => _bluetoothListener.ServiceRecord; set => _bluetoothListener.ServiceRecord = value; }
 
         /// <summary>
 		/// Determines if there is a connection pending.

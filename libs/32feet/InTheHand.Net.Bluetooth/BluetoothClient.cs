@@ -41,10 +41,12 @@ namespace InTheHand.Net.Sockets
                     // check for macOS goes here
                     _bluetoothClient = new LinuxBluetoothClient();
                     break;
+                /*
                 case PlatformID.Win32NT:
+                    
                     // check for Windows 10 goes here
                     _bluetoothClient = new Win32BluetoothClient();
-                    break;
+                    break;*/
             }
 #endif
             if (_bluetoothClient == null)
@@ -56,6 +58,10 @@ namespace InTheHand.Net.Sockets
             _bluetoothClient = client;
         }
 
+        public Task<PairState> PairAsync(IBluetoothDeviceInfo deviceInfo) {
+            return _bluetoothClient.PairAsync(deviceInfo);
+        }
+        
         /// <summary>
         /// Returns a collection of paired devices.
         /// </summary>

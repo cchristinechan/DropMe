@@ -15,6 +15,7 @@ using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Rfcomm;
 using Windows.Devices.Enumeration;
 using Windows.Networking.Sockets;
+using InTheHand.Net.Bluetooth;
 
 namespace InTheHand.Net.Sockets
 {
@@ -91,6 +92,19 @@ namespace InTheHand.Net.Sockets
                 _streamSocket = new StreamSocket();
                 await _streamSocket.ConnectAsync(rfCommService.ConnectionHostName, rfCommService.ConnectionServiceName, Authenticate ? SocketProtectionLevel.BluetoothEncryptionWithAuthentication : SocketProtectionLevel.BluetoothEncryptionAllowNullAuthentication);
             }
+        }
+
+        public async Task<PairState> PairAsync(IBluetoothDeviceInfo device) {
+            var platformDevice = await BluetoothDevice.FromBluetoothAddressAsync(device.DeviceAddress);
+            var pairing = platformDevice.DeviceInformation.Pairing;
+
+            if (pairing.IsPaired) return PairState.AlreadyPaired;
+            if (!pairing.CanPair) return PairState.PairRejected;
+            var res = await pairing.PairAsync();
+            return res.Status switch {
+                DevicePairingResultStatus.AlreadyPaired or DevicePairingResultStatus.Paired => PairState.PairAccepted,
+                _ => PairState.PairRejected
+            };
         }
 
         public void Connect(BluetoothAddress address, Guid service)
