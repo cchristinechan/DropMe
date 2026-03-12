@@ -11,6 +11,7 @@ using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using InTheHand.Net.Bluetooth;
 
 namespace InTheHand.Net.Sockets
 {
@@ -19,6 +20,7 @@ namespace InTheHand.Net.Sockets
         void Connect(BluetoothAddress address, Guid service);
         void Connect(BluetoothEndPoint remoteEP);
         Task ConnectAsync(BluetoothAddress address, Guid service);
+        Task<PairState> PairAsync(IBluetoothDeviceInfo device);
 
         void Close();
 
