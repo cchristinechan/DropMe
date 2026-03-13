@@ -1,16 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Android.App;
 using Android.Content;
 using Android.Util;
-using Android.Views;
 using AndroidX.Camera.Core;
 using AndroidX.Camera.Lifecycle;
 using AndroidX.Core.Content;
-using AndroidX.Core.Util;
 using AndroidX.Lifecycle;
 using DropMe.Services;
+using Java.Util.Concurrent;
 
 namespace DropMe.Android.Services;
 
@@ -18,8 +17,44 @@ public sealed class AndroidCameraService : ICameraService {
     private ProcessCameraProvider? _cameraProvider;
     private ImageAnalysis? _analysis;
     private CancellationTokenSource? _loopCts;
+    private IExecutorService? _analyzerExecutor;
+
+    private bool _useFrontCamera;
 
     public event Action<CameraFrame>? FrameArrived;
+
+    public int SelectedCameraIndex => _useFrontCamera ? 1 : 0;
+
+    public IReadOnlyList<string> GetAvailableCameras() =>
+        new[] { "Back Camera", "Front Camera" };
+
+    public async Task<bool> SelectCameraAsync(int index, CancellationToken ct = default) {
+        var useFront = index == 1;
+        if (_useFrontCamera == useFront)
+            return true;
+
+        _useFrontCamera = useFront;
+
+        if (_cameraProvider is not null) {
+            var activity = MainActivity.CurrentActivity
+                ?? throw new InvalidOperationException("No Android activity available.");
+            await BindCameraAsync(activity).ConfigureAwait(false);
+        }
+
+        return true;
+    }
+
+    public async Task<bool> ToggleCameraAsync(CancellationToken ct = default) {
+        _useFrontCamera = !_useFrontCamera;
+
+        if (_cameraProvider is not null) {
+            var activity = MainActivity.CurrentActivity
+                ?? throw new InvalidOperationException("No Android activity available.");
+            await BindCameraAsync(activity).ConfigureAwait(false);
+        }
+
+        return true;
+    }
 
     public async Task StartAsync(CancellationToken ct = default) {
         _loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -30,13 +65,14 @@ public sealed class AndroidCameraService : ICameraService {
         var provider = await GetCameraProviderAsync(activity).ConfigureAwait(false);
         _cameraProvider = provider;
 
-        var analysisBuilder = new ImageAnalysis.Builder()
+        _analyzerExecutor = Executors.NewSingleThreadExecutor();
+
+        _analysis = new ImageAnalysis.Builder()
             .SetBackpressureStrategy(ImageAnalysis.StrategyKeepOnlyLatest)
-            .SetOutputImageFormat(ImageAnalysis.OutputImageFormatRgba8888);
+            .SetOutputImageFormat(ImageAnalysis.OutputImageFormatRgba8888)
+            .Build();
 
-        _analysis = analysisBuilder.Build();
-
-        _analysis.SetAnalyzer(ContextCompat.GetMainExecutor(activity), new Analyzer(image => {
+        _analysis.SetAnalyzer(_analyzerExecutor, new Analyzer(image => {
             if (_loopCts?.IsCancellationRequested == true) {
                 image.Close();
                 return;
@@ -56,24 +92,19 @@ public sealed class AndroidCameraService : ICameraService {
                 var bytes = new byte[size];
                 buffer.Get(bytes);
 
-                var width = image.Width;
-                var height = image.Height;
-                var stride = plane.RowStride;
-                var rotation = image.ImageInfo.RotationDegrees;
-
-                FrameArrived?.Invoke(new CameraFrame(width, height, bytes, stride, rotation));
+                FrameArrived?.Invoke(new CameraFrame(
+                    image.Width,
+                    image.Height,
+                    bytes,
+                    plane.RowStride,
+                    image.ImageInfo.RotationDegrees));
             }
             finally {
                 image.Close();
             }
         }));
 
-        var cameraSelector = CameraSelector.DefaultBackCamera;
-
-        await RunOnUiThreadAsync(activity, () => {
-            provider.UnbindAll();
-            provider.BindToLifecycle((ILifecycleOwner)activity, cameraSelector, _analysis);
-        }).ConfigureAwait(false);
+        await BindCameraAsync(activity).ConfigureAwait(false);
     }
 
     public Task StopAsync(CancellationToken ct = default) {
@@ -82,6 +113,9 @@ public sealed class AndroidCameraService : ICameraService {
 
         _analysis?.ClearAnalyzer();
         _analysis = null;
+
+        _analyzerExecutor?.Shutdown();
+        _analyzerExecutor = null;
 
         var activity = MainActivity.CurrentActivity;
         if (activity is not null && _cameraProvider is not null) {
@@ -93,6 +127,20 @@ public sealed class AndroidCameraService : ICameraService {
     }
 
     public async ValueTask DisposeAsync() => await StopAsync();
+
+    private async Task BindCameraAsync(global::Android.App.Activity activity) {
+        if (_cameraProvider is null || _analysis is null)
+            return;
+
+        var selector = _useFrontCamera
+            ? CameraSelector.DefaultFrontCamera
+            : CameraSelector.DefaultBackCamera;
+
+        await RunOnUiThreadAsync(activity, () => {
+            _cameraProvider.UnbindAll();
+            _cameraProvider.BindToLifecycle((ILifecycleOwner)activity, selector, _analysis);
+        }).ConfigureAwait(false);
+    }
 
     private static Task<ProcessCameraProvider> GetCameraProviderAsync(Context context) {
         var future = ProcessCameraProvider.GetInstance(context);
@@ -121,9 +169,6 @@ public sealed class AndroidCameraService : ICameraService {
 
     private sealed class Analyzer(Action<IImageProxy> onFrame) : Java.Lang.Object, ImageAnalysis.IAnalyzer {
         public Size? DefaultTargetResolution => null;
-
-        public void Analyze(IImageProxy image) {
-            onFrame(image);
-        }
+        public void Analyze(IImageProxy image) => onFrame(image);
     }
 }

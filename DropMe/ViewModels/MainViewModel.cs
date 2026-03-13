@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -43,7 +44,8 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private readonly IStorageService _storageService;
     private string? _lastGeneratedInviteText;
     private string? _localInviteSessionId;
-
+    private readonly List<string> _availableCameras = new();
+    private int _selectedCameraIndex;
 
     public bool IsConnected => _session?.State == SessionState.Connected;
 
@@ -51,7 +53,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     public bool ShowGeneratedQr => !IsScanning;
     public string MainCardTitle => IsScanning ? "Camera Preview" : "Your QR Code";
     public string ScanButtonText => IsScanning ? "Stop scanning" : "Scan QR";
-
+    public IReadOnlyList<string> AvailableCameras => _availableCameras;
     private bool _isDarkTheme;
     public bool IsDarkTheme {
         get => _isDarkTheme;
@@ -170,6 +172,17 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         get => _status;
         private set { _status = value; OnPropertyChanged(); }
     }
+    public int SelectedCameraIndex {
+        get => _selectedCameraIndex;
+        set {
+            if (_selectedCameraIndex == value) return;
+            _selectedCameraIndex = value;
+            OnPropertyChanged();
+            _ = SelectCameraByIndexAsync(value);
+        }
+    }
+
+    public bool CanToggleCamera => _availableCameras.Count > 1;
     public MainViewModel(
         ICameraService camera,
         QrDecoder decoder,
@@ -192,8 +205,36 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         _renderTimer.Tick += (_, _) => RenderPreview();
         _renderTimer.Start();
+        RefreshCameraList();
     }
 
+    private void RefreshCameraList() {
+        _availableCameras.Clear();
+        foreach (var name in _camera.GetAvailableCameras())
+            _availableCameras.Add(name);
+
+        if (_availableCameras.Count == 0)
+            _availableCameras.Add("Camera 0");
+
+        _selectedCameraIndex = Math.Clamp(_camera.SelectedCameraIndex, 0, _availableCameras.Count - 1);
+        OnPropertyChanged(nameof(AvailableCameras));
+        OnPropertyChanged(nameof(SelectedCameraIndex));
+        OnPropertyChanged(nameof(CanToggleCamera));
+    }
+
+    public async Task ToggleCameraAsync() {
+        var ok = await _camera.ToggleCameraAsync();
+        if (ok) {
+            RefreshCameraList();
+        }
+    }
+
+    public async Task SelectCameraByIndexAsync(int index) {
+        var ok = await _camera.SelectCameraAsync(index);
+        if (ok) {
+            RefreshCameraList();
+        }
+    }
 
 
     public void GenerateQr() {
@@ -295,11 +336,11 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
 
     public async Task StartScanAsync() {
-        _renderTimer?.Start();
-
         if (_scanCts is not null) return;
 
         _scanCts = new CancellationTokenSource();
+        ClearCameraPreviewState();
+        _renderTimer?.Start();
         Status = "Starting camera...";
         DecodedText = null;
         HomeSessionMessage = null;
@@ -309,11 +350,19 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         OnPropertyChanged(nameof(ScanButtonText));
 
         try {
+            RefreshCameraList();
             await _camera.StartAsync(_scanCts.Token);
             Status = "Scanning... show a QR to the camera.";
         }
         catch (Exception ex) {
+            _scanCts.Dispose();
+            _scanCts = null;
             Status = $"Camera error: {ex.Message}";
+            _renderTimer?.Stop();
+            OnPropertyChanged(nameof(IsScanning));
+            OnPropertyChanged(nameof(ShowGeneratedQr));
+            OnPropertyChanged(nameof(MainCardTitle));
+            OnPropertyChanged(nameof(ScanButtonText));
         }
     }
 
@@ -326,13 +375,35 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         _scanCts.Dispose();
         _scanCts = null;
 
-        await _camera.StopAsync();
-        Status = "Scan stopped.";
-        OnPropertyChanged(nameof(IsScanning));
-        OnPropertyChanged(nameof(ShowGeneratedQr));
-        OnPropertyChanged(nameof(MainCardTitle));
-        OnPropertyChanged(nameof(ScanButtonText));
+        try {
+            await _camera.StopAsync();
+            Status = "Scan stopped.";
+            ClearCameraPreviewState();
+        }
+        catch (Exception ex) {
+            Status = $"Camera stop error: {ex.Message}";
+            ClearCameraPreviewState();
+        }
+        finally {
+            OnPropertyChanged(nameof(IsScanning));
+            OnPropertyChanged(nameof(ShowGeneratedQr));
+            OnPropertyChanged(nameof(MainCardTitle));
+            OnPropertyChanged(nameof(ScanButtonText));
+        }
 
+    }
+
+    private void ClearCameraPreviewState() {
+        Preview = null;
+        _lastDecode = DateTime.MinValue;
+
+        lock (_frameLock) {
+            _latestFrameBytes = null;
+            _latestStride = 0;
+            _latestWidth = 0;
+            _latestHeight = 0;
+            _latestRotation = 0;
+        }
     }
 
     private DateTime _lastUiFrame = DateTime.MinValue;
@@ -368,69 +439,58 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         if (bytes is null || w <= 0 || h <= 0)
             return;
 
-        // Create a fresh bitmap each tick (PoC reliable)
-        var pixelFormat = OperatingSystem.IsAndroid()
+        var isAndroid = OperatingSystem.IsAndroid();
+        var pixelFormat = isAndroid
             ? PixelFormat.Rgba8888
             : PixelFormat.Bgra8888;
 
-        // Determine rotated dimensions
-        int bmpWidth = rotation % 180 == 0 ? w : h;
-        int bmpHeight = rotation % 180 == 0 ? h : w;
         var bmp = new WriteableBitmap(
-            new PixelSize(bmpWidth, bmpHeight),
+            new PixelSize(w, h),
             new Vector(96, 96),
             pixelFormat,
             AlphaFormat.Unpremul);
 
+        var scanWindow = ComputeScanWindow(w, h);
         using (var fb = bmp.Lock()) {
-            //int rows = Math.Min(h, fb.Size.Height);
+            int rows = Math.Min(h, fb.Size.Height);
             int dstStride = fb.RowBytes;
 
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    int srcIndex = y * stride + x * 4;
-                    int pixel = BitConverter.ToInt32(bytes, srcIndex);
-
-                    int newX = 0, newY = 0;
-
-                    switch (rotation) {
-                        case 0:
-                            newX = x;
-                            newY = y;
-                            break;
-                        case 90:
-                            newX = h - 1 - y;
-                            newY = x;
-                            break;
-                        case 180:
-                            newX = w - 1 - x;
-                            newY = h - 1 - y;
-                            break;
-                        case 270:
-                            newX = y;
-                            newY = w - 1 - x;
-                            break;
-                    }
-
-                    Marshal.WriteInt32(fb.Address + newY * dstStride + newX * 4, pixel);
+            if (stride == dstStride) {
+                Marshal.Copy(bytes, 0, fb.Address, rows * dstStride);
+            }
+            else {
+                int colsBytes = Math.Min(stride, dstStride);
+                for (int y = 0; y < rows; y++) {
+                    Marshal.Copy(bytes, y * stride, fb.Address + (y * dstStride), colsBytes);
                 }
             }
 
+            RenderScanGuideOverlay(
+                fb.Address,
+                dstStride,
+                w,
+                h,
+                isAndroid,
+                (scanWindow.boxX, scanWindow.boxY, scanWindow.boxW, scanWindow.boxH),
+                (scanWindow.decodeX, scanWindow.decodeY, scanWindow.decodeW, scanWindow.decodeH));
         }
 
-        // Assign NEW reference => Image will redraw, guaranteed
         Preview = bmp;
 
         var now = DateTime.UtcNow;
-        if ((now - _lastDecode).TotalMilliseconds >= 200) // 5x/sec
-        {
+        if ((now - _lastDecode).TotalMilliseconds >= 100) {
             _lastDecode = now;
-
             // Use the latest frame bytes (already captured)
             CameraFrame? snapshot = null;
             lock (_frameLock) {
-                if (_latestFrameBytes is not null)
-                    snapshot = new CameraFrame(_latestWidth, _latestHeight, (byte[])_latestFrameBytes.Clone(), _latestStride, _latestRotation);
+                if (_latestFrameBytes is not null) {
+                    snapshot = CropForScan(
+                        _latestWidth,
+                        _latestHeight,
+                        _latestStride,
+                        _latestFrameBytes,
+                        (scanWindow.decodeX, scanWindow.decodeY, scanWindow.decodeW, scanWindow.decodeH));
+                }
             }
 
             if (snapshot is not null) {
@@ -446,6 +506,170 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             }
         }
 
+    }
+
+    private (int x, int y, int targetW, int targetH, int scanX, int scanY, int scanW, int scanH) ComputeScanArea(
+        int frameWidth,
+        int frameHeight,
+        int sideFractionPercent,
+        int featherFractionPercent) {
+        var side = (int)(Math.Min(frameWidth, frameHeight) * (sideFractionPercent / 100.0));
+        var featherPercent = featherFractionPercent / 100.0;
+
+        var targetW = Math.Max(180, side);
+        var targetH = Math.Max(180, side);
+
+        var x = Math.Max(0, (frameWidth - targetW) / 2);
+        var y = Math.Max(0, (frameHeight - targetH) / 2);
+        var feather = (int)(Math.Min(targetW, targetH) * featherPercent);
+
+        var scanX = Math.Max(0, x - feather);
+        var scanY = Math.Max(0, y - feather);
+        var scanW = Math.Min(frameWidth - scanX, targetW + feather * 2);
+        var scanH = Math.Min(frameHeight - scanY, targetH + feather * 2);
+        return (x, y, targetW, targetH, scanX, scanY, scanW, scanH);
+    }
+
+    private (int boxX, int boxY, int boxW, int boxH, int decodeX, int decodeY, int decodeW, int decodeH) ComputeScanWindow(
+        int frameWidth,
+        int frameHeight) {
+        var area = ComputeScanArea(frameWidth, frameHeight, 62, 16);
+        return (area.x, area.y, area.targetW, area.targetH, area.scanX, area.scanY, area.scanW, area.scanH);
+    }
+
+    private CameraFrame CropForScan(
+        int frameWidth,
+        int frameHeight,
+        int stride,
+        byte[] sourceBytes,
+        (int x, int y, int width, int height) scanArea) {
+        var (x, y, width, height) = scanArea;
+        var safeWidth = Math.Max(1, Math.Min(width, frameWidth - x));
+        var safeHeight = Math.Max(1, Math.Min(height, frameHeight - y));
+
+        var bytesPerPixel = 4;
+        var cropped = new byte[safeWidth * safeHeight * bytesPerPixel];
+        var sourceOffsetBase = y * stride + x * bytesPerPixel;
+        var destStride = safeWidth * bytesPerPixel;
+
+        for (var row = 0; row < safeHeight; row++) {
+            var sourceOffset = sourceOffsetBase + row * stride;
+            var destOffset = row * destStride;
+            Buffer.BlockCopy(sourceBytes, sourceOffset, cropped, destOffset, safeWidth * bytesPerPixel);
+        }
+
+        return new CameraFrame(safeWidth, safeHeight, cropped, destStride, 0);
+    }
+
+    private static void RenderScanGuideOverlay(
+        IntPtr framebufferAddress,
+        int rowBytes,
+        int frameWidth,
+        int frameHeight,
+        bool isAndroid,
+        (int x, int y, int width, int height) boxArea,
+        (int x, int y, int width, int height) decodeArea,
+        int overlayDarkenAlpha = 170) {
+        if (frameWidth <= 0 || frameHeight <= 0) return;
+
+        int r = 0;
+        int g = 1;
+        int b = 2;
+        int a = 3;
+
+        if (!isAndroid) {
+            b = 0;
+            g = 1;
+            r = 2;
+            a = 3;
+        }
+
+        for (var y = 0; y < frameHeight; y++) {
+            for (var x = 0; x < frameWidth; x++) {
+                var pixelOffset = y * rowBytes + (x * 4);
+                var inScanArea = x >= boxArea.x && x < boxArea.x + boxArea.width &&
+                                 y >= boxArea.y && y < boxArea.y + boxArea.height;
+
+                if (!inScanArea) {
+                    var red = Marshal.ReadByte(framebufferAddress, pixelOffset + r);
+                    var green = Marshal.ReadByte(framebufferAddress, pixelOffset + g);
+                    var blue = Marshal.ReadByte(framebufferAddress, pixelOffset + b);
+
+                    Marshal.WriteByte(framebufferAddress, pixelOffset + r, (byte)(red * 0.35));
+                    Marshal.WriteByte(framebufferAddress, pixelOffset + g, (byte)(green * 0.35));
+                    Marshal.WriteByte(framebufferAddress, pixelOffset + b, (byte)(blue * 0.35));
+                    Marshal.WriteByte(framebufferAddress, pixelOffset + a, (byte)overlayDarkenAlpha);
+                }
+            }
+        }
+
+        DrawScanBox(framebufferAddress, rowBytes, b, g, r, a, boxArea, frameWidth, frameHeight);
+    }
+
+    private static void DrawScanBox(
+        IntPtr framebufferAddress,
+        int rowBytes,
+        int b,
+        int g,
+        int r,
+        int a,
+        (int x, int y, int width, int height) scanArea,
+        int frameWidth,
+        int frameHeight,
+        int lineThickness = 3) {
+        var (x, y, width, height) = scanArea;
+        int clampedX = Math.Max(0, Math.Min(frameWidth - 1, x));
+        int clampedY = Math.Max(0, Math.Min(frameHeight - 1, y));
+        int clampedW = Math.Max(1, Math.Min(width, frameWidth - clampedX));
+        int clampedH = Math.Max(1, Math.Min(height, frameHeight - clampedY));
+
+        for (var i = 0; i < lineThickness; i++) {
+            var topY = clampedY + i;
+            var bottomY = clampedY + clampedH - 1 - i;
+            if (topY < frameHeight) {
+                for (var x0 = clampedX; x0 < clampedX + clampedW; x0++) {
+                    var off = topY * rowBytes + (x0 * 4);
+                    Marshal.WriteByte(framebufferAddress, off + r, 85);
+                    Marshal.WriteByte(framebufferAddress, off + g, 255);
+                    Marshal.WriteByte(framebufferAddress, off + b, 170);
+                    Marshal.WriteByte(framebufferAddress, off + a, 255);
+                }
+            }
+
+            if (bottomY >= 0 && bottomY < frameHeight) {
+                for (var x0 = clampedX; x0 < clampedX + clampedW; x0++) {
+                    var off = bottomY * rowBytes + (x0 * 4);
+                    Marshal.WriteByte(framebufferAddress, off + r, 85);
+                    Marshal.WriteByte(framebufferAddress, off + g, 255);
+                    Marshal.WriteByte(framebufferAddress, off + b, 170);
+                    Marshal.WriteByte(framebufferAddress, off + a, 255);
+                }
+            }
+
+            var leftX = clampedX + i;
+            var rightX = clampedX + clampedW - 1 - i;
+            if (leftX < frameWidth) {
+                for (var y0 = clampedY; y0 < clampedY + clampedH; y0++) {
+                    if (y0 < 0 || y0 >= frameHeight) continue;
+                    var off = y0 * rowBytes + (leftX * 4);
+                    Marshal.WriteByte(framebufferAddress, off + r, 85);
+                    Marshal.WriteByte(framebufferAddress, off + g, 255);
+                    Marshal.WriteByte(framebufferAddress, off + b, 170);
+                    Marshal.WriteByte(framebufferAddress, off + a, 255);
+                }
+            }
+
+            if (rightX >= 0 && rightX < frameWidth) {
+                for (var y0 = clampedY; y0 < clampedY + clampedH; y0++) {
+                    if (y0 < 0 || y0 >= frameHeight) continue;
+                    var off = y0 * rowBytes + (rightX * 4);
+                    Marshal.WriteByte(framebufferAddress, off + r, 85);
+                    Marshal.WriteByte(framebufferAddress, off + g, 255);
+                    Marshal.WriteByte(framebufferAddress, off + b, 170);
+                    Marshal.WriteByte(framebufferAddress, off + a, 255);
+                }
+            }
+        }
     }
 
 

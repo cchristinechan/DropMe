@@ -36,4 +36,9 @@ public partial class TransferPage : UserControl {
             await vm.StartScanAsync();
         }
     }
+
+    private async void FlipCamera_Click(object? sender, RoutedEventArgs e) {
+        if (DataContext is MainViewModel vm)
+            await vm.ToggleCameraAsync();
+    }
 }
