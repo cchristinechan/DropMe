@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<Sdk Name="DotNet.ReproducibleBuilds.Isolated" Version="1.2.25" />
 	<PropertyGroup>
-		<TargetFrameworks>net10.0-android;net8.0-windows10.0.19041.0;net8.0;netstandard2.1;</TargetFrameworks>
+		<TargetFrameworks>net10.0-android;net8.0-windows10.0.19041.0;net8.0;</TargetFrameworks>
 		<Company>In The Hand Ltd</Company>
 		<Authors>Peter Foot</Authors>
 		<Product>32feet.NET</Product>
@@ -68,14 +68,14 @@
 		<TargetPlatformMinVersion>10.0.16299.0</TargetPlatformMinVersion>
 	</PropertyGroup>
 
+	<ItemGroup Condition=" '$(TargetFramework)' == 'net8.0-windows10.0.19041.0' ">
+		<Compile Include="Platforms\Windows\*.cs" />
+	</ItemGroup>
+
 	<ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
 		<PackageReference Include="Linux.Bluetooth" />
 		<PackageReference Include="Tmds.DBus" />
 		<Compile Include="Platforms\Linux\*.cs" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" '$(TargetFramework)' == 'net8.0-windows10.0.19041.0' ">
-		<Compile Include="Platforms\Windows\*.cs" />
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == 'net10.0-android' ">
