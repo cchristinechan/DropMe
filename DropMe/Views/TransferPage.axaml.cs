@@ -23,7 +23,7 @@ public partial class TransferPage : UserControl {
         if (DataContext is MainViewModel vm)
             vm.GenerateQr();
     }
-    
+
     private async void ToggleScan_Click(object? sender, RoutedEventArgs e) {
         if (DataContext is not MainViewModel vm)
             return;
