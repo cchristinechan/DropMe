@@ -40,7 +40,7 @@ public class BluetoothClientSession : ISession {
         client.GetStream().Write(System.Text.Encoding.UTF8.GetBytes("OK"));
         Console.WriteLine($"Written to {knownAddress}");
     }
-    
+
     public async Task Connect(CancellationToken ct) {
         var serviceGuid = new Guid(DropMeGuid);
         using var client = new BluetoothClient();

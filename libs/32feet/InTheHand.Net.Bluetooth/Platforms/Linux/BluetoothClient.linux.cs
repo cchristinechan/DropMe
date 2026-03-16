@@ -23,7 +23,7 @@ using Tmds.DBus;
 
 namespace InTheHand.Net.Sockets {
     public sealed class LinuxBluetoothClient : IBluetoothClient, IDisposable {
-        
+
         private LinuxSocket _socket;
 
         public LinuxBluetoothClient() {
@@ -202,8 +202,7 @@ namespace InTheHand.Net.Sockets {
         }
 
         public NetworkStream GetStream() {
-            if (Connected)
-            {
+            if (Connected) {
                 return new LinuxNetworkStream(_socket, true);
             }
 

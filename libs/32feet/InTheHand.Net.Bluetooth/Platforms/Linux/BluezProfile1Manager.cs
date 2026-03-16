@@ -13,14 +13,10 @@ public class BluezProfile1Manager {
     private const string ServiceGuid = "bc8659c9-3aa7-4faf-ba42-c5feb93d1a3e";
     private BluezProfile1Manager() { }
 
-    public static Profile1 Instance
-    {
-        get
-        {
-            lock (_lock)
-            {
-                if (_instance == null)
-                {
+    public static Profile1 Instance {
+        get {
+            lock (_lock) {
+                if (_instance == null) {
                     _instance = new Profile1("DropMe", new Guid(ServiceGuid));
                     _instance.StartAsync().RunSynchronously();
                 }
@@ -56,11 +52,11 @@ public class Profile1(string serviceName, Guid serviceGuid) : IProfile1 {
     public void RegisterOnClientConnected(BluetoothAddress serverAddress, ConnectionReceived callback) {
         _clientConnectedCallbacks.Add(serverAddress.ToString("C"), callback);
     }
-    
+
     public void UnregisterOnClientConnected(BluetoothAddress serverAddress) {
         _clientConnectedCallbacks.Remove(serverAddress.ToString("C"));
     }
-    
+
     public async Task StartAsync() {
         var connection = new Connection("unix:path=/var/run/dbus/system_bus_socket");
         await connection.ConnectAsync().ConfigureAwait(false);
@@ -69,7 +65,7 @@ public class Profile1(string serviceName, Guid serviceGuid) : IProfile1 {
 
         _profileManager = await Task.Run(() => connection.CreateProxy<IProfileManager1>("org.bluez", "/org/bluez"))
             .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-        
+
         var sdpOptions = new Dictionary<string, object>
         {
             { "Name", _serviceName },
@@ -82,24 +78,24 @@ public class Profile1(string serviceName, Guid serviceGuid) : IProfile1 {
         await _profileManager.RegisterProfileAsync(ObjectPath, _serviceGuid.ToString(), sdpOptions);
         Console.WriteLine("SDP Profile registered successfully. Waiting for connections...");
     }
-    
+
     public Task NewConnectionAsync(ObjectPath device, CloseSafeHandle fd, IDictionary<string, object> properties) {
         var path = device.ToString();
-    
+
         // 1. Get the last part of the path (e.g., "dev_AA_BB_CC_DD_EE_FF")
         var devPart = path[(path.LastIndexOf('/') + 1)..];
-    
+
         // 2. Remove the "dev_" prefix and replace underscores with colons
         var macAddress = devPart
             .Replace("dev_", "")
             .Replace("_", ":");
-        
+
         Console.WriteLine($"New Connection from device: {device}");
         try {
             var handle = fd.DangerousGetHandle();
 
             var socket = new LinuxSocket(handle.ToInt32());
-            
+
             if (_clientConnectedCallbacks.TryGetValue(macAddress, out var callback)) {
                 callback(macAddress, socket);
             }
@@ -120,6 +116,6 @@ public class Profile1(string serviceName, Guid serviceGuid) : IProfile1 {
 
     public Task ReleaseAsync() {
         Console.WriteLine("Dbus releasing object");
-        return  Task.CompletedTask;
+        return Task.CompletedTask;
     }
 }
