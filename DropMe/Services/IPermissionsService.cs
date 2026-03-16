@@ -1,10 +1,12 @@
+using System.Threading.Tasks;
+
 namespace DropMe.Services;
 
 public interface IPermissionsService {
     public bool HasCameraPermissions { get; }
     public bool HasBluetoothPermissions { get; }
 
-    public void RequestCameraPermission();
-    public void RequestBluetoothPermission();
-    public void RequestBluetoothDiscoverablePermission(int maxDuration);
+    public Task RequestCameraPermission();
+    public Task RequestBluetoothPermission();
+    public Task RequestBluetoothDiscoverablePermission(int maxDuration);
 }
