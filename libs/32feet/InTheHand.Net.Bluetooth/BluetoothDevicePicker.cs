@@ -10,17 +10,14 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Bluetooth
-{
+namespace InTheHand.Net.Bluetooth {
     /// <summary>
     /// Picker dialog to select a single Bluetooth device.
     /// </summary>
-    public sealed class BluetoothDevicePicker
-    {
+    public sealed class BluetoothDevicePicker {
         private readonly IBluetoothDevicePicker _bluetoothDevicePicker;
 
-        public BluetoothDevicePicker()
-        {
+        public BluetoothDevicePicker() {
 #if ANDROID || MONOANDROID
             _bluetoothDevicePicker = new AndroidBluetoothDevicePicker();
 #elif IOS || __IOS__
@@ -50,8 +47,7 @@ namespace InTheHand.Net.Bluetooth
         /// Display the dialog and allow the user to pick a single device.
         /// </summary>
         /// <returns></returns>
-        public Task<BluetoothDeviceInfo> PickSingleDeviceAsync()
-        {
+        public Task<BluetoothDeviceInfo> PickSingleDeviceAsync() {
             return _bluetoothDevicePicker.PickSingleDeviceAsync(ClassOfDevices, RequireAuthentication);
         }
 

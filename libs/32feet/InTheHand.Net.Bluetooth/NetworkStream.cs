@@ -11,27 +11,23 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 
-namespace InTheHand.Net.Sockets
-{
+namespace InTheHand.Net.Sockets {
     /// <exclude/>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public abstract class NonSocketNetworkStream : NetworkStream
-    {
+    public abstract class NonSocketNetworkStream : NetworkStream {
         /// <exclude/>
         public NonSocketNetworkStream() : base(GetAConnectedSocket(), false) { }
 
-        internal static Socket GetAConnectedSocket()
-        {
+        internal static Socket GetAConnectedSocket() {
             Socket s = SocketPair.GetConnectedSocket();
             Debug.Assert(s != null);
             Debug.Assert(s.Connected);
             return s;
         }
-    
+
     }//class
 
-    internal sealed class SocketPair
-    {
+    internal sealed class SocketPair {
         Socket m_cli;
         [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields",
             Justification = "m_svr is there to stop the Socket's Finalization.")]
@@ -39,8 +35,7 @@ namespace InTheHand.Net.Sockets
         static SocketPair m_SocketPair;
 
         //--------
-        internal static Socket GetConnectedSocket()
-        {
+        internal static Socket GetConnectedSocket() {
             // No need for locking etc here, as it's ok to make one or more (not 
             // many hopefully however!)  The socket (is meant!) to be only used on 
             // initialising the base NetworkStream, so it doesn't matter if the 
@@ -56,28 +51,22 @@ namespace InTheHand.Net.Sockets
 
         //--------
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes")]
-        internal static SocketPair Create()
-        {
-            try
-            {
+        internal static SocketPair Create() {
+            try {
                 return Create(AddressFamily.InterNetworkV6);
             }
-            catch
-            {
+            catch {
                 return Create(AddressFamily.InterNetwork);
             }
         }
 
-        internal static SocketPair Create(AddressFamily af)
-        {
+        internal static SocketPair Create(AddressFamily af) {
             return new SocketPair(af);
         }
 
         //--------
-        private SocketPair(AddressFamily af)
-        {
-            using (Socket lstnr = new Socket(af, SocketType.Stream, ProtocolType.Unspecified))
-            {
+        private SocketPair(AddressFamily af) {
+            using (Socket lstnr = new Socket(af, SocketType.Stream, ProtocolType.Unspecified)) {
                 lstnr.Bind(new IPEndPoint(
                     af == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Loopback : IPAddress.Loopback, 0));
                 lstnr.Listen(1);
@@ -89,10 +78,8 @@ namespace InTheHand.Net.Sockets
         }
 
         //--------
-        private bool Alive
-        {
-            get
-            {
+        private bool Alive {
+            get {
                 return m_cli != null // just for safety, shouldn't occur
                     && m_cli.Connected;
             }

@@ -13,6 +13,7 @@ using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using InTheHand.Net.Bluetooth;
 
 namespace InTheHand.Net.Sockets
 {
@@ -249,6 +250,10 @@ namespace InTheHand.Net.Sockets
                 throw new PlatformNotSupportedException("Async Socket operations not currently supported on Mono");
 
             return Task.Factory.FromAsync(BeginConnect, EndConnect, address, service, null);
+        }
+
+        public Task<PairState> PairAsync(IBluetoothDeviceInfo device) {
+            throw new NotImplementedException();
         }
 
         public void Close()

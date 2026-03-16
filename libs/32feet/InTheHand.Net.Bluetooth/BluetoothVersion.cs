@@ -7,13 +7,11 @@
 
 // Defined in Bluetooth specification in HCI_Version and LMP_Version
 
-namespace InTheHand.Net.Bluetooth
-{
+namespace InTheHand.Net.Bluetooth {
     /// <summary>
     /// Defines the possible Bluetooth versions.
     /// </summary>
-    public enum BluetoothVersion
-    {
+    public enum BluetoothVersion {
         /// <summary>
         /// Bluetooth Core Specification 1.0b
         /// </summary>

@@ -10,13 +10,11 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 
-namespace InTheHand.Net
-{
+namespace InTheHand.Net {
     /// <summary>
     /// Represents a network endpoint as a Bluetooth address and a Service Class Id and/or a port number.
     /// </summary>
-    public sealed class BluetoothEndPoint : EndPoint
-    {
+    public sealed class BluetoothEndPoint : EndPoint {
         internal const byte AddressFamilyBluetooth = 32;
         internal const byte AddressFamilyBlueZ = 31;
 
@@ -32,17 +30,14 @@ namespace InTheHand.Net
         /// <param name="port">Optional port number.</param>
         public BluetoothEndPoint(BluetoothAddress address, Guid service, int port = 0) : this(address.ToUInt64(), service, port) { }
 
-        internal BluetoothEndPoint(ulong bluetoothAddress, Guid serviceId, int port = 0)
-        {
+        internal BluetoothEndPoint(ulong bluetoothAddress, Guid serviceId, int port = 0) {
             _bluetoothAddress = bluetoothAddress;
             _serviceId = serviceId;
             _port = port;
         }
 
-        internal BluetoothEndPoint(byte[] sockaddr_bt)
-        {
-            if (Environment.OSVersion.Platform == PlatformID.Unix)
-            {
+        internal BluetoothEndPoint(byte[] sockaddr_bt) {
+            if (Environment.OSVersion.Platform == PlatformID.Unix) {
                 if (sockaddr_bt[0] != AddressFamilyBlueZ)
                     throw new ArgumentException("Invalid AddressFamily", nameof(sockaddr_bt));
 
@@ -51,8 +46,7 @@ namespace InTheHand.Net
                 _port = BitConverter.ToInt16(sockaddr_bt, 8);
                 Debug.WriteLine($"Port: {_port:X4}");
             }
-            else
-            {
+            else {
                 if (sockaddr_bt[0] != AddressFamilyBluetooth)
                     throw new ArgumentException(nameof(sockaddr_bt));
 
@@ -60,8 +54,7 @@ namespace InTheHand.Net
 
                 byte[] servicebytes = new byte[16];
 
-                for (int ibyte = 0; ibyte < 16; ibyte++)
-                {
+                for (int ibyte = 0; ibyte < 16; ibyte++) {
                     servicebytes[ibyte] = sockaddr_bt[10 + ibyte];
                 }
 
@@ -73,16 +66,12 @@ namespace InTheHand.Net
         /// <summary>
         /// Gets the address family of the Bluetooth address.
         /// </summary>
-        public override AddressFamily AddressFamily
-        {
-            get
-            {
-                if (Environment.OSVersion.Platform == PlatformID.Unix)
-                {
+        public override AddressFamily AddressFamily {
+            get {
+                if (Environment.OSVersion.Platform == PlatformID.Unix) {
                     return (AddressFamily)AddressFamilyBlueZ;
                 }
-                else
-                {
+                else {
                     return (AddressFamily)AddressFamilyBluetooth;
                 }
             }
@@ -91,10 +80,8 @@ namespace InTheHand.Net
         /// <summary>
         /// Gets the Bluetooth address of the endpoint.
         /// </summary>
-        public BluetoothAddress Address
-        {
-            get
-            {
+        public BluetoothAddress Address {
+            get {
                 return _bluetoothAddress;
             }
         }
@@ -102,10 +89,8 @@ namespace InTheHand.Net
         /// <summary>
         /// Gets the Bluetooth service to use for the connection.
         /// </summary>
-        public Guid Service
-        {
-            get
-            {
+        public Guid Service {
+            get {
                 return _serviceId;
             }
         }
@@ -113,10 +98,8 @@ namespace InTheHand.Net
         /// <summary>
         /// Gets the port number (or -1 for any).
         /// </summary>
-        public int Port
-        {
-            get
-            {
+        public int Port {
+            get {
                 return _port;
             }
         }
@@ -126,15 +109,12 @@ namespace InTheHand.Net
         /// </summary>
         /// <param name="socketAddress"></param>
         /// <returns></returns>
-        public override EndPoint Create(SocketAddress socketAddress)
-        {
-            if (socketAddress == null)
-            {
+        public override EndPoint Create(SocketAddress socketAddress) {
+            if (socketAddress == null) {
                 throw new ArgumentNullException(nameof(socketAddress));
             }
 
-            if (socketAddress.Family == AddressFamily)
-            {
+            if (socketAddress.Family == AddressFamily) {
                 int ibyte;
 
                 var socketAddressBytes = socketAddress.ToByteArray();
@@ -144,14 +124,11 @@ namespace InTheHand.Net
                 byte[] servicebytes = new byte[16];
                 int port;
 
-                if (Environment.OSVersion.Platform == PlatformID.Unix)
-                {
+                if (Environment.OSVersion.Platform == PlatformID.Unix) {
                     port = BitConverter.ToInt32(socketAddressBytes, 8);
                 }
-                else
-                {
-                    for (ibyte = 0; ibyte < 16; ibyte++)
-                    {
+                else {
+                    for (ibyte = 0; ibyte < 16; ibyte++) {
                         servicebytes[ibyte] = socketAddress[10 + ibyte];
                     }
 
@@ -168,12 +145,10 @@ namespace InTheHand.Net
         /// Serializes endpoint information into a <see cref="SocketAddress"/> instance.
         /// </summary>
         /// <returns></returns>
-        public override SocketAddress Serialize()
-        {
+        public override SocketAddress Serialize() {
             SocketAddress btsa;
 
-            if (Environment.OSVersion.Platform == PlatformID.Unix)
-            {
+            if (Environment.OSVersion.Platform == PlatformID.Unix) {
                 // sockaddr_rc
                 // .NET Core on Linux doesn't allow you to create a SocketAddress with AddressFamilyBlueZ so create an IP4 address then change the raw address family value.
                 btsa = new SocketAddress(AddressFamily.InterNetwork, 10);
@@ -183,46 +158,37 @@ namespace InTheHand.Net
                 Console.WriteLine($"Address Byte: {btsa[0]}");
                 Console.WriteLine($"Size: {btsa.Size}");
             }
-            else
-            {
+            else {
                 btsa = new SocketAddress(AddressFamily, 30);
             }
 
             // copy device id
             byte[] deviceidbytes = BitConverter.GetBytes(_bluetoothAddress);
 
-            for (int idbyte = 0; idbyte < 6; idbyte++)
-            {
+            for (int idbyte = 0; idbyte < 6; idbyte++) {
                 btsa[idbyte + 2] = deviceidbytes[idbyte];
             }
 
-            if (Environment.OSVersion.Platform == PlatformID.Unix)
-            {
-                if (_port == -1)
-                {
+            if (Environment.OSVersion.Platform == PlatformID.Unix) {
+                if (_port == -1) {
                     btsa[8] = 0;
                 }
-                else
-                {
+                else {
                     btsa[8] = (byte)_port;
                 }
             }
-            else
-            {
+            else {
                 // copy service clsid
-                if (_serviceId != Guid.Empty)
-                {
+                if (_serviceId != Guid.Empty) {
                     byte[] servicebytes = _serviceId.ToByteArray();
 
-                    for (int servicebyte = 0; servicebyte < 16; servicebyte++)
-                    {
+                    for (int servicebyte = 0; servicebyte < 16; servicebyte++) {
                         btsa[servicebyte + 10] = servicebytes[servicebyte];
                     }
                 }
 
                 var portBytes = BitConverter.GetBytes(_port);
-                for (int i = 0; i < portBytes.Length; i++)
-                {
+                for (int i = 0; i < portBytes.Length; i++) {
                     btsa[26 + i] = portBytes[i];
                 }
             }
@@ -236,21 +202,18 @@ namespace InTheHand.Net
         /// Returns the string representation of the BluetoothEndPoint.
         /// </summary>
         /// <returns></returns>
-        public override string ToString()
-        {
+        public override string ToString() {
             return $"{_bluetoothAddress:X6}:{_serviceId:D} ({_port})";
         }
 
         [Conditional("DEBUG")]
-        private static void DebugWriteSocketAddress(SocketAddress sa)
-        {
+        private static void DebugWriteSocketAddress(SocketAddress sa) {
             Debug.WriteLine("SocketAddress:");
             Debug.Indent();
-            for (int i = 0; i < sa.Size; i++)
-            {
+            for (int i = 0; i < sa.Size; i++) {
                 Debug.Write(sa[i].ToString("X2"));
             }
-            
+
             Debug.WriteLine(string.Empty);
             Debug.Unindent();
         }

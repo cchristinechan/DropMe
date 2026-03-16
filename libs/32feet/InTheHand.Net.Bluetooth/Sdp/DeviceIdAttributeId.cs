@@ -8,8 +8,7 @@
 
 using InTheHand.Net.Bluetooth;
 
-namespace InTheHand.Net.Bluetooth.AttributeIds
-{
+namespace InTheHand.Net.Bluetooth.AttributeIds {
     /// <summary>
     /// Service Attribute IDs defined by the Device Identification Profile specification.
     /// </summary>
@@ -31,8 +30,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// and <see cref="F:InTheHand.Net.Bluetooth.AttributeIds.UniversalAttributeId.DocumentationUrl"/>.
     /// </para>
     /// </remarks>
-    public static class DeviceIdProfileAttributeId
-    {
+    public static class DeviceIdProfileAttributeId {
         /// <summary>
         /// SpecificationId [0x0200]
         /// </summary>

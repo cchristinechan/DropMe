@@ -10,10 +10,8 @@ using InTheHand.Net.Bluetooth;
 using System;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Sockets
-{
-    public sealed class AndroidBluetoothListener : IBluetoothListener
-    {
+namespace InTheHand.Net.Sockets {
+    public sealed class AndroidBluetoothListener : IBluetoothListener {
         private BluetoothServerSocket socket;
         public bool Active { get; private set; }
 
@@ -24,48 +22,43 @@ namespace InTheHand.Net.Sockets
         public InTheHand.Net.Bluetooth.Sdp.ServiceRecord ServiceRecord { get; set; }
         public Guid ServiceUuid { get; set; }
 
-        public void Start()
-        {
+        public void Start() {
             string serviceName = string.IsNullOrEmpty(ServiceName) ? ServiceUuid.ToString() : ServiceName;
-            
-            socket = ((AndroidBluetoothRadio)BluetoothRadio.Default.Radio).Adapter.ListenUsingRfcommWithServiceRecord(serviceName, Java.Util.UUID.FromString(ServiceUuid.ToString()));
+            var adapeter = ((AndroidBluetoothRadio)BluetoothRadio.Default.Radio).Adapter;
+            adapeter.SetName(adapeter.Name);
+            Console.WriteLine($"Mode: {adapeter.ScanMode}");
+            socket = adapeter.ListenUsingRfcommWithServiceRecord(serviceName, Java.Util.UUID.FromString(ServiceUuid.ToString()));
             if (socket != null)
                 Active = true;
         }
 
-        public void Stop()
-        {
+        public void Stop() {
             socket?.Close();
             socket = null;
             Active = false;
         }
 
-        bool IBluetoothListener.Pending()
-        {
+        bool IBluetoothListener.Pending() {
             return false;
         }
 
-        public BluetoothClient AcceptBluetoothClient()
-        {
+        public BluetoothClient AcceptBluetoothClient() {
             var newSocket = socket.Accept();
-            if (newSocket != null)
-            {
+            if (newSocket != null) {
                 return new BluetoothClient(new AndroidBluetoothClient(newSocket));
             }
 
             return null;
         }
-        
-        public async Task<BluetoothClient> AcceptBluetoothClientAsync()
-        {
+
+        public async Task<BluetoothClient> AcceptBluetoothClientAsync() {
             var newSocket = await socket.AcceptAsync();
-            if (newSocket != null)
-            {
+            if (newSocket != null) {
                 return new BluetoothClient(new AndroidBluetoothClient(newSocket));
             }
 
             return null;
         }
-        
+
     }
 }

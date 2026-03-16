@@ -9,39 +9,34 @@ using Linux.Bluetooth;
 using InTheHand.Net.Bluetooth;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using Linux.Bluetooth.Extensions;
+using Microsoft.Win32.SafeHandles;
 using Tmds.DBus;
 
-namespace InTheHand.Net.Sockets
-{
-    internal sealed class LinuxBluetoothDeviceInfo : IBluetoothDeviceInfo
-    {
+namespace InTheHand.Net.Sockets {
+    internal sealed class LinuxBluetoothDeviceInfo : IBluetoothDeviceInfo {
         private Device _device;
 
-        internal LinuxBluetoothDeviceInfo(Device device)
-        {
+        internal LinuxBluetoothDeviceInfo(Device device) {
             _device = device;
         }
 
-        public static implicit operator Device(LinuxBluetoothDeviceInfo deviceInfo)
-        {
+        public static implicit operator Device(LinuxBluetoothDeviceInfo deviceInfo) {
             return deviceInfo._device;
         }
 
-        public static implicit operator LinuxBluetoothDeviceInfo(Device device)
-        {
+        public static implicit operator LinuxBluetoothDeviceInfo(Device device) {
             return new LinuxBluetoothDeviceInfo(device);
         }
 
-        public LinuxBluetoothDeviceInfo(BluetoothAddress address)
-        {
-            Task t = Task.Run(async () =>
-            {
+        public LinuxBluetoothDeviceInfo(BluetoothAddress address) {
+            Task t = Task.Run(async () => {
                 _device = await ((Adapter)BluetoothRadio.Default).GetDeviceAsync(address.ToString());
 
-                if (_device != null)
-                { 
+                if (_device != null) {
                     await Init();
                 }
             });
@@ -49,10 +44,8 @@ namespace InTheHand.Net.Sockets
             t.Wait();
         }
 
-        internal async Task Init()
-        {
-            if (_device != null)
-            {
+        internal async Task Init() {
+            if (_device != null) {
                 var props = await _device.GetAllAsync();
                 _name = props.Name;
                 _address = BluetoothAddress.Parse(props.Address);
@@ -63,10 +56,8 @@ namespace InTheHand.Net.Sockets
             }
         }
 
-        private void OnPropertyChanges(Tmds.DBus.PropertyChanges propertyChanges)
-        {
-            foreach (var change in propertyChanges.Changed)
-            {
+        private void OnPropertyChanges(Tmds.DBus.PropertyChanges propertyChanges) {
+            foreach (var change in propertyChanges.Changed) {
                 Console.WriteLine($"{change.Key} {change.Value}");
                 //TODO - for properties we use update the cached values
             }
@@ -78,12 +69,10 @@ namespace InTheHand.Net.Sockets
         string _name = string.Empty;
         public string DeviceName { get => _name; }
 
-        public async Task<IEnumerable<Guid>> GetRfcommServicesAsync(bool cached)
-        {
+        public async Task<IEnumerable<Guid>> GetRfcommServicesAsync(bool cached) {
             List<Guid> services = new List<Guid>();
             var uuids = await _device.GetUUIDsAsync();
-            foreach(var uuid in uuids )
-            {
+            foreach (var uuid in uuids) {
                 services.Add(new Guid(uuid));
             }
 
@@ -98,29 +87,28 @@ namespace InTheHand.Net.Sockets
             catch (DBusException e) {
                 switch (e.ErrorName) {
                     case "org.bluez.Error.AuthenticationFailed":
-           
+
                     case "org.bluez.Error.AuthenticationTimeout":
                         return PairState.PairRejected;
 
                     case "org.bluez.Error.AlreadyExists":
                         return PairState.AlreadyPaired;
-                    
+
                     default: throw;
                 }
-            } 
+            }
         }
 
         private bool _connected;
-        public bool Connected { get =>  _connected; }
+        public bool Connected { get => _connected; }
 
-        
+
         ClassOfDevice IBluetoothDeviceInfo.ClassOfDevice => (ClassOfDevice)0;
 
         private bool _authenticated;
         bool IBluetoothDeviceInfo.Authenticated => _authenticated;
 
-        public void Refresh()
-        {
+        public void Refresh() {
             Init();
         }
     }

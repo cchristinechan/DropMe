@@ -10,12 +10,9 @@ using System.Linq;
 using System.Reflection;
 using Windows.UI.Notifications;
 
-namespace System
-{
-    internal static class StringExtensions
-    {
-        public static string ToUpper(this string s, CultureInfo cultureInfo)
-        {
+namespace System {
+    internal static class StringExtensions {
+        public static string ToUpper(this string s, CultureInfo cultureInfo) {
             return s.ToUpperInvariant();
         }
     }
@@ -28,28 +25,21 @@ namespace System
         }
     }*/
 
-    namespace IO
-    {
-        internal static class StringWriterExtensions
-        {
-            public static void Close(this StringWriter writer)
-            {
+    namespace IO {
+        internal static class StringWriterExtensions {
+            public static void Close(this StringWriter writer) {
                 writer.Dispose();
             }
         }
     }
 
-    namespace Reflection
-    {
-        internal static class TypeExtensions
-        {
-            public static object[] GetCustomAttributes(this FieldInfo field, Type type, bool inherit = true)
-            {
+    namespace Reflection {
+        internal static class TypeExtensions {
+            public static object[] GetCustomAttributes(this FieldInfo field, Type type, bool inherit = true) {
                 return field.GetCustomAttributes(type, inherit).ToArray();
             }
 
-            public static object GetRawConstantValue(this FieldInfo field)
-            {
+            public static object GetRawConstantValue(this FieldInfo field) {
                 return field.GetValue(null);
             }
         }

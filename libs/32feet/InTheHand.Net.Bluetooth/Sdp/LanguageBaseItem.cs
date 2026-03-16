@@ -11,8 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace InTheHand.Net.Bluetooth.AttributeIds
-{
+namespace InTheHand.Net.Bluetooth.AttributeIds {
     /// <summary>
     /// Represents a member of the SDP 
     /// <see cref="F:InTheHand.Net.Bluetooth.AttributeIds.UniversalAttributeId.LanguageBaseAttributeIdList"/>,
@@ -27,8 +26,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// a base attribute ID for each of the natural languages used in the service 
     /// record.&#x201D;
     /// </remarks>
-    public sealed class LanguageBaseItem
-    {
+    public sealed class LanguageBaseItem {
         /// <summary>
         /// The primary language is specified to have base attribute ID 0x0100.
         /// </summary>
@@ -75,8 +73,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// e.g. 0x100 for the Primary language.
         /// </param>
         public LanguageBaseItem(ushort naturalLanguage, ushort encodingId, ushort baseAttributeId)
-            : this(naturalLanguage, encodingId, unchecked((ServiceAttributeId)baseAttributeId))
-        { }
+            : this(naturalLanguage, encodingId, unchecked((ServiceAttributeId)baseAttributeId)) { }
 
         /// <summary>
         /// Initialize a new instance of the <see cref="T:InTheHand.Net.Bluetooth.LanguageBaseItem"/> class.
@@ -94,8 +91,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// e.g. 0x100 for the Primary language.
         /// </param>
         public LanguageBaseItem(Int16 naturalLanguage, Int16 encodingId, Int16 baseAttributeId)
-            : this(unchecked((UInt16)naturalLanguage), unchecked((UInt16)encodingId), (ServiceAttributeId)baseAttributeId)
-        { }
+            : this(unchecked((UInt16)naturalLanguage), unchecked((UInt16)encodingId), (ServiceAttributeId)baseAttributeId) { }
 
         //----
 
@@ -118,8 +114,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// in the record.
         /// e.g. 0x100 for the Primary language.
         /// </param>
-        public LanguageBaseItem(ushort naturalLanguage, ushort encodingId, ServiceAttributeId baseAttributeId)
-        {
+        public LanguageBaseItem(ushort naturalLanguage, ushort encodingId, ServiceAttributeId baseAttributeId) {
             if (baseAttributeId == 0) {
                 throw new ArgumentOutOfRangeException("baseAttributeId");
             }
@@ -144,8 +139,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// e.g. 0x100 for the Primary language.
         /// </param>
         public LanguageBaseItem(short naturalLanguage, short encodingId, ServiceAttributeId baseAttributeId)
-            :this(unchecked((ushort)naturalLanguage), unchecked((ushort)encodingId), baseAttributeId)
-        { }
+            : this(unchecked((ushort)naturalLanguage), unchecked((ushort)encodingId), baseAttributeId) { }
 
 
         //----
@@ -166,8 +160,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// e.g. 0x100 for the Primary language.
         /// </param>
         public LanguageBaseItem(string naturalLanguage, ushort encodingId, ServiceAttributeId baseAttributeId)
-            : this(GetLanguageIdStringAsBytes(naturalLanguage), encodingId, baseAttributeId)
-        { }
+            : this(GetLanguageIdStringAsBytes(naturalLanguage), encodingId, baseAttributeId) { }
 
         /// <summary>
         /// Initialize a new instance of the <see cref="T:InTheHand.Net.Bluetooth.LanguageBaseItem"/> class.
@@ -185,12 +178,10 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// e.g. 0x100 for the Primary language.
         /// </param>
         public LanguageBaseItem(string naturalLanguage, short encodingId, ServiceAttributeId baseAttributeId)
-            : this(GetLanguageIdStringAsBytes(naturalLanguage), unchecked((ushort)encodingId), baseAttributeId)
-        { }
+            : this(GetLanguageIdStringAsBytes(naturalLanguage), unchecked((ushort)encodingId), baseAttributeId) { }
 
         //--------------------
-        private static ushort GetLanguageIdStringAsBytes(string language)
-        {
+        private static ushort GetLanguageIdStringAsBytes(string language) {
             if (language.Length != 2) {
                 throw new ArgumentException(ErrorMsgLangMustAsciiTwoChars);
             }
@@ -204,8 +195,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
             return u16;
         }
 
-        private string GetLanguageIdBytesAsString()
-        {
+        private string GetLanguageIdBytesAsString() {
             short host16 = unchecked((short)m_naturalLanguage);
             short net16 = System.Net.IPAddress.HostToNetworkOrder(host16);
             byte[] asBytes = BitConverter.GetBytes(net16);
@@ -242,8 +232,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// for example it contains the wrong element data types, or doesn't contain
         /// the elements in groups of three as required.
         /// </exception>
-        public static LanguageBaseItem[] ParseListFromElementSequence(ServiceElement elementSequence)
-        {
+        public static LanguageBaseItem[] ParseListFromElementSequence(ServiceElement elementSequence) {
             if (elementSequence.ElementType != ElementType.ElementSequence) {
                 throw new ArgumentException(ErrorMsgLangBaseListParseNotSequence);
             }
@@ -294,8 +283,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// element, to be added to a generally the 
         /// <see cref="T:InTheHand.Net.Bluetooth.ServiceRecord"/>.
         /// </returns>
-        public static ServiceElement CreateElementSequenceFromList(LanguageBaseItem[] list)
-        {
+        public static ServiceElement CreateElementSequenceFromList(LanguageBaseItem[] list) {
             IList<ServiceElement> children = new List<ServiceElement>();
 
             foreach (LanguageBaseItem item in list) {
@@ -319,8 +307,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// </summary>
         /// <returns>The <see cref="T:InTheHand.Net.Bluetooth.LanguageBaseItem"/> instance.
         /// </returns>
-        public static LanguageBaseItem CreateEnglishUtf8PrimaryLanguageItem()
-        {
+        public static LanguageBaseItem CreateEnglishUtf8PrimaryLanguageItem() {
             return new LanguageBaseItem("en", LanguageBaseItem.Utf8EncodingId,
                 LanguageBaseItem.PrimaryLanguageBaseAttributeId);
         }
@@ -331,10 +318,8 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// Gets the value of the Natural Language field of the entry.
         /// </summary>
         /// <example>Some example value may be "en", and "fr".</example>
-        public string NaturalLanguage
-        {
-            get
-            {
+        public string NaturalLanguage {
+            get {
                 return GetLanguageIdBytesAsString();
             }
         }
@@ -435,8 +420,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate", Justification="but throws")]
 #endif
-        public Encoding GetEncoding()
-        {
+        public Encoding GetEncoding() {
             if (m_encodingId >= 2252 && m_encodingId <= 2258) { // Windows-125x
                 int num = m_encodingId - 1000;
                 Encoding enc = Encoding.GetEncoding("windows-" + num.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -457,14 +441,12 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
 
         //--------------------
 
-        private struct IetfCharsetIdToDotNetEncodingNameMap
-        {
+        private struct IetfCharsetIdToDotNetEncodingNameMap {
             public readonly ushort IetfCharsetId;
             public readonly string DotNetEncodingName;
 
             internal IetfCharsetIdToDotNetEncodingNameMap(
-                ushort ietfCharsetId_, string DotNetEncodingName_)
-            {
+                ushort ietfCharsetId_, string DotNetEncodingName_) {
                 this.IetfCharsetId = ietfCharsetId_;
                 this.DotNetEncodingName = DotNetEncodingName_;
             }
@@ -515,8 +497,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "0#")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "1#")]
 #endif
-        public static string TestAllDefinedEncodingMappingRows(out int numberSuccessful, out int numberFailed)
-        {
+        public static string TestAllDefinedEncodingMappingRows(out int numberSuccessful, out int numberFailed) {
             numberSuccessful = 0;
             numberFailed = 0;
             StringBuilder bldr = new StringBuilder();
@@ -527,7 +508,8 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
                     Encoding enc = Encoding.GetEncoding(row.DotNetEncodingName);
                     bldr.Append("Success");
                     ++numberSuccessful;
-                } catch (Exception ex) {
+                }
+                catch (Exception ex) {
                     bldr.AppendFormat(System.Globalization.CultureInfo.InvariantCulture,
                         "Failed with {0}:{1}", ex.GetType().FullName, ex.Message);
                     ++numberFailed;
@@ -543,7 +525,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
             = "Element in LanguageBaseAttributeIdList not type UInt16.";
         /// <exclude/>
         public const string ErrorMsgLangBaseListParseBaseInvalid
-            = "Base element in LanguageBaseAttributeIdList has unacceptable value."; 
+            = "Base element in LanguageBaseAttributeIdList has unacceptable value.";
         /// <exclude/>
         public const string ErrorMsgLangBaseListParseNotSequence
             = "LanguageBaseAttributeIdList elementSequence not an ElementSequence.";
@@ -556,6 +538,6 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// <exclude/>
         public const string ErrorMsgLangMustAsciiTwoChars
             = "A language code must be a two byte ASCII string.";
-            
+
     }//class
 }

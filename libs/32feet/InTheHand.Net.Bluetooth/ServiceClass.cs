@@ -7,8 +7,7 @@
 
 using System;
 
-namespace InTheHand.Net.Bluetooth
-{
+namespace InTheHand.Net.Bluetooth {
     /// <summary>
     /// Class of Service flags as assigned in the Bluetooth specifications.
     /// </summary>
@@ -22,15 +21,14 @@ namespace InTheHand.Net.Bluetooth
     /// </remarks>
     /// <seealso cref="DeviceClass"/>
     [Flags]
-    public enum ServiceClass
-    {
+    public enum ServiceClass {
         /// <summary>
         /// No service class bits set.
         /// </summary>
         None = 0,
 
         /// <summary>
-        /// Information (WEB­server, WAP­server, ...)
+        /// Information (WEBï¿½server, WAPï¿½server, ...)
         /// </summary>
         Information = 0x0400,//0x800000,
         /// <summary>
@@ -42,7 +40,7 @@ namespace InTheHand.Net.Bluetooth
         /// </summary>
         Audio = 0x0100,//0x200000,
         /// <summary>
-        /// Object Transfer (v­Inbox, v­Folder, ...)
+        /// Object Transfer (vï¿½Inbox, vï¿½Folder, ...)
         /// </summary>
         ObjectTransfer = 0x0080,//0x100000,
         /// <summary>

@@ -9,14 +9,11 @@ using Android.Bluetooth;
 using Android.Content;
 using System;
 
-namespace InTheHand.Net.Bluetooth
-{
-    internal sealed class AndroidBluetoothSecurity : IBluetoothSecurity
-    {
+namespace InTheHand.Net.Bluetooth {
+    internal sealed class AndroidBluetoothSecurity : IBluetoothSecurity {
         private static readonly BluetoothAdapter _adapter;
 
-        static AndroidBluetoothSecurity()
-        {
+        static AndroidBluetoothSecurity() {
             BluetoothManager manager = null;
 
             manager = InTheHand.AndroidActivity.CurrentActivity.GetSystemService(Context.BluetoothService) as BluetoothManager;
@@ -27,12 +24,10 @@ namespace InTheHand.Net.Bluetooth
             _adapter = manager.Adapter;
         }
 
-        public bool PairRequest(BluetoothAddress device, string pin, bool? requireMitmProtection)
-        {
+        public bool PairRequest(BluetoothAddress device, string pin, bool? requireMitmProtection) {
             var nativeDevice = _adapter.GetRemoteDevice(device.ToNetworkOrderSixByteArray());
-            
-            if (pin != null)
-            {
+
+            if (pin != null) {
                 nativeDevice.SetPin(System.Text.Encoding.ASCII.GetBytes(pin));
             }
             /*if (Permissions.IsDeclaredInManifest("android.permission.BLUETOOTH_PRIVILEGED"))
@@ -43,12 +38,11 @@ namespace InTheHand.Net.Bluetooth
             return nativeDevice.CreateBond();
         }
 
-        public bool RemoveDevice(BluetoothAddress device)
-        {
+        public bool RemoveDevice(BluetoothAddress device) {
             var nativeDevice = _adapter.GetRemoteDevice(device.ToNetworkOrderSixByteArray());
             var method = nativeDevice.Class.GetMethod("removeBond");
             var result = method.Invoke(nativeDevice);
             return (bool)(result as Java.Lang.Boolean);
-        }  
+        }
     }
 }

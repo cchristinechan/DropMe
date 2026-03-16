@@ -11,34 +11,27 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Windows.Devices.Bluetooth;
 
-namespace InTheHand.Net.Sockets
-{
-    internal sealed class WindowsBluetoothDeviceInfo : IBluetoothDeviceInfo
-    {
+namespace InTheHand.Net.Sockets {
+    internal sealed class WindowsBluetoothDeviceInfo : IBluetoothDeviceInfo {
         internal BluetoothDevice NativeDevice;
 
-        internal WindowsBluetoothDeviceInfo(BluetoothAddress address)
-        {
-            Task t = Task.Run(async () =>
-            {
+        internal WindowsBluetoothDeviceInfo(BluetoothAddress address) {
+            Task t = Task.Run(async () => {
                 NativeDevice = await BluetoothDevice.FromBluetoothAddressAsync(address.ToUInt64());
             });
 
             t.Wait();
         }
 
-        internal WindowsBluetoothDeviceInfo(BluetoothDevice device)
-        {
+        internal WindowsBluetoothDeviceInfo(BluetoothDevice device) {
             NativeDevice = device;
         }
 
-        public static implicit operator BluetoothDevice(WindowsBluetoothDeviceInfo device)
-        {
+        public static implicit operator BluetoothDevice(WindowsBluetoothDeviceInfo device) {
             return device.NativeDevice;
         }
 
-        public static implicit operator WindowsBluetoothDeviceInfo(BluetoothDevice device)
-        {
+        public static implicit operator WindowsBluetoothDeviceInfo(BluetoothDevice device) {
             return new WindowsBluetoothDeviceInfo(device);
         }
 
@@ -48,16 +41,13 @@ namespace InTheHand.Net.Sockets
 
         public ClassOfDevice ClassOfDevice { get => (ClassOfDevice)NativeDevice.ClassOfDevice.RawValue; }
 
-        public async Task<IEnumerable<Guid>> GetRfcommServicesAsync(bool cached)
-        {
+        public async Task<IEnumerable<Guid>> GetRfcommServicesAsync(bool cached) {
             List<Guid> services = new List<Guid>();
 
             var servicesResult = await NativeDevice.GetRfcommServicesAsync(cached ? BluetoothCacheMode.Cached : BluetoothCacheMode.Uncached);
 
-            if(servicesResult != null && servicesResult.Error == BluetoothError.Success)
-            {
-                foreach(var service in servicesResult.Services)
-                {
+            if (servicesResult != null && servicesResult.Error == BluetoothError.Success) {
+                foreach (var service in servicesResult.Services) {
                     services.Add(service.ServiceId.Uuid);
                 }
             }

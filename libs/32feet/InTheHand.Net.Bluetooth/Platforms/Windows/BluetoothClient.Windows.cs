@@ -17,30 +17,24 @@ using Windows.Devices.Enumeration;
 using Windows.Networking.Sockets;
 using InTheHand.Net.Bluetooth;
 
-namespace InTheHand.Net.Sockets
-{
-    internal sealed class WindowsBluetoothClient : IBluetoothClient
-    {
+namespace InTheHand.Net.Sockets {
+    internal sealed class WindowsBluetoothClient : IBluetoothClient {
         private const string DeviceSelectorForAllBluetoothDevices = "System.Devices.DevObjectType:=5 AND System.Devices.Aep.ProtocolId:=\"{E0CBF06C-CD8B-4647-BB8A-263B43F0F974}\" AND (System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#False OR System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#True OR System.Devices.Aep.Bluetooth.IssueInquiry:=System.StructuredQueryType.Boolean#True)";
         private StreamSocket _streamSocket;
         private bool _authenticate = false;
 
         internal WindowsBluetoothClient() { }
 
-        internal WindowsBluetoothClient(StreamSocket socket)
-        {
+        internal WindowsBluetoothClient(StreamSocket socket) {
             _streamSocket = socket;
         }
 
-        public IEnumerable<BluetoothDeviceInfo> PairedDevices
-        {
-            get
-            {
+        public IEnumerable<BluetoothDeviceInfo> PairedDevices {
+            get {
                 var devicesTask = DeviceInformation.FindAllAsync(BluetoothDevice.GetDeviceSelectorFromPairingState(true)).AsTask();
                 var devices = devicesTask.Result;
 
-                foreach (var device in devices)
-                {
+                foreach (var device in devices) {
                     var td = BluetoothDevice.FromIdAsync(device.Id).AsTask();
                     var bluetoothDevice = td.Result;
 
@@ -49,19 +43,15 @@ namespace InTheHand.Net.Sockets
             }
         }
 
-        public IReadOnlyCollection<BluetoothDeviceInfo> DiscoverDevices(int maxDevices)
-        {
+        public IReadOnlyCollection<BluetoothDeviceInfo> DiscoverDevices(int maxDevices) {
             List<BluetoothDeviceInfo> results = new List<BluetoothDeviceInfo>();
 
-            var devices = InTheHand.Threading.Tasks.AsyncHelpers.RunSync<DeviceInformationCollection>(async ()=>
-            {
+            var devices = InTheHand.Threading.Tasks.AsyncHelpers.RunSync<DeviceInformationCollection>(async () => {
                 return await DeviceInformation.FindAllAsync(DeviceSelectorForAllBluetoothDevices);
             });
 
-            foreach (var device in devices)
-            {
-                var bluetoothDevice = InTheHand.Threading.Tasks.AsyncHelpers.RunSync<BluetoothDevice>(async () =>
-                {
+            foreach (var device in devices) {
+                var bluetoothDevice = InTheHand.Threading.Tasks.AsyncHelpers.RunSync<BluetoothDevice>(async () => {
                     return await BluetoothDevice.FromIdAsync(device.Id);
                 });
                 results.Add(new BluetoothDeviceInfo(new WindowsBluetoothDeviceInfo(bluetoothDevice)));
@@ -70,31 +60,27 @@ namespace InTheHand.Net.Sockets
         }
 
 #if NET6_0_OR_GREATER
-        public async IAsyncEnumerable<BluetoothDeviceInfo> DiscoverDevicesAsync([EnumeratorCancellation] CancellationToken cancellationToken)
-        {
+        public async IAsyncEnumerable<BluetoothDeviceInfo> DiscoverDevicesAsync([EnumeratorCancellation] CancellationToken cancellationToken) {
             var devices = await DeviceInformation.FindAllAsync(DeviceSelectorForAllBluetoothDevices).AsTask(cancellationToken);
-            
-            foreach(var device in devices)
-            {
+
+            foreach (var device in devices) {
                 yield return new BluetoothDeviceInfo(new WindowsBluetoothDeviceInfo(await BluetoothDevice.FromIdAsync(device.Id)));
             }
         }
 #endif
 
-        public async Task ConnectAsync(BluetoothAddress address, Guid service)
-        {
+        public async Task ConnectAsync(BluetoothAddress address, Guid service) {
             var device = await BluetoothDevice.FromBluetoothAddressAsync(address);
             var rfcommServices = await device.GetRfcommServicesForIdAsync(RfcommServiceId.FromUuid(service), BluetoothCacheMode.Uncached);
 
-            if (rfcommServices.Error == BluetoothError.Success)
-            {
+            if (rfcommServices.Error == BluetoothError.Success) {
                 var rfCommService = rfcommServices.Services[0];
                 _streamSocket = new StreamSocket();
                 await _streamSocket.ConnectAsync(rfCommService.ConnectionHostName, rfCommService.ConnectionServiceName, Authenticate ? SocketProtectionLevel.BluetoothEncryptionWithAuthentication : SocketProtectionLevel.BluetoothEncryptionAllowNullAuthentication);
             }
         }
 
-        public async Task<PairState> PairAsync(IBluetoothDeviceInfo device) {
+        public async Task<PairState> PairAsync(BluetoothDeviceInfo device) {
             var platformDevice = await BluetoothDevice.FromBluetoothAddressAsync(device.DeviceAddress);
             var pairing = platformDevice.DeviceInformation.Pairing;
 
@@ -107,10 +93,8 @@ namespace InTheHand.Net.Sockets
             };
         }
 
-        public void Connect(BluetoothAddress address, Guid service)
-        {
-            var t = Task.Run(async () =>
-            {
+        public void Connect(BluetoothAddress address, Guid service) {
+            var t = Task.Run(async () => {
                 await ConnectAsync(address, service);
             });
 
@@ -121,18 +105,15 @@ namespace InTheHand.Net.Sockets
         /// Connects the client to a remote Bluetooth host using the specified endpoint.
         /// </summary>
         /// <param name="remoteEP">The <see cref="BluetoothEndPoint"/> to which you intend to connect.</param>
-        public void Connect(BluetoothEndPoint remoteEP)
-        {
+        public void Connect(BluetoothEndPoint remoteEP) {
             if (remoteEP == null)
                 throw new ArgumentNullException(nameof(remoteEP));
 
             Connect(remoteEP.Address, remoteEP.Service);
         }
 
-        public void Close()
-        {
-            if (_streamSocket != null)
-            {
+        public void Close() {
+            if (_streamSocket != null) {
                 _streamSocket.Dispose();
                 _streamSocket = null;
             }
@@ -142,10 +123,8 @@ namespace InTheHand.Net.Sockets
 
         Socket IBluetoothClient.Client { get => throw new PlatformNotSupportedException(); }
 
-        public bool Connected
-        {
-            get
-            {
+        public bool Connected {
+            get {
                 if (_streamSocket == null)
                     return false;
 
@@ -157,12 +136,9 @@ namespace InTheHand.Net.Sockets
 
         TimeSpan IBluetoothClient.InquiryLength { get => TimeSpan.Zero; set => throw new PlatformNotSupportedException(); }
 
-        public string RemoteMachineName
-        {
-            get
-            {
-                if (Connected)
-                {
+        public string RemoteMachineName {
+            get {
+                if (Connected) {
                     return _streamSocket.Information.RemoteHostName.DisplayName;
                 }
 
@@ -170,10 +146,8 @@ namespace InTheHand.Net.Sockets
             }
         }
 
-        public NetworkStream GetStream()
-        {
-            if (Connected)
-            {
+        public NetworkStream GetStream() {
+            if (Connected) {
                 return new WinRTNetworkStream(_streamSocket, true);
             }
 
@@ -183,12 +157,9 @@ namespace InTheHand.Net.Sockets
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
-        void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
+        void Dispose(bool disposing) {
+            if (!disposedValue) {
+                if (disposing) {
                 }
 
                 disposedValue = true;
@@ -196,8 +167,7 @@ namespace InTheHand.Net.Sockets
         }
 
         // This code added to correctly implement the disposable pattern.
-        public void Dispose()
-        {
+        public void Dispose() {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
         }

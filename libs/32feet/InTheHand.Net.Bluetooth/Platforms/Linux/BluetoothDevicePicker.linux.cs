@@ -11,12 +11,9 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Bluetooth
-{
-    internal sealed class LinuxBluetoothDevicePicker : IBluetoothDevicePicker
-    {
-        public Task<BluetoothDeviceInfo> PickSingleDeviceAsync(List<ClassOfDevice> classOfDevices, bool requiresAuthentication)
-        {
+namespace InTheHand.Net.Bluetooth {
+    internal sealed class LinuxBluetoothDevicePicker : IBluetoothDevicePicker {
+        public Task<BluetoothDeviceInfo> PickSingleDeviceAsync(List<ClassOfDevice> classOfDevices, bool requiresAuthentication) {
             return Task.FromException<BluetoothDeviceInfo>(new PlatformNotSupportedException());
         }
     }

@@ -5,8 +5,7 @@
 // Copyright (c) 2003-2020 In The Hand Ltd, All rights reserved.
 // This source code is licensed under the MIT License
 
-namespace InTheHand.Net.Bluetooth.Sdp
-{
+namespace InTheHand.Net.Bluetooth.Sdp {
 #pragma warning disable 1591
 
     /// <summary>
@@ -28,7 +27,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         Uuid = 3,
         TextString = 4,
         Boolean = 5,
-        ElementSequence = 6, 
+        ElementSequence = 6,
         ElementAlternative = 7,
         Url = 8
     }//enum
@@ -74,8 +73,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
     /// representable by one value here).
     /// </para>
     /// </remarks>
-    public enum ElementType
-    {
+    public enum ElementType {
         Unknown = 0,
 
         //--

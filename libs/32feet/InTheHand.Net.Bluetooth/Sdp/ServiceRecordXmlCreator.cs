@@ -9,14 +9,12 @@ using System;
 using System.Text;
 using System.Xml.Linq;
 
-namespace InTheHand.Net.Bluetooth.Sdp
-{
+namespace InTheHand.Net.Bluetooth.Sdp {
     /// <summary>
     /// Creates an XML representation of a Service Record from the given 
     /// <see cref="T:InTheHand.Net.Bluetooth.ServiceRecord"/> object.
     /// </summary>
-    public class ServiceRecordXmlCreator
-    {
+    public class ServiceRecordXmlCreator {
         /// <summary>
         /// Creates an XML representation of a Service Record from the given 
         /// <see cref="T:InTheHand.Net.Bluetooth.ServiceRecord"/> object.
@@ -28,10 +26,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// A <see cref="XDocument"/> which represents the XML representation of the Service
         /// Record.
         /// </returns>
-        public XDocument CreateServiceRecord(ServiceRecord record)
-        {
-            if (record == null)
-            {
+        public XDocument CreateServiceRecord(ServiceRecord record) {
+            if (record == null) {
                 throw new ArgumentNullException(nameof(record));
             }
 
@@ -39,8 +35,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
             var root = new XElement("record");
             document.Add(root);
 
-            foreach (var attribute in record)
-            {
+            foreach (var attribute in record) {
                 var node = new XElement("attribute");
                 node.SetAttributeValue("id", GetIdString(attribute));
 
@@ -51,18 +46,15 @@ namespace InTheHand.Net.Bluetooth.Sdp
             return document;
         }
 
-        private static string GetIdString(ServiceAttribute attribute)
-        {
+        private static string GetIdString(ServiceAttribute attribute) {
             return $"0x{attribute.Id:X}";
         }
 
-        private static XElement GetAttributeValue(ServiceElement value)
-        {
+        private static XElement GetAttributeValue(ServiceElement value) {
             // There isn't much formal documentation on the BlueZ SDP XML format.
             // The actual serialization is implemented in the convert_raw_data_to_xml
             // function at https://github.com/bluez/bluez/blob/9be85f867856195e16c9b94b605f65f6389eda33/src/sdp-xml.c#L637
-            switch (value.ElementType)
-            {
+            switch (value.ElementType) {
                 case ElementType.Nil:
                     return new XElement("nil");
 
@@ -129,13 +121,11 @@ namespace InTheHand.Net.Bluetooth.Sdp
                 case ElementType.TextString:
                     var textString = new XElement("text");
 
-                    if (value.Value is byte[])
-                    {
+                    if (value.Value is byte[]) {
                         textString.SetAttributeValue("encoding", "hex");
                         textString.SetAttributeValue("value", GetHexString((byte[])value.Value));
                     }
-                    else
-                    {
+                    else {
                         textString.SetAttributeValue("value", (string)value.Value);
                     }
 
@@ -149,8 +139,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
                 case ElementType.ElementSequence:
                     var sequence = new XElement("sequence");
 
-                    foreach (var child in value.GetValueAsElementList())
-                    {
+                    foreach (var child in value.GetValueAsElementList()) {
                         sequence.Add(GetAttributeValue(child));
                     }
 
@@ -159,8 +148,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
                 case ElementType.ElementAlternative:
                     var alternate = new XElement("alternate");
 
-                    foreach (var child in value.GetValueAsElementList())
-                    {
+                    foreach (var child in value.GetValueAsElementList()) {
                         alternate.Add(GetAttributeValue(child));
                     }
 
@@ -171,12 +159,10 @@ namespace InTheHand.Net.Bluetooth.Sdp
             }
         }
 
-        private static string GetHexString(byte[] value)
-        {
+        private static string GetHexString(byte[] value) {
             StringBuilder builder = new StringBuilder(value.Length * 2);
 
-            for (int i = 0; i < value.Length; i++)
-            {
+            for (int i = 0; i < value.Length; i++) {
                 builder.AppendFormat("{0:x2}", value[i]);
             }
 

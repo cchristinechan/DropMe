@@ -16,25 +16,20 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 #endif
 
-namespace InTheHand.Net.Bluetooth
-{
-    internal sealed class WindowsBluetoothDevicePicker : IBluetoothDevicePicker
-    {
+namespace InTheHand.Net.Bluetooth {
+    internal sealed class WindowsBluetoothDevicePicker : IBluetoothDevicePicker {
         private DevicePicker picker = new DevicePicker();
-            
-        public async Task<BluetoothDeviceInfo> PickSingleDeviceAsync(List<ClassOfDevice> classOfDevices, bool requiresAuthentication)
-        {
+
+        public async Task<BluetoothDeviceInfo> PickSingleDeviceAsync(List<ClassOfDevice> classOfDevices, bool requiresAuthentication) {
             Rect bounds = new Rect(0, 0, 0, 0);
             var window = Windows.UI.Core.CoreWindow.GetForCurrentThread();
-            if (window != null)
-            {
+            if (window != null) {
                 bounds = window.Bounds;
             }
-            else
-            {
+            else {
 #if WinRT
                 var hwnd = NativeMethods.GetActiveWindow();
-                if(hwnd == IntPtr.Zero)
+                if (hwnd == IntPtr.Zero)
                     hwnd = NativeMethods.GetConsoleWindow();
 
                 WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
@@ -43,7 +38,7 @@ namespace InTheHand.Net.Bluetooth
             }
 
             picker.Filter.SupportedDeviceSelectors.Add(BluetoothDevice.GetDeviceSelectorFromPairingState(true));
-            if(!requiresAuthentication)
+            if (!requiresAuthentication)
                 picker.Filter.SupportedDeviceSelectors.Add(BluetoothDevice.GetDeviceSelectorFromPairingState(false));
 
             var deviceInfo = await picker.PickSingleDeviceAsync(bounds);
@@ -58,8 +53,7 @@ namespace InTheHand.Net.Bluetooth
         }
 
 #if WinRT
-        internal static class NativeMethods
-        {
+        internal static class NativeMethods {
             [DllImport("user32", ExactSpelling = true, SetLastError = true)]
             internal static extern IntPtr GetActiveWindow();
 

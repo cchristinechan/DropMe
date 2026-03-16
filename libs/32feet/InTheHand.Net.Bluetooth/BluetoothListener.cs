@@ -12,13 +12,11 @@ using System.Diagnostics;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Sockets
-{
+namespace InTheHand.Net.Sockets {
     /// <summary>
     /// Listens for connections from Bluetooth RFCOMM network clients.
     /// </summary>
-    public sealed class BluetoothListener : IDisposable, IBluetoothListener
-    {
+    public sealed class BluetoothListener : IDisposable, IBluetoothListener {
         private readonly IBluetoothListener _bluetoothListener;
 
         /// <overloads>
@@ -49,8 +47,7 @@ namespace InTheHand.Net.Sockets
         /// method to begin listening for incoming connection attempts.
         /// </para>
         /// </remarks>
-        public BluetoothListener(Guid service)
-        {
+        public BluetoothListener(Guid service) {
 #if ANDROID || MONOANDROID
             _bluetoothListener = new AndroidBluetoothListener();
 #elif WINDOWS_UWP || WINDOWS10_0_17763_0_OR_GREATER
@@ -70,7 +67,7 @@ namespace InTheHand.Net.Sockets
                     break;*/
             }
 #endif
-            Console.WriteLine("Type: " +  _bluetoothListener.GetType().Name);
+            Console.WriteLine("Type: " + _bluetoothListener.GetType().Name);
             if (_bluetoothListener == null)
                 throw new PlatformNotSupportedException();
 
@@ -129,8 +126,7 @@ namespace InTheHand.Net.Sockets
         /// </code>
         /// </para>
         /// </remarks>
-        public BluetoothListener(Guid service, ServiceRecord sdpRecord) : this(service)
-        {
+        public BluetoothListener(Guid service, ServiceRecord sdpRecord) : this(service) {
             ServiceRecord = sdpRecord;
         }
 
@@ -191,24 +187,21 @@ namespace InTheHand.Net.Sockets
 		/// Determines if there is a connection pending.
 		/// </summary>
 		/// <returns>true if there is a connection pending; otherwise, false.</returns>
-		public bool Pending()
-        {
+		public bool Pending() {
             return _bluetoothListener.Pending();
         }
 
         /// <summary>
         /// Starts listening for incoming connection requests.
         /// </summary>
-        public void Start()
-        {
+        public void Start() {
             _bluetoothListener.Start();
         }
 
         /// <summary>
 		/// Stops the socket from monitoring connections.
 		/// </summary>
-		public void Stop()
-        {
+		public void Stop() {
             _bluetoothListener.Stop();
         }
 
@@ -223,16 +216,14 @@ namespace InTheHand.Net.Sockets
 		/// If you want greater flexibility than a <see cref="BluetoothClient"/> offers, consider using <see cref="AcceptSocket"/>.</para></remarks>
 		/// <returns>A <see cref="BluetoothClient"/> component.</returns>
 		/// <exception cref="T:System.InvalidOperationException">Listener is stopped.</exception>
-		public BluetoothClient AcceptBluetoothClient()
-        {
+		public BluetoothClient AcceptBluetoothClient() {
             if (!Active)
                 throw new InvalidOperationException("Not listening. You must call the Start() method before calling this method.");
 
             return _bluetoothListener.AcceptBluetoothClient();
         }
 
-        public Task<BluetoothClient> AcceptBluetoothClientAsync()
-        {
+        public Task<BluetoothClient> AcceptBluetoothClientAsync() {
             if (!Active)
                 throw new InvalidOperationException("Not listening. You must call the Start() method before calling this method.");
 
@@ -242,12 +233,9 @@ namespace InTheHand.Net.Sockets
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
-        void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
+        void Dispose(bool disposing) {
+            if (!disposedValue) {
+                if (disposing) {
                     // TODO: dispose managed state (managed objects).
                 }
 
@@ -268,8 +256,7 @@ namespace InTheHand.Net.Sockets
         // }
 
         // This code added to correctly implement the disposable pattern.
-        public void Dispose()
-        {
+        public void Dispose() {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
             // TODO: uncomment the following line if the finalizer is overridden above.

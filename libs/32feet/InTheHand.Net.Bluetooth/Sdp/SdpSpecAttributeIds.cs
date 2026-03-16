@@ -6,8 +6,7 @@
 // Copyright (c) 2003-2020 In The Hand Ltd, All rights reserved.
 // This source code is licensed under the MIT Licenseusing System;
 
-namespace InTheHand.Net.Bluetooth.AttributeIds
-{
+namespace InTheHand.Net.Bluetooth.AttributeIds {
     /// <summary>
     /// Defines the ids for the &#x201C;universal attributes&#x201D;, those 
     /// &#x201C;whose definitions are common to all service records.&#x201D;
@@ -18,7 +17,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// to all service records. Note that this does not mean that every service record
     /// must contain values for all of these service attributes. However, if a service
     /// record has a service attribute with an attribute ID allocated to a universal
-    /// attribute, the attribute value must conform to the universal attribute’s definition.
+    /// attribute, the attribute value must conform to the universal attributeï¿½s definition.
     /// </para><para>&#x201C;
     /// Only two attributes are required to exist in every service record instance. They
     /// are the ServiceRecordHandle (attribute ID 0x0000) and the ServiceClassIDList
@@ -27,8 +26,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// &#x201D;</para>
     /// <para>&#x201C;Attribute IDs in the range of 0x000D-0x01FF are reserved.&#x201D;</para>
     /// </remarks>
-    public static class UniversalAttributeId
-    {
+    public static class UniversalAttributeId {
         /// <summary>
         /// A service record handle is a 32-bit number that uniquely identifies each service
         /// record within an SDP server.
@@ -204,8 +202,8 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// (threes).
         /// </para><para>&#x201C;
         /// The first element of each triplet contains an identifier representing the natural
-        /// language. The language is encoded according to ISO 639:1988 (E/F): “Code
-        /// for the representation of names of languages”.
+        /// language. The language is encoded according to ISO 639:1988 (E/F): ï¿½Code
+        /// for the representation of names of languagesï¿½.
         /// </para><para>&#x201C;
         /// The second element of each triplet contains an identifier that specifies a character
         /// encoding used for the language. Values for character encoding can be
@@ -333,8 +331,8 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// may be used to utilize the service described by the service record. Since different
         /// operating environments require different executable formats, a mechanism
         /// has been defined to allow this single attribute to be used to locate an executable
-        /// that is appropriate for the client device’s operating environment. In the
-        /// attribute value URL, the first byte with the value 0x2A (ASCII character ‘*’) is to
+        /// that is appropriate for the client deviceï¿½s operating environment. In the
+        /// attribute value URL, the first byte with the value 0x2A (ASCII character ï¿½*ï¿½) is to
         /// be replaced by the client application with a string representing the desired
         /// operating environment before the URL is to be used.
         /// &#x201D;</para><para>&#x201C;
@@ -364,7 +362,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// hardware devices require different icon formats, a mechanism has been
         /// defined to allow this single attribute to be used to locate an icon that is appropriate
         /// for the client device. In the attribute value URL, the first byte with the
-        /// value 0x2A (ASCII character ‘*’) is to be replaced by the client application with
+        /// value 0x2A (ASCII character ï¿½*ï¿½) is to be replaced by the client application with
         /// a string representing the desired icon format before the URL is to be used.
         /// &#x201D;</para><para>&#x201C;
         /// The list of standardized strings representing icon formats is contained in the
@@ -471,8 +469,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// &#x201D;</para>
     /// <para>&#x201C;Attribute IDs in the range of 0x0202-0x02FF are reserved.&#x201D;</para>
     /// </remarks>
-    public static class ServiceDiscoveryServerAttributeId
-    {
+    public static class ServiceDiscoveryServerAttributeId {
         /// <summary>
         /// The VersionNumberList is a data element sequence in which each element of
         /// the sequence is a version number supported by the SDP server.
@@ -537,8 +534,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// &#x201D;</para>
     /// <para>&#x201C;Attribute IDs in the range of 0x0201-0x02FF are reserved.&#x201D;</para>
     /// </remarks>
-    public static class BrowseGroupDescriptorAttributeId
-    {
+    public static class BrowseGroupDescriptorAttributeId {
         /// <summary>
         /// This attribute contains a UUID that can be used to locate services that are
         /// members of the browse group that this service record describes.

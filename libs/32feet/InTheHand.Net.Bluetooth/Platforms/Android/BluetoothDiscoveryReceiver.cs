@@ -10,14 +10,10 @@ using Android.Content;
 using System;
 using Java.Lang;
 
-namespace InTheHand.Net.Bluetooth.Droid
-{
-    internal sealed class BluetoothDiscoveryReceiver : BroadcastReceiver
-    {
-        public override void OnReceive(Context context, Intent intent)
-        {
-            switch(intent.Action)
-            {
+namespace InTheHand.Net.Bluetooth.Droid {
+    internal sealed class BluetoothDiscoveryReceiver : BroadcastReceiver {
+        public override void OnReceive(Context context, Intent intent) {
+            switch (intent.Action) {
                 case BluetoothAdapter.ActionDiscoveryStarted:
                     System.Diagnostics.Debug.WriteLine("DiscoveryStarted");
                     break;
@@ -30,20 +26,17 @@ namespace InTheHand.Net.Bluetooth.Droid
                 case BluetoothDevice.ActionFound:
                     BluetoothDevice device;
 #if NET7_0_OR_GREATER
-                    if (OperatingSystem.IsAndroidVersionAtLeast((int)Android.OS.BuildVersionCodes.Tiramisu))
-                    {
+                    if (OperatingSystem.IsAndroidVersionAtLeast((int)Android.OS.BuildVersionCodes.Tiramisu)) {
                         device = (BluetoothDevice)intent.GetParcelableExtra(BluetoothDevice.ExtraDevice, Class.FromType(typeof(BluetoothDevice)));
                     }
-                    else
-                    {
+                    else {
 #endif
                         device = (BluetoothDevice)intent.GetParcelableExtra(BluetoothDevice.ExtraDevice);
 #if NET7_0_OR_GREATER
                     }
 #endif
 
-                    if (device.Type != BluetoothDeviceType.Le)
-                    {
+                    if (device.Type != BluetoothDeviceType.Le) {
                         System.Diagnostics.Debug.WriteLine($"Found {device.Name} {device.Address} {device.BondState}");
                         DeviceFound?.Invoke(this, device);
                     }
@@ -52,12 +45,10 @@ namespace InTheHand.Net.Bluetooth.Droid
                 case BluetoothDevice.ActionNameChanged:
                     BluetoothDevice device2;
 #if NET7_0_OR_GREATER
-                    if (Android.OS.Build.VERSION.SdkInt > Android.OS.BuildVersionCodes.Tiramisu)
-                    {
+                    if (Android.OS.Build.VERSION.SdkInt > Android.OS.BuildVersionCodes.Tiramisu) {
                         device2 = (BluetoothDevice)intent.GetParcelableExtra(BluetoothDevice.ExtraDevice, Class.FromType(typeof(BluetoothDevice)));
                     }
-                    else
-                    {
+                    else {
 #endif
                         device2 = (BluetoothDevice)intent.GetParcelableExtra(BluetoothDevice.ExtraDevice);
 #if NET7_0_OR_GREATER

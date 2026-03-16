@@ -14,17 +14,14 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Bluetooth
-{
-    internal sealed class AndroidBluetoothDevicePicker : IBluetoothDevicePicker
-    {
+namespace InTheHand.Net.Bluetooth {
+    internal sealed class AndroidBluetoothDevicePicker : IBluetoothDevicePicker {
         internal static EventWaitHandle s_handle = new EventWaitHandle(false, EventResetMode.AutoReset);
         internal static AndroidBluetoothDevicePicker s_current;
 
         internal Android.Bluetooth.BluetoothDevice _device;
 
-        public Task<BluetoothDeviceInfo> PickSingleDeviceAsync(List<ClassOfDevice> classOfDevices, bool requiresAuthentication)
-        {
+        public Task<BluetoothDeviceInfo> PickSingleDeviceAsync(List<ClassOfDevice> classOfDevices, bool requiresAuthentication) {
             if (InTheHand.AndroidActivity.CurrentActivity == null)
                 throw new NotSupportedException("CurrentActivity was not detected or specified");
 
@@ -32,12 +29,10 @@ namespace InTheHand.Net.Bluetooth
 
             int filterType = 0;
 
-            if (classOfDevices != null && classOfDevices.Count == 1)
-            {
+            if (classOfDevices != null && classOfDevices.Count == 1) {
                 var bcod = classOfDevices[0];
 
-                switch (bcod.Service)
-                {
+                switch (bcod.Service) {
                     case ServiceClass.Audio:
                         filterType = 1;
                         break;
@@ -51,8 +46,7 @@ namespace InTheHand.Net.Bluetooth
                         break;
                 }
 
-                switch (bcod.MajorDevice)
-                {
+                switch (bcod.MajorDevice) {
                     case DeviceClass.AccessPointAvailable:
                         filterType = 4;
                         break;
@@ -67,16 +61,13 @@ namespace InTheHand.Net.Bluetooth
 
             InTheHand.AndroidActivity.CurrentActivity.StartActivityForResult(i, 1);
 
-            return Task.Run(() =>
-            {
+            return Task.Run(() => {
                 s_handle.WaitOne();
 
-                if (_device != null)
-                {
+                if (_device != null) {
                     return Task.FromResult<BluetoothDeviceInfo>(new BluetoothDeviceInfo(new AndroidBluetoothDeviceInfo(_device)));
                 }
-                else
-                {
+                else {
                     return Task.FromResult<BluetoothDeviceInfo>(null);
                 }
             });

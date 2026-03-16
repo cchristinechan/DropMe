@@ -14,8 +14,7 @@ using System.Globalization;
 using System.Diagnostics.CodeAnalysis;
 
 
-namespace InTheHand.Net.Bluetooth.Sdp
-{
+namespace InTheHand.Net.Bluetooth.Sdp {
     /// <summary>
     /// Provides a simple way to build a <see cref="T:InTheHand.Net.Bluetooth.ServiceRecord"/>, 
     /// including ServiceClassIds and ServiceNames attributes etc.
@@ -55,8 +54,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
     /// ServiceRecord rcd = bldr.ServiceRecord;
     /// </code>
     /// </example>
-    public class ServiceRecordBuilder
-    {
+    public class ServiceRecordBuilder {
         private String m_ServiceName, m_ProviderName, m_ServiceDescription;
         private System.Collections.ArrayList m_classIds = new System.Collections.ArrayList();
         private BluetoothProtocolDescriptorType m_ProtocolType = BluetoothProtocolDescriptorType.Rfcomm;
@@ -71,8 +69,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <summary>
         /// Create a new instance of the <see cref="T:InTheHand.Net.Bluetooth.ServiceRecordBuilder"/> class.
         /// </summary>
-        public ServiceRecordBuilder()
-        {
+        public ServiceRecordBuilder() {
         }
 
         #region Creator method
@@ -91,10 +88,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// For instance, if duplicates attributes are disallowed but duplicates are 
         /// present.
         /// </exception>
-        public ServiceRecord ServiceRecord
-        {
-            get
-            {
+        public ServiceRecord ServiceRecord {
+            get {
                 List<ServiceAttribute> attrList = new List<ServiceAttribute>();
                 bool needsLangBaseId = false;
                 // -- ClassIDs --
@@ -169,7 +164,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
                     ReportIfDuplicates(attrList, true);
                 }
 
-                attrList.Sort(delegate(ServiceAttribute x, ServiceAttribute y) {
+                attrList.Sort(delegate (ServiceAttribute x, ServiceAttribute y) {
                     int r = x.IdAsOrdinalNumber.CompareTo(y.IdAsOrdinalNumber);
                     return r;
                 });
@@ -187,8 +182,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// attribute. Thus throws <c>InvalidOperationException</c> and 
         /// <c>ArgumentException</c> respectively.
         /// </param>
-        private static void ReportIfDuplicates(List<ServiceAttribute> list, bool storedList)
-        {
+        private static void ReportIfDuplicates(List<ServiceAttribute> list, bool storedList) {
             Dictionary<ServiceAttributeId, ServiceAttribute> ids
                 = new Dictionary<ServiceAttributeId, ServiceAttribute>(list.Count);
 
@@ -203,8 +197,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
             }//for
         }
 
-        private List<ServiceElement> BuildServiceClassIdList()
-        {
+        private List<ServiceElement> BuildServiceClassIdList() {
             List<ServiceElement> children = new List<ServiceElement>();
             if (m_classIds.Count == 0) {
                 throw new InvalidOperationException(ErrorMsg_NoServiceClasses);
@@ -215,8 +208,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
             return children;
         }
 
-        private static ServiceElement ServiceElementFromUuid(object classRaw)
-        {
+        private static ServiceElement ServiceElementFromUuid(object classRaw) {
             ServiceElement tmp = null;
 
             UInt32 classU32 = 99;
@@ -228,11 +220,13 @@ namespace InTheHand.Net.Bluetooth.Sdp
                 if (ServiceRecordUtilities.IsUuid32Value(uuid128)) {
                     classU32 = ServiceRecordUtilities.GetAsUuid32Value(uuid128);
                     writeIntegral = true;
-                } else {
+                }
+                else {
                     tmp = new ServiceElement(ElementType.Uuid128, uuid128);
                     writeIntegral = false;
                 }
-            } else {
+            }
+            else {
                 System.Diagnostics.Debug.Assert(classRaw != null,
                     "Unexpected ServiceClassId value: null");
                 System.Diagnostics.Debug.Assert(classRaw is Int32,
@@ -246,7 +240,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
                     UInt16 u16 = Convert.ToUInt16(classU32);
                     Debug.Assert(classU32 <= UInt16.MaxValue, "NOT replace the throw, LTE");
                     tmp = new ServiceElement(ElementType.Uuid16, u16);
-                } catch (OverflowException) {
+                }
+                catch (OverflowException) {
                     Debug.Assert(classU32 > UInt16.MaxValue, "NOT replace the throw, GT");
                     tmp = new ServiceElement(ElementType.Uuid32, classU32);
                 }
@@ -255,8 +250,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
             return tmp;
         }
 
-        private static ServiceElement CreateEnglishUtf8PrimaryLanguageServiceElement()
-        {
+        private static ServiceElement CreateEnglishUtf8PrimaryLanguageServiceElement() {
             ServiceElement englishUtf8PrimaryLanguage = LanguageBaseItem.CreateElementSequenceFromList(
                 new LanguageBaseItem[] { LanguageBaseItem.CreateEnglishUtf8PrimaryLanguageItem() });
             return englishUtf8PrimaryLanguage;
@@ -280,8 +274,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// attribute will be added too.
         /// </para>
         /// </remarks>
-        public String ServiceName
-        {
+        public String ServiceName {
             get { return m_ServiceName; }
             set { m_ServiceName = value; }
         }
@@ -295,8 +288,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// attribute will be added too.
         /// </para>
         /// </remarks>
-        public String ProviderName
-        {
+        public String ProviderName {
             get { return m_ProviderName; }
             set { m_ProviderName = value; }
         }
@@ -310,8 +302,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// attribute will be added too.
         /// </para>
         /// </remarks>
-        public String ServiceDescription
-        {
+        public String ServiceDescription {
             get { return m_ServiceDescription; }
             set { m_ServiceDescription = value; }
         }
@@ -344,8 +335,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <para>The default is <see cref="F:InTheHand.Net.Bluetooth.BluetoothProtocolDescriptorType.Rfcomm"/>.
         /// </para>
         /// </remarks>
-        public BluetoothProtocolDescriptorType ProtocolType
-        {
+        public BluetoothProtocolDescriptorType ProtocolType {
             get { return m_ProtocolType; }
             set { m_ProtocolType = value; }
         }
@@ -366,8 +356,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="uuid128">A <see cref="T:System.Guid"/> containing a 
         /// UUID for the advertised service.
         /// </param>
-        public void AddServiceClass(Guid uuid128)
-        {
+        public void AddServiceClass(Guid uuid128) {
             m_classIds.Add(uuid128);
         }
 
@@ -385,8 +374,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="uuid16">A <see cref="T:System.UInt16"/> containing a short-form 
         /// UUID for the advertised service.
         /// </param>
-        public void AddServiceClass(ushort uuid16)
-        {
+        public void AddServiceClass(ushort uuid16) {
             m_classIds.Add((int)uuid16);
         }
 
@@ -404,8 +392,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="uuid32">A <see cref="T:System.UInt32"/> containing a short-form 
         /// UUID for the advertised service.
         /// </param>
-        public void AddServiceClass(uint uuid32)
-        {
+        public void AddServiceClass(uint uuid32) {
             m_classIds.Add(unchecked((int)uuid32));
         }
 
@@ -423,8 +410,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="uuid16or32">A <see cref="T:System.Int32"/> containing a short-form 
         /// UUID for the advertised service.
         /// </param>
-        public void AddServiceClass(int uuid16or32)
-        {
+        public void AddServiceClass(int uuid16or32) {
             m_classIds.Add(uuid16or32);
         }
         #endregion
@@ -442,17 +428,14 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// </param>
         /// <param name="minorVersion">The minor version number, as a <see cref="T:System.Byte"/>.
         /// </param>
-        public void AddBluetoothProfileDescriptor(Guid classId, byte majorVersion, byte minorVersion)
-        {
+        public void AddBluetoothProfileDescriptor(Guid classId, byte majorVersion, byte minorVersion) {
             m_profileDescrs.Add(new BtPdlItem(classId, majorVersion, minorVersion));
         }
 
-        internal struct BtPdlItem
-        {
+        internal struct BtPdlItem {
             internal readonly Guid m_classId;
             internal readonly byte m_version, m_subVersion;
-            internal BtPdlItem(Guid classId, byte version, byte subVersion)
-            {
+            internal BtPdlItem(Guid classId, byte version, byte subVersion) {
                 m_classId = classId;
                 m_version = version;
                 m_subVersion = subVersion;
@@ -470,8 +453,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <see cref="T:System.Collections.Generic.IEnumerable`1"/> returning 
         /// <see cref="T:InTheHand.Net.Bluetooth.ServiceAttribute"/> instances.
         /// </param>
-        public void AddCustomAttributes(System.Collections.Generic.IEnumerable<ServiceAttribute> serviceAttributes)
-        {
+        public void AddCustomAttributes(System.Collections.Generic.IEnumerable<ServiceAttribute> serviceAttributes) {
             List<ServiceAttribute> newList = new List<ServiceAttribute>(m_customList);
             newList.AddRange(serviceAttributes);
             if (!m_allowDuplicates) {
@@ -488,8 +470,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <see cref="T:System.Collections.IEnumerable"/> returning 
         /// <see cref="T:InTheHand.Net.Bluetooth.ServiceAttribute"/> instances.
         /// </param>
-        public void AddCustomAttributes(System.Collections.IEnumerable serviceAttributes)
-        {
+        public void AddCustomAttributes(System.Collections.IEnumerable serviceAttributes) {
             List<ServiceAttribute> newList = new List<ServiceAttribute>(m_customList);
             // Have to verify the type of each element.
             foreach (object cur in serviceAttributes) {
@@ -511,8 +492,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="serviceAttributes">A set of attributes as an array of 
         /// <see cref="T:InTheHand.Net.Bluetooth.ServiceAttribute"/>.
         /// </param>
-        public void AddCustomAttributes(params ServiceAttribute[] serviceAttributes)
-        {
+        public void AddCustomAttributes(params ServiceAttribute[] serviceAttributes) {
             IEnumerable<ServiceAttribute> eable = serviceAttributes;
             this.AddCustomAttributes(eable);
         }
@@ -528,8 +508,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="serviceAttribute">An attribute as a 
         /// <see cref="T:InTheHand.Net.Bluetooth.ServiceAttribute"/> instance.
         /// </param>
-        public void AddCustomAttribute(ServiceAttribute serviceAttribute)
-        {
+        public void AddCustomAttribute(ServiceAttribute serviceAttribute) {
             this.AddCustomAttributes(new ServiceAttribute[] { serviceAttribute });
         }
 
@@ -549,14 +528,14 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="id">The Attribute Id as a <see cref="T:InTheHand.Net.Bluetooth.ServiceAttributeId"/>.</param>
         /// <param name="elementType">The type of the element as an <see cref="T:InTheHand.Net.Bluetooth.ElementType"/>.</param>
         /// <param name="value">The value for the new element.</param>
-        public void AddCustomAttribute(ServiceAttributeId id, ElementType elementType, object value)
-        {
+        public void AddCustomAttribute(ServiceAttributeId id, ElementType elementType, object value) {
             ServiceElement e;
             ElementTypeDescriptor etd = ServiceRecordParser.GetEtdForType(elementType);
             if ((etd == ElementTypeDescriptor.UnsignedInteger
                    || etd == ElementTypeDescriptor.TwosComplementInteger)) {
                 e = ServiceElement.CreateNumericalServiceElement(elementType, value);
-            } else {
+            }
+            else {
                 e = new ServiceElement(elementType, value);
             }
             this.AddCustomAttribute(new ServiceAttribute(id, e));
@@ -578,8 +557,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="id">The Attribute Id as a <see cref="T:System.UInt16"/>.</param>
         /// <param name="elementType">The type of the element as an <see cref="T:InTheHand.Net.Bluetooth.ElementType"/>.</param>
         /// <param name="value">The value for the new element.</param>
-        public void AddCustomAttribute(ushort id, ElementType elementType, object value)
-        {
+        public void AddCustomAttribute(ushort id, ElementType elementType, object value) {
             var ids = unchecked((short)id);
             var idid = (ServiceAttributeId)ids;
             AddCustomAttribute(idid, elementType, value);
@@ -618,8 +596,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// initialised with the supported components of the supplied JSR 82 URL.
         /// </returns>
         [SuppressMessage("Microsoft.Design", "CA1054:UriParametersShouldNotBeStrings", MessageId = "0#")]
-        public static ServiceRecordBuilder FromJsr82ServerUri(String url)
-        {
+        public static ServiceRecordBuilder FromJsr82ServerUri(String url) {
             // srvString = protocol colon slashes srvHost 0*5(srvParams)
             // srvParams = name / master / encrypt / authorize / authenticate
             // text = 1*( ALPHA / DIGIT / SP / "-" / "_" )
@@ -629,7 +606,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
                 = @"^([a-z0-9]+)"  //scheme
                 + "://localhost:"
                 + "([0-9a-fA-F]{32})"   //uuid
-                //param(s)
+                                        //param(s)
                 + "(?:;([a-zA-Z]+)=([a-zA-Z0-9"
                 + " " // space
                 + "_" //underscore

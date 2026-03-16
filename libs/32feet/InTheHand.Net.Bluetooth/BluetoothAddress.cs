@@ -12,13 +12,11 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 
-namespace InTheHand.Net
-{
+namespace InTheHand.Net {
     /// <summary>
     /// Represents a Bluetooth device address.
     /// </summary>
-    public partial class BluetoothAddress : IComparable<BluetoothAddress>, IEquatable<BluetoothAddress>, IFormattable, ICloneable
-    {
+    public partial class BluetoothAddress : IComparable<BluetoothAddress>, IEquatable<BluetoothAddress>, IFormattable, ICloneable {
         private readonly ulong _address;
 
         /// <summary>
@@ -31,8 +29,7 @@ namespace InTheHand.Net
         /// </summary>
         /// <param name="address">Int64 representation of the address.</param>
         [Obsolete("Use unsigned long for widest compatibility", false)]
-        public BluetoothAddress(long address)
-        {
+        public BluetoothAddress(long address) {
             _address = (ulong)address;
         }
 
@@ -40,8 +37,7 @@ namespace InTheHand.Net
         /// Initializes a new instance of the BluetoothAddress class with the specified address.
         /// </summary>
         /// <param name="address">UInt64 representation of the address.</param>
-        public BluetoothAddress(ulong address)
-        {
+        public BluetoothAddress(ulong address) {
             _address = address;
         }
 
@@ -49,12 +45,10 @@ namespace InTheHand.Net
         /// Initializes a new instance of the BluetoothAddress class with the specified address.
         /// </summary>
         /// <param name="addressBytes">Address as 6 byte array.</param>
-        public BluetoothAddress(byte[] addressBytes)
-        {
+        public BluetoothAddress(byte[] addressBytes) {
             byte[] raw = addressBytes;
 
-            if (addressBytes.Length < 8)
-            {
+            if (addressBytes.Length < 8) {
                 raw = new byte[8];
                 addressBytes.CopyTo(raw, 0);
             }
@@ -65,16 +59,14 @@ namespace InTheHand.Net
         /// <summary>
         /// Defines an implicit conversion of a BluetoothAddress to a <see cref="ulong"/>,
         /// </summary>
-        public static implicit operator ulong(BluetoothAddress address)
-        {
+        public static implicit operator ulong(BluetoothAddress address) {
             return address._address;
         }
 
         /// <summary>
         /// Defines an implicit conversion of a <see cref="ulong"/> to a BluetoothAddress,
         /// </summary>
-        public static implicit operator BluetoothAddress(ulong address)
-        {
+        public static implicit operator BluetoothAddress(ulong address) {
             return new BluetoothAddress(address);
         }
 
@@ -82,19 +74,16 @@ namespace InTheHand.Net
         /// Returns the value as a byte array.
         /// </summary>
         /// <returns></returns>
-        public byte[] ToByteArray()
-        {
+        public byte[] ToByteArray() {
             return BitConverter.GetBytes(_address);
         }
 
-        internal byte[] ToNetworkOrderSixByteArray()
-        {
+        internal byte[] ToNetworkOrderSixByteArray() {
             byte[] bytes = new byte[6];
-            
+
             Buffer.BlockCopy(ToByteArray(), 0, bytes, 0, 6);
 
-            for (int i = 0; i < 3; i++)
-            {
+            for (int i = 0; i < 3; i++) {
                 var current = bytes[i];
                 bytes[i] = bytes[5 - i];
                 bytes[5 - i] = current;
@@ -108,8 +97,7 @@ namespace InTheHand.Net
         /// </summary>
         /// <returns></returns>
         [Obsolete("Use unsigned long for widest compatibility", false)]
-        public long ToInt64()
-        {
+        public long ToInt64() {
             return (long)_address;
         }
 
@@ -117,8 +105,7 @@ namespace InTheHand.Net
         /// Returns the Bluetooth address as an unsigned long integer.
         /// </summary>
         /// <returns></returns>
-        public ulong ToUInt64()
-        {
+        public ulong ToUInt64() {
             return _address;
         }
 
@@ -127,12 +114,10 @@ namespace InTheHand.Net
         /// </summary>
         /// <param name="obj">The BluetoothAddress to compare with the current instance.</param>
         /// <returns>true if obj is a BluetoothAddress and equal to the current instance; otherwise, false.</returns>
-        public override bool Equals(object obj)
-        {
+        public override bool Equals(object obj) {
             BluetoothAddress bta = obj as BluetoothAddress;
 
-            if (bta != null)
-            {
+            if (bta != null) {
                 return _address == bta._address;
             }
 
@@ -150,10 +135,8 @@ namespace InTheHand.Net
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public int CompareTo(BluetoothAddress other)
-        {
-            if (other != null)
-            {
+        public int CompareTo(BluetoothAddress other) {
+            if (other != null) {
                 return _address.CompareTo(other._address);
             }
 
@@ -168,8 +151,7 @@ namespace InTheHand.Net
         /// If format is null or the empty string (""), "N" is used.</param>
         /// <param name="formatProvider">Ignored.</param>
         /// <returns>A String representation of the value of this BluetoothAddress.</returns>
-        public string ToString(string format, IFormatProvider formatProvider)
-        {
+        public string ToString(string format, IFormatProvider formatProvider) {
             return ToString(format);
         }
 
@@ -180,18 +162,14 @@ namespace InTheHand.Net
         /// The format parameter can be "N", "C", or "P". 
         /// If format is null or the empty string (""), "N" is used.</param>
         /// <returns>A String representation of the value of this BluetoothAddress.</returns>
-        public string ToString(string format)
-        {
+        public string ToString(string format) {
             string separator;
 
-            if (string.IsNullOrEmpty(format))
-            {
+            if (string.IsNullOrEmpty(format)) {
                 separator = string.Empty;
             }
-            else
-            {
-                switch (format.ToUpper(CultureInfo.InvariantCulture))
-                {
+            else {
+                switch (format.ToUpper(CultureInfo.InvariantCulture)) {
                     case "8":
                     case "N":
                         separator = string.Empty;
@@ -211,8 +189,7 @@ namespace InTheHand.Net
 
             var result = new StringBuilder(18);
 
-            if (format == "8")
-            {
+            if (format == "8") {
                 result.Append(data[7].ToString("X2") + separator);
                 result.Append(data[6].ToString("X2") + separator);
             }
@@ -231,8 +208,7 @@ namespace InTheHand.Net
         /// Returns a default string representation of the BluetoothAddress.
         /// </summary>
         /// <returns></returns>
-        public override string ToString()
-        {
+        public override string ToString() {
             return ToString("N");
         }
 
@@ -244,8 +220,7 @@ namespace InTheHand.Net
         /// <param name="result">When this method returns, contains the <see cref="BluetoothAddress"/> equivalent to the address contained in s, if the conversion succeeded, or null (Nothing in Visual Basic) if the conversion failed.
         /// The conversion fails if the s parameter is null or is not of the correct format.</param>
         /// <returns>true if s is a valid Bluetooth address; otherwise, false.</returns>
-        public static bool TryParse(string bluetoothString, out BluetoothAddress result)
-        {
+        public static bool TryParse(string bluetoothString, out BluetoothAddress result) {
             Exception ex = ParseInternal(bluetoothString, out result);
             if (ex != null) return false;
             else return true;
@@ -259,8 +234,7 @@ namespace InTheHand.Net
         /// <remarks>Address must be specified in hex format optionally separated by the colon or period character e.g. 000000000000, 00:00:00:00:00:00 or 00.00.00.00.00.00.</remarks>
         /// <exception cref="T:System.ArgumentNullException">bluetoothString is null.</exception>
         /// <exception cref="T:System.FormatException">bluetoothString is not a valid Bluetooth address.</exception>
-        public static BluetoothAddress Parse(string bluetoothString)
-        {
+        public static BluetoothAddress Parse(string bluetoothString) {
             Exception ex = ParseInternal(bluetoothString, out BluetoothAddress result);
             if (ex != null) throw ex;
             else return result;
@@ -268,109 +242,88 @@ namespace InTheHand.Net
 
         [SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes",
             Justification = "Returned to caller.")]
-        static Exception ParseInternal(string bluetoothString, out BluetoothAddress result)
-        {
+        static Exception ParseInternal(string bluetoothString, out BluetoothAddress result) {
             const Exception Success = null;
             result = null;
 
-            if (string.IsNullOrEmpty(bluetoothString))
-            {
+            if (string.IsNullOrEmpty(bluetoothString)) {
                 return new ArgumentNullException(nameof(bluetoothString));
             }
 
-            if (bluetoothString.IndexOf(":", StringComparison.Ordinal) > -1)
-            {
+            if (bluetoothString.IndexOf(":", StringComparison.Ordinal) > -1) {
                 // assume address in standard hex format 00:00:00:00:00:00
 
                 // check length
-                if (bluetoothString.Length != 17)
-                {
+                if (bluetoothString.Length != 17) {
                     return new FormatException("bluetoothString is not a valid Bluetooth address.");
                 }
 
-                try
-                {
+                try {
                     byte[] babytes = new byte[8];
                     // split on colons
                     string[] sbytes = bluetoothString.Split(':');
-                    for (int ibyte = 0; ibyte < 6; ibyte++)
-                    {
+                    for (int ibyte = 0; ibyte < 6; ibyte++) {
                         // parse hex byte in reverse order
                         babytes[ibyte] = byte.Parse(sbytes[5 - ibyte], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
                     }
                     result = new BluetoothAddress(babytes);
                     return Success;
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex) {
                     return ex;
                 }
             }
-            else if (bluetoothString.IndexOf(".", StringComparison.Ordinal) > -1)
-            {
+            else if (bluetoothString.IndexOf(".", StringComparison.Ordinal) > -1) {
                 // assume address in uri hex format 00.00.00.00.00.00
                 // check length
-                if (bluetoothString.Length != 17)
-                {
+                if (bluetoothString.Length != 17) {
                     return new FormatException("bluetoothString is not a valid Bluetooth address.");
                 }
 
-                try
-                {
+                try {
                     byte[] babytes = new byte[8];
                     // split on periods
                     string[] sbytes = bluetoothString.Split('.');
-                    for (int ibyte = 0; ibyte < 6; ibyte++)
-                    {
+                    for (int ibyte = 0; ibyte < 6; ibyte++) {
                         // parse hex byte in reverse order
                         babytes[ibyte] = byte.Parse(sbytes[5 - ibyte], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
                     }
                     result = new BluetoothAddress(babytes);
                     return Success;
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex) {
                     return ex;
                 }
             }
-            else
-            {
+            else {
                 // assume specified as long integer
-                if ((bluetoothString.Length < 12) | (bluetoothString.Length > 16))
-                {
+                if ((bluetoothString.Length < 12) | (bluetoothString.Length > 16)) {
                     return new FormatException("bluetoothString is not a valid Bluetooth address.");
                 }
-                try
-                {
+                try {
                     result = new BluetoothAddress(ulong.Parse(bluetoothString, NumberStyles.HexNumber, CultureInfo.InvariantCulture));
                     return Success;
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex) {
                     return ex;
                 }
             }
         }
 
-        public bool Equals(BluetoothAddress other)
-        {
+        public bool Equals(BluetoothAddress other) {
             if (other is null)
                 return false;
 
             return _address == other._address;
         }
 
-        public static bool operator ==(BluetoothAddress x, BluetoothAddress y)
-        {
-            if ((x is null) && (y is null))
-            {
+        public static bool operator ==(BluetoothAddress x, BluetoothAddress y) {
+            if ((x is null) && (y is null)) {
                 return true;
             }
 
-            if ((x is object) && (y is object))
-            {
-                if (x._address == y._address)
-                {
+            if ((x is object) && (y is object)) {
+                if (x._address == y._address) {
                     return true;
                 }
             }
@@ -388,13 +341,11 @@ namespace InTheHand.Net
         /// <returns><c>true</c> if the value of the two instance is different;
         /// otherwise, <c>false</c>.
         /// </returns>
-        public static bool operator !=(BluetoothAddress x, BluetoothAddress y)
-        {
+        public static bool operator !=(BluetoothAddress x, BluetoothAddress y) {
             return !(x == y);
         }
 
-        internal static Guid HostToNetworkOrder(Guid hostGuid)
-        {
+        internal static Guid HostToNetworkOrder(Guid hostGuid) {
             byte[] guidBytes = hostGuid.ToByteArray();
 
             BitConverter.GetBytes(IPAddress.HostToNetworkOrder(BitConverter.ToInt32(guidBytes, 0))).CopyTo(guidBytes, 0);
@@ -404,8 +355,7 @@ namespace InTheHand.Net
             return new Guid(guidBytes);
         }
 
-        public object Clone()
-        {
+        public object Clone() {
             return new BluetoothAddress(_address);
         }
     }

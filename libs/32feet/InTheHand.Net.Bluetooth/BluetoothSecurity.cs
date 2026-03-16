@@ -8,17 +8,14 @@
 using InTheHand.Net.Sockets;
 using System;
 
-namespace InTheHand.Net.Bluetooth
-{
+namespace InTheHand.Net.Bluetooth {
     /// <summary>
     /// Contains functionality to pair (and un-pair) Bluetooth devices.
     /// </summary>
-    public sealed class BluetoothSecurity
-    {
+    public sealed class BluetoothSecurity {
         readonly static IBluetoothSecurity _bluetoothSecurity = null;
 
-        static BluetoothSecurity()
-        {
+        static BluetoothSecurity() {
 #if ANDROID || MONOANDROID
             _bluetoothSecurity = new AndroidBluetoothSecurity();
 #elif IOS || __IOS__
@@ -52,15 +49,13 @@ namespace InTheHand.Net.Bluetooth
         /// <param name="requireMitmProtection">MITM not required only if set to false.</param>
         /// <param name="pin">Optional numeric pin.</param>
         /// <returns></returns>
-        public static bool PairRequest(BluetoothAddress device, string pin, bool? requireMitmProtection)
-        {
+        public static bool PairRequest(BluetoothAddress device, string pin, bool? requireMitmProtection) {
             return _bluetoothSecurity.PairRequest(device, pin, requireMitmProtection);
         }
 
-        public static bool PairRequest(BluetoothAddress device, string pin = null)
-        {
+        public static bool PairRequest(BluetoothAddress device, string pin = null) {
             return _bluetoothSecurity.PairRequest(device, pin, null);
-        }        
+        }
 
         /// <summary>
         /// Requests that the specified device is un-paired.
@@ -68,8 +63,7 @@ namespace InTheHand.Net.Bluetooth
         /// <param name="device"></param>
         /// <returns></returns>
         /// <remarks></remarks>
-        public static bool RemoveDevice(BluetoothAddress device)
-        {
+        public static bool RemoveDevice(BluetoothAddress device) {
             return _bluetoothSecurity.RemoveDevice(device);
         }
     }

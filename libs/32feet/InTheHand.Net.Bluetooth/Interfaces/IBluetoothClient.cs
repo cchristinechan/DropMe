@@ -13,14 +13,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using InTheHand.Net.Bluetooth;
 
-namespace InTheHand.Net.Sockets
-{
-    internal interface IBluetoothClient : IDisposable
-    {
+namespace InTheHand.Net.Sockets {
+    internal interface IBluetoothClient : IDisposable {
         void Connect(BluetoothAddress address, Guid service);
         void Connect(BluetoothEndPoint remoteEP);
         Task ConnectAsync(BluetoothAddress address, Guid service);
-        Task<PairState> PairAsync(IBluetoothDeviceInfo device);
+        Task<PairState> PairAsync(BluetoothDeviceInfo device);
 
         void Close();
 

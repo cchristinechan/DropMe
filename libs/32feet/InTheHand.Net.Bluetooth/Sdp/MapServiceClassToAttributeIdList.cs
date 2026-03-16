@@ -9,8 +9,7 @@ using System;
 using InTheHand.Net.Bluetooth;
 using InTheHand.Net.Bluetooth.AttributeIds;
 
-namespace InTheHand.Net.Bluetooth.Sdp
-{
+namespace InTheHand.Net.Bluetooth.Sdp {
     /// <summary>
     /// Gets a list of enum-like classes containing SDP Service Attribute Id definitions 
     /// for a particular Service Class.
@@ -20,13 +19,11 @@ namespace InTheHand.Net.Bluetooth.Sdp
     /// See method 
     /// <see cref="M:InTheHand.Net.Bluetooth.MapServiceClassToAttributeIdList.GetAttributeIdEnumTypes(InTheHand.Net.Bluetooth.ServiceRecord)"/>.
     /// </remarks>
-    public class MapServiceClassToAttributeIdList
-    {
+    public class MapServiceClassToAttributeIdList {
         /// <summary>
         /// Initializes a new instance of the <see cref="T:InTheHand.Net.Bluetooth.MapServiceClassToAttributeIdList"/> class.
         /// </summary>
-        public MapServiceClassToAttributeIdList()        
-        { }
+        public MapServiceClassToAttributeIdList() { }
 
         /// <summary>
         /// Get a list of enum-like classes containing Service Attribute Id definitions 
@@ -53,14 +50,14 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <exception cref="T:System.ArgumentNullException">
         /// <paramref name="record"/> is null.
         /// </exception>
-        public Type[] GetAttributeIdEnumTypes(ServiceRecord record)
-        {
+        public Type[] GetAttributeIdEnumTypes(ServiceRecord record) {
             if (record == null) { throw new ArgumentNullException("record"); }
             //
             ServiceAttribute attr;
             try {
                 attr = record.GetAttributeById(UniversalAttributeId.ServiceClassIdList);
-            } catch (System.Collections.Generic.KeyNotFoundException ex) {
+            }
+            catch (System.Collections.Generic.KeyNotFoundException ex) {
                 System.Diagnostics.Debug.Assert(ex.Message == ServiceRecord.ErrorMsgNoAttributeWithId);
                 goto InvalidRecord;
             }
@@ -103,8 +100,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <exception cref="T:System.ArgumentNullException">
         /// <paramref name="idElement"/> is null.
         /// </exception>
-        protected virtual Type GetAttributeIdEnumType(ServiceElement idElement)
-        {
+        protected virtual Type GetAttributeIdEnumType(ServiceElement idElement) {
             if (idElement == null) { throw new ArgumentNullException("idElement"); }
             //
             if (idElement.ElementTypeDescriptor != ElementTypeDescriptor.Uuid) {
@@ -133,8 +129,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// holding the Attribute Id definitions, or null if the Service Class is
         /// unknown.
         /// </returns>
-        protected virtual Type GetAttributeIdEnumType(Guid uuid)
-        {
+        protected virtual Type GetAttributeIdEnumType(Guid uuid) {
             foreach (ServiceClassToIdsMapRow cur in m_serviceClassToIdsMapTable) {
                 if (uuid == cur.ServiceClassId) { return cur.AttributeIdEnumType; }
             }//for
@@ -142,13 +137,11 @@ namespace InTheHand.Net.Bluetooth.Sdp
             return null;
         }
 
-        private struct ServiceClassToIdsMapRow
-        {
+        private struct ServiceClassToIdsMapRow {
             public readonly Guid ServiceClassId;
             public readonly Type AttributeIdEnumType;
 
-            public ServiceClassToIdsMapRow(Guid ServiceClassId,Type AttributeIdEnumType)
-            {
+            public ServiceClassToIdsMapRow(Guid ServiceClassId, Type AttributeIdEnumType) {
                 this.ServiceClassId = ServiceClassId;
                 this.AttributeIdEnumType = AttributeIdEnumType;
             }

@@ -7,20 +7,15 @@
 
 using System;
 
-namespace InTheHand.Net.Bluetooth.Droid
-{
-    internal static class ClassOfDeviceHelper
-    {
-        public static ClassOfDevice ToClassOfDevice(Android.Bluetooth.BluetoothClass bluetoothClass)
-        {
+namespace InTheHand.Net.Bluetooth.Droid {
+    internal static class ClassOfDeviceHelper {
+        public static ClassOfDevice ToClassOfDevice(Android.Bluetooth.BluetoothClass bluetoothClass) {
             DeviceClass deviceClass = (DeviceClass)((uint)bluetoothClass.DeviceClass);
 
             ServiceClass serviceClass = ServiceClass.None;
 
-            foreach (Android.Bluetooth.ServiceClass servClass in Enum.GetValues(typeof(Android.Bluetooth.ServiceClass)))
-            {
-                if (bluetoothClass.HasService(servClass))
-                {
+            foreach (Android.Bluetooth.ServiceClass servClass in Enum.GetValues(typeof(Android.Bluetooth.ServiceClass))) {
+                if (bluetoothClass.HasService(servClass)) {
                     serviceClass |= (ServiceClass)((uint)servClass >> 13);
                 }
             }

@@ -8,24 +8,19 @@
 using InTheHand.Net.Sockets;
 using System;
 
-namespace InTheHand.Net.Bluetooth
-{
+namespace InTheHand.Net.Bluetooth {
     /// <summary>
     /// Represents a local Bluetooth Radio device.
     /// </summary>
-    public sealed partial class BluetoothRadio : IDisposable
-    {
-        private static  BluetoothRadio s_default;
+    public sealed partial class BluetoothRadio : IDisposable {
+        private static BluetoothRadio s_default;
 
         /// <summary>
         /// Returns the default Bluetooth radio (if present).
         /// </summary>
-        public static BluetoothRadio Default
-        {
-            get
-            {
-                if(s_default == null)
-                {
+        public static BluetoothRadio Default {
+            get {
+                if (s_default == null) {
                     IBluetoothRadio radio = null;
 #if ANDROID || MONOANDROID
                     radio = AndroidBluetoothRadio.GetDefault();
@@ -59,8 +54,7 @@ namespace InTheHand.Net.Bluetooth
 
         private IBluetoothRadio _radio;
 
-        private BluetoothRadio(IBluetoothRadio radio)
-        {
+        private BluetoothRadio(IBluetoothRadio radio) {
             _radio = radio;
         }
 
@@ -112,15 +106,12 @@ namespace InTheHand.Net.Bluetooth
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
-        void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
+        void Dispose(bool disposing) {
+            if (!disposedValue) {
                 _radio.Dispose();
                 _radio = null;
 
-                if (disposing)
-                {
+                if (disposing) {
                 }
 
                 disposedValue = true;
@@ -130,13 +121,11 @@ namespace InTheHand.Net.Bluetooth
 
         #endregion
 
-        ~BluetoothRadio()
-        {
+        ~BluetoothRadio() {
             Dispose(false);
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             Dispose(true);
             GC.SuppressFinalize(this);
         }

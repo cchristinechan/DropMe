@@ -10,27 +10,22 @@ using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 
-namespace InTheHand
-{
+namespace InTheHand {
     /// <summary>
     /// Provides a central point to query the current Android activity.
     /// </summary>
-    public static class AndroidActivity
-    {
+    public static class AndroidActivity {
         private static readonly ActivityLifecycleCallbacks Callbacks = new ActivityLifecycleCallbacks();
 
-        static AndroidActivity()
-        {
+        static AndroidActivity() {
             ((Application)Application.Context).RegisterActivityLifecycleCallbacks(Callbacks);
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public static void Init()
-        {
+        public static void Init() {
         }
 
-        private static void TryGetActivity()
-        {
+        private static void TryGetActivity() {
             // when used by a cross-platform UI framework like MAUI or Uno we need to get the current Activity in order to launch the picker UI
             // for a "native" app you can use the Android specific RequestDevice overload which accepts a Context
 
@@ -39,16 +34,13 @@ namespace InTheHand
 #if NET6_0_OR_GREATER
             // check for Uno without taking a hard dependency
             var t = Type.GetType("Uno.UI.ContextHelper, Uno, Version=255.255.255.255, Culture=neutral, PublicKeyToken=null", false, true);
-            if (t != null)
-            {
+            if (t != null) {
                 CurrentActivity = (Activity)t.GetProperty("Current", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public).GetValue(null);
             }
-            else
-            {
+            else {
                 // try Maui Essentials if not
                 t = Type.GetType("Microsoft.Maui.ApplicationModel.Platform, Microsoft.Maui.Essentials, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null", false, true);
-                if (t != null)
-                {
+                if (t != null) {
                     CurrentActivity = (Activity)t.GetProperty("CurrentActivity", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public).GetValue(null);
                 }
             }
@@ -83,19 +75,15 @@ namespace InTheHand
         /// Set this property from your MainActivity OnCreate method to ensure that all libraries which depend on a reference to the activity will work as expected.
         /// </remarks>
         /// <value>The main activity for your application. This will be the MainActivity in your Xamarin/.NET application.</value>
-        public static Activity CurrentActivity
-        {
-            get
-            {
+        public static Activity CurrentActivity {
+            get {
                 if (currentActivity == null)
                     TryGetActivity();
 
                 return currentActivity;
             }
-            set
-            {
-                if (value != null && currentActivity == null)
-                {
+            set {
+                if (value != null && currentActivity == null) {
                     currentActivity = value;
                 }
             }

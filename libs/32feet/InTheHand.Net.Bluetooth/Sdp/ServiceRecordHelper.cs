@@ -13,15 +13,13 @@ using System.Diagnostics;
 using InTheHand.Net.Bluetooth.AttributeIds;
 using System.Globalization;
 
-namespace InTheHand.Net.Bluetooth.Sdp
-{
+namespace InTheHand.Net.Bluetooth.Sdp {
     /// <summary>
     /// Some useful methods for working with a SDP <see cref="T:InTheHand.Net.Bluetooth.ServiceRecord"/>
     /// including creating and accessing the <see cref="F:InTheHand.Net.Bluetooth.AttributeIds.UniversalAttributeId.ProtocolDescriptorList"/>
     /// for an RFCOMM service.
     /// </summary>
-    public static class ServiceRecordHelper
-    {
+    public static class ServiceRecordHelper {
         //--------------------------------------------------------------
 
         /// <summary>
@@ -37,8 +35,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// or <see langword="null"/> if at the <see cref="F:InTheHand.Net.Bluetooth.AttributeIds.UniversalAttributeId.ProtocolDescriptorList"/>
         /// attribute is missing or contains invalid elements.
         /// </returns>
-        public static ServiceElement GetRfcommChannelElement(ServiceRecord record)
-        {
+        public static ServiceElement GetRfcommChannelElement(ServiceRecord record) {
             return GetChannelElement(record, BluetoothProtocolDescriptorType.Rfcomm);
         }
 
@@ -55,13 +52,11 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// or <see langword="null"/> if at the <see cref="F:InTheHand.Net.Bluetooth.AttributeIds.UniversalAttributeId.ProtocolDescriptorList"/>
         /// attribute is missing or contains invalid elements.
         /// </returns>
-        public static ServiceElement GetL2CapChannelElement(ServiceRecord record)
-        {
+        public static ServiceElement GetL2CapChannelElement(ServiceRecord record) {
             return GetChannelElement(record, BluetoothProtocolDescriptorType.L2Cap);
         }
 
-        static ServiceElement GetChannelElement(ServiceRecord record, BluetoothProtocolDescriptorType proto)
-        {
+        static ServiceElement GetChannelElement(ServiceRecord record, BluetoothProtocolDescriptorType proto) {
             if (!record.Contains(UniversalAttributeId.ProtocolDescriptorList)) {
                 goto NotFound;
             }
@@ -77,8 +72,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         // TODO GetRfcommChannelElement(ServiceAttribute attr) Could be public -> Tests!
         internal static ServiceElement GetChannelElement(ServiceAttribute attr,
             BluetoothProtocolDescriptorType proto,
-            out bool? isSimpleRfcomm)
-        {
+            out bool? isSimpleRfcomm) {
             if (proto != BluetoothProtocolDescriptorType.L2Cap
                     && proto != BluetoothProtocolDescriptorType.Rfcomm)
                 throw new ArgumentException("Can only fetch RFCOMM or L2CAP element.");
@@ -92,7 +86,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
                 Debug.WriteLine("Don't support ElementAlternative ProtocolDescriptorList values.");
 
                 goto NotFound;
-            } else if (e0.ElementType != ElementType.ElementSequence) {
+            }
+            else if (e0.ElementType != ElementType.ElementSequence) {
 
                 Debug.WriteLine("Bad ProtocolDescriptorList base element.");
 
@@ -192,8 +187,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// or -1 if at the <see cref="F:InTheHand.Net.Bluetooth.AttributeIds.UniversalAttributeId.ProtocolDescriptorList"/>
         /// attribute is missing or contains invalid elements.
         /// </returns>
-        public static int GetRfcommChannelNumber(ServiceRecord record)
-        {
+        public static int GetRfcommChannelNumber(ServiceRecord record) {
             ServiceElement channelElement = GetRfcommChannelElement(record);
             if (channelElement == null) {
                 return -1;
@@ -201,8 +195,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
             return GetRfcommChannelNumber(channelElement);
         }
 
-        internal static int GetRfcommChannelNumber(ServiceElement channelElement)
-        {
+        internal static int GetRfcommChannelNumber(ServiceElement channelElement) {
             Debug.Assert(channelElement != null, "channelElement != null");
             Debug.Assert(channelElement.ElementType == ElementType.UInt8);
             byte value = (byte)channelElement.Value;
@@ -222,8 +215,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// or -1 if at the <see cref="F:InTheHand.Net.Bluetooth.AttributeIds.UniversalAttributeId.ProtocolDescriptorList"/>
         /// attribute is missing or contains invalid elements.
         /// </returns>
-        public static int GetL2CapChannelNumber(ServiceRecord record)
-        {
+        public static int GetL2CapChannelNumber(ServiceRecord record) {
             ServiceElement channelElement = GetL2CapChannelElement(record);
             if (channelElement == null) {
                 return -1;
@@ -231,8 +223,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
             return GetL2CapChannelNumber(channelElement);
         }
 
-        internal static int GetL2CapChannelNumber(ServiceElement channelElement)
-        {
+        internal static int GetL2CapChannelNumber(ServiceElement channelElement) {
             Debug.Assert(channelElement != null, "channelElement != null");
             Debug.Assert(channelElement.ElementType == ElementType.UInt16);
             var value = (ushort)channelElement.Value;
@@ -253,13 +244,12 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <see cref="F:InTheHand.Net.Bluetooth.AttributeIds.UniversalAttributeId.ProtocolDescriptorList"/>
         /// attribute is missing or contains invalid elements.
         /// </exception>
-        public static void SetRfcommChannelNumber(ServiceRecord record, byte channelNumber)
-        {
+        public static void SetRfcommChannelNumber(ServiceRecord record, byte channelNumber) {
             ServiceElement channelElement = GetRfcommChannelElement(record);
             if (channelElement == null) {
                 throw new InvalidOperationException("ProtocolDescriptorList element does not exist or is not in the RFCOMM format.");
             }
-            
+
             Debug.Assert(channelElement.ElementType == ElementType.UInt8);
             channelElement.SetValue(channelNumber);
         }
@@ -291,8 +281,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <exception cref="T:System.ArgumentOutOfRangeException">
         /// The PSM must fit in a 16-bit unsigned integer.
         /// </exception>
-        public static void SetL2CapPsmNumber(ServiceRecord record, int psm)
-        {
+        public static void SetL2CapPsmNumber(ServiceRecord record, int psm) {
             if (psm < 0 || psm > ushort.MaxValue)
                 throw new ArgumentOutOfRangeException("psm", "A PSM is a UInt16 value.");
             var psm16 = checked((ushort)psm);
@@ -326,8 +315,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         ///       UInt16 = 0      -- The L2CAP PSM Number.
         /// </code>
         /// </remarks>
-        public static ServiceElement CreateL2CapProtocolDescriptorList()
-        {
+        public static ServiceElement CreateL2CapProtocolDescriptorList() {
             return CreateL2CapProtocolDescriptorListWithUpperLayers();
         }
 
@@ -349,8 +337,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         ///       UInt8  = 0      -- The RFCOMM Channel Number.
         /// </code>
         /// </remarks>
-        public static ServiceElement CreateRfcommProtocolDescriptorList()
-        {
+        public static ServiceElement CreateRfcommProtocolDescriptorList() {
             return CreateRfcommProtocolDescriptorListWithUpperLayers();
         }
 
@@ -374,14 +361,12 @@ namespace InTheHand.Net.Bluetooth.Sdp
         ///       Uuid16 = GOEP
         /// </code>
         /// </remarks>
-        public static ServiceElement CreateGoepProtocolDescriptorList()
-        {
+        public static ServiceElement CreateGoepProtocolDescriptorList() {
             return CreateRfcommProtocolDescriptorListWithUpperLayers(
                CreatePdlLayer((ushort)ServiceRecordUtilities.HackProtocolId.Obex));
         }
 
-        private static ServiceElement CreateRfcommProtocolDescriptorListWithUpperLayers(params ServiceElement[] upperLayers)
-        {
+        private static ServiceElement CreateRfcommProtocolDescriptorListWithUpperLayers(params ServiceElement[] upperLayers) {
             IList<ServiceElement> baseChildren = new List<ServiceElement>();
             baseChildren.Add(CreatePdlLayer((UInt16)ServiceRecordUtilities.HackProtocolId.L2Cap));
             baseChildren.Add(CreatePdlLayer((UInt16)ServiceRecordUtilities.HackProtocolId.Rfcomm,
@@ -435,8 +420,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="upperLayers">The list of upper layer elements, one per layer.
         /// As an array.
         /// </param>
-        public static ServiceElement CreateL2CapProtocolDescriptorListWithUpperLayers(params ServiceElement[] upperLayers)
-        {
+        public static ServiceElement CreateL2CapProtocolDescriptorListWithUpperLayers(params ServiceElement[] upperLayers) {
             IList<ServiceElement> baseChildren = new List<ServiceElement>();
             baseChildren.Add(CreatePdlLayer((UInt16)ServiceRecordUtilities.HackProtocolId.L2Cap,
                 new ServiceElement(ElementType.UInt16, (UInt16)0)));
@@ -450,8 +434,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
             return baseElement;
         }
 
-        private static ServiceElement CreatePdlLayer(UInt16 uuid, params ServiceElement[] data)
-        {
+        private static ServiceElement CreatePdlLayer(UInt16 uuid, params ServiceElement[] data) {
             IList<ServiceElement> curSeqChildren;
             ServiceElement curValueElmt, curSeqElmt;
             //
@@ -468,8 +451,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         //--------------------------------------------------------------
 
         internal
-        static Guid _GetPrimaryServiceClassId(ServiceRecord sr)
-        {
+        static Guid _GetPrimaryServiceClassId(ServiceRecord sr) {
             var a = sr.GetAttributeById(UniversalAttributeId.ServiceClassIdList);
             var eL = a.Value;
             var eClassList = eL.GetValueAsElementList();

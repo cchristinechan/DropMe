@@ -11,8 +11,7 @@ using System.Text;
 using System.Diagnostics.CodeAnalysis;
 using InTheHand.Net.Bluetooth.AttributeIds;
 
-namespace InTheHand.Net.Bluetooth.Sdp
-{
+namespace InTheHand.Net.Bluetooth.Sdp {
 
     /// <summary>
     /// Holds an SDP service record.
@@ -158,8 +157,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
 #endif
-    public sealed class ServiceRecord : IEnumerable<ServiceAttribute>
-    {
+    public sealed class ServiceRecord : IEnumerable<ServiceAttribute> {
         //--------------------------------------------------------------
         private IList<ServiceAttribute> m_attributes;
         private byte[] m_srcBytes;
@@ -171,8 +169,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <see cref="T:InTheHand.Net.Bluetooth.ServiceRecord"/> class 
         /// containing no <see cref="T:InTheHand.Net.Bluetooth.ServiceAttribute"/>s.
         /// </summary>
-        public ServiceRecord()
-        {
+        public ServiceRecord() {
             m_attributes = new System.Collections.Generic.List<ServiceAttribute>();
         }
 
@@ -192,8 +189,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// as an <see cref="T:System.Collections.Generic.IList`1"/>
         /// of <see cref="T:InTheHand.Net.Bluetooth.ServiceAttribute"/>.
         /// </param>
-        public ServiceRecord(IList<ServiceAttribute> attributesList)
-        {
+        public ServiceRecord(IList<ServiceAttribute> attributesList) {
             m_attributes = attributesList ?? throw new ArgumentNullException("attributesList");
         }
 
@@ -208,8 +204,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// as an array of <see cref="T:InTheHand.Net.Bluetooth.ServiceAttribute"/>.
         /// </param>
         public ServiceRecord(params ServiceAttribute[] attributesList)
-            : this((IList<ServiceAttribute>)attributesList)
-        { }
+            : this((IList<ServiceAttribute>)attributesList) { }
 
         //--------------------------------------------------------------
 
@@ -240,8 +235,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// -
         /// <seealso cref="M:InTheHand.Net.Bluetooth.ServiceRecordParser.Parse(System.Byte[],System.Int32,System.Int32)"/>
         [SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "bytes")]
-        public static ServiceRecord CreateServiceRecordFromBytes(byte[] recordBytes)
-        {
+        public static ServiceRecord CreateServiceRecordFromBytes(byte[] recordBytes) {
             if (recordBytes == null) {
                 throw new ArgumentNullException("recordBytes");
             }
@@ -258,8 +252,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <summary>
         /// Gets the count of attributes in the record.
         /// </summary>
-        public Int32 Count
-        {
+        public Int32 Count {
             [System.Diagnostics.DebuggerStepThroughAttribute]
             get { return m_attributes.Count; }
         }
@@ -279,8 +272,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <para>-or-</para>
         /// <para>index is equal to or greater than Count. </para>
         /// </exception>
-        public ServiceAttribute this[int index]
-        {
+        public ServiceAttribute this[int index] {
             get { return GetAttributeByIndex(index); }
         }
 
@@ -300,8 +292,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <para>-or-</para>
         /// <para>index is equal to or greater than Count. </para>
         /// </exception>
-        public ServiceAttribute GetAttributeByIndex(int index)
-        {
+        public ServiceAttribute GetAttributeByIndex(int index) {
             // The following will itself check the index to throw ArgumentOutOfRangeException.
             ServiceAttribute attr = m_attributes[index]; // cast for non-Generics build.
             System.Diagnostics.Debug.Assert(attr != null);
@@ -323,8 +314,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <see cref="T:InTheHand.Net.Bluetooth.ServiceAttributeId"/>.</param>
         /// -
         /// <returns>true if item is found in the record; otherwise, false. </returns>
-        public bool Contains(ServiceAttributeId id)
-        {
+        public bool Contains(ServiceAttributeId id) {
             return TryGetAttributeById(id, out _);
         }
 
@@ -347,8 +337,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// There is no attribute with the given Id in the record.
         /// Throws <see cref="T:System.ArgumentException"/> in NETCFv1
         /// </exception>
-        public ServiceAttribute GetAttributeById(ServiceAttributeId id)
-        {
+        public ServiceAttribute GetAttributeById(ServiceAttributeId id) {
             bool found = TryGetAttributeById(id, out ServiceAttribute attribute);
             if (!found) {
 
@@ -357,9 +346,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
             System.Diagnostics.Debug.Assert(attribute != null);
             return attribute;
         }
-                
-        private bool TryGetAttributeById(ServiceAttributeId id, out ServiceAttribute attribute)
-        {
+
+        private bool TryGetAttributeById(ServiceAttributeId id, out ServiceAttribute attribute) {
             foreach (ServiceAttribute curAttr in m_attributes) {
                 if (curAttr.Id == id) {
                     attribute = curAttr;
@@ -415,10 +403,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
 #endif
-        public IList<ServiceAttributeId> AttributeIds
-        {
-            get
-            {
+        public IList<ServiceAttributeId> AttributeIds {
+            get {
                 ServiceAttributeId[] ids = new ServiceAttributeId[Count];
                 int i = 0;
                 foreach (ServiceAttribute curAttr in m_attributes) {
@@ -443,8 +429,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// </param>
         /// -
         /// <returns>true if item is found in the record; otherwise, false. </returns>
-        public bool Contains(ServiceAttributeId id, LanguageBaseItem language)
-        {
+        public bool Contains(ServiceAttributeId id, LanguageBaseItem language) {
             if (language == null) { throw new ArgumentNullException("language"); }
             ServiceAttributeId actualId = CreateLanguageBasedAttributeId(id, language.AttributeIdBase);
             bool found = TryGetAttributeById(actualId, out var tmp);
@@ -469,8 +454,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <exception cref="T:System.Collections.Generic.KeyNotFoundException">
         /// There is no attribute with the given Id with the given language base in the record.
         /// </exception>
-        public ServiceAttribute GetAttributeById(ServiceAttributeId id, LanguageBaseItem language)
-        {
+        public ServiceAttribute GetAttributeById(ServiceAttributeId id, LanguageBaseItem language) {
             if (language == null) { throw new ArgumentNullException("language"); }
             ServiceAttributeId actualId = CreateLanguageBasedAttributeId(id, language.AttributeIdBase);
             ServiceAttribute attr = GetAttributeById(actualId);
@@ -489,8 +473,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// would create an id that cannot be represented as an Attribute Id.
         /// </exception>
         [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Advanced)]
-        public static ServiceAttributeId CreateLanguageBasedAttributeId(ServiceAttributeId id, ServiceAttributeId baseId)
-        {
+        public static ServiceAttributeId CreateLanguageBasedAttributeId(ServiceAttributeId id, ServiceAttributeId baseId) {
             System.Diagnostics.Debug.Assert(typeof(short) == Enum.GetUnderlyingType(typeof(ServiceAttributeId)));
             short offset = (short)baseId;
             ServiceAttributeId actualId = id + offset;
@@ -562,8 +545,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Multi")]
 #endif
-        public String GetMultiLanguageStringAttributeById(ServiceAttributeId id, LanguageBaseItem language)
-        {
+        public String GetMultiLanguageStringAttributeById(ServiceAttributeId id, LanguageBaseItem language) {
             if (language == null) { throw new ArgumentNullException("language"); }
             ServiceAttributeId actualId = CreateLanguageBasedAttributeId(id, language.AttributeIdBase);
             ServiceAttribute attr = GetAttributeById(actualId);
@@ -626,8 +608,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Multi")]
 #endif
-        public String GetPrimaryMultiLanguageStringAttributeById(ServiceAttributeId id)
-        {
+        public String GetPrimaryMultiLanguageStringAttributeById(ServiceAttributeId id) {
             LanguageBaseItem lang = this.GetPrimaryLanguageBaseItem();
             if (lang == null) {
                 lang = LanguageBaseItem.CreateEnglishUtf8PrimaryLanguageItem();
@@ -652,8 +633,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// </returns>
         /// -
         /// <seealso cref="M:InTheHand.Net.Bluetooth.ServiceRecord.GetPrimaryLanguageBaseItem"/>
-        public LanguageBaseItem[] GetLanguageBaseList()
-        {
+        public LanguageBaseItem[] GetLanguageBaseList() {
             if (!Contains(InTheHand.Net.Bluetooth.AttributeIds.UniversalAttributeId.LanguageBaseAttributeIdList)) {
                 return new LanguageBaseItem[0];
             }
@@ -664,7 +644,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
             LanguageBaseItem[] langList;
             try {
                 langList = LanguageBaseItem.ParseListFromElementSequence(attr.Value);
-            } catch (System.Net.ProtocolViolationException) {
+            }
+            catch (System.Net.ProtocolViolationException) {
                 return new LanguageBaseItem[0];
             }
             return langList;
@@ -692,8 +673,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
 #endif
-        public LanguageBaseItem GetPrimaryLanguageBaseItem()
-        {
+        public LanguageBaseItem GetPrimaryLanguageBaseItem() {
             LanguageBaseItem[] list = GetLanguageBaseList();
             System.Diagnostics.Debug.Assert(list != null);
             const ServiceAttributeId PrimaryBaseId = (ServiceAttributeId)0x0100;
@@ -733,8 +713,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// Next
         /// </code>
         /// </example>
-        public IEnumerator<ServiceAttribute> GetEnumerator()
-        {
+        public IEnumerator<ServiceAttribute> GetEnumerator() {
             return new ServiceRecordEnumerator(this);
         }
         #endregion
@@ -745,20 +724,17 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// Gets an enumerator that can be used to navigate through the record's 
         /// list of <see cref="T:InTheHand.Net.Bluetooth.ServiceAttribute"/>s.
         /// </summary>
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-        {
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
             return new ServiceRecordEnumerator(this);
         }
         #endregion
 
 
-        sealed internal class ServiceRecordEnumerator : IEnumerator<ServiceAttribute>
-        {
+        sealed internal class ServiceRecordEnumerator : IEnumerator<ServiceAttribute> {
             ServiceRecord m_record;
             int m_currentIndex = -1;
 
-            internal ServiceRecordEnumerator(ServiceRecord record)
-            {
+            internal ServiceRecordEnumerator(ServiceRecord record) {
                 m_record = record;
             }
 
@@ -767,8 +743,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 
             public ServiceAttribute Current //x
             {
-                get
-                {
+                get {
                     if (m_record == null) { throw new ObjectDisposedException(this.GetType().Name); }
                     if (m_currentIndex < 0) { throw new InvalidOperationException(); }
                     if (m_currentIndex >= m_record.Count) { throw new InvalidOperationException(); }
@@ -780,8 +755,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 
             #region IDisposable Members
 
-            public void Dispose()
-            {
+            public void Dispose() {
                 m_record = null;
             }
 
@@ -789,8 +763,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 
             #region IEnumerator Members
 
-            object System.Collections.IEnumerator.Current
-            {
+            object System.Collections.IEnumerator.Current {
                 // Just call the strongly-type version.
                 get { return Current; }
             }
@@ -802,7 +775,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
                 System.Diagnostics.Debug.Assert(m_currentIndex >= 0);
                 if (m_currentIndex >= 0 && m_currentIndex < m_record.Count) {
                     return true;
-                } else {
+                }
+                else {
                     m_currentIndex = m_record.Count;
                     return false;
                 }
@@ -818,8 +792,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         }//2class
 
         //--------------------------------------------------------------
-        internal void SetSourceBytes(byte[] recordBytes)
-        {
+        internal void SetSourceBytes(byte[] recordBytes) {
             System.Diagnostics.Debug.Assert(recordBytes != null);
             m_srcBytes = (byte[])recordBytes.Clone();
         }
@@ -853,10 +826,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
 #endif
-        public byte[] SourceBytes
-        {
-            get
-            {
+        public byte[] SourceBytes {
+            get {
                 return m_srcBytes;
             }
         }
@@ -874,8 +845,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// </returns>
         /// -
         /// <seealso cref="SourceBytes"/>
-        public byte[] ToByteArray()
-        {
+        public byte[] ToByteArray() {
             byte[] createdFromParsedRecord = new ServiceRecordCreator().CreateServiceRecord(this);
             return createdFromParsedRecord;
         }

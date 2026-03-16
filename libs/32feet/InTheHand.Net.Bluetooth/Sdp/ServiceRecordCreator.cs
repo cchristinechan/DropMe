@@ -13,15 +13,13 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using InTheHand.Net.Bluetooth.AttributeIds;
 
-namespace InTheHand.Net.Bluetooth.Sdp
-{
+namespace InTheHand.Net.Bluetooth.Sdp {
 
     /// <summary>
     /// Creates a Service Record byte array from the given 
     /// <see cref="T:InTheHand.Net.Bluetooth.ServiceRecord"/> object.
     /// </summary>
-    public class ServiceRecordCreator
-    {
+    public class ServiceRecordCreator {
 
         /// <overloads>
         /// Creates a Service Record byte array from the given 
@@ -51,8 +49,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// -
         /// <returns>The length of the record in the array of <see cref="T:System.Byte"/>.
         /// </returns>
-        public int CreateServiceRecord(ServiceRecord record, byte[] buffer)
-        {
+        public int CreateServiceRecord(ServiceRecord record, byte[] buffer) {
             if (record == null) { throw new ArgumentNullException("record"); }
             if (buffer == null) { throw new ArgumentNullException("buffer"); }
             //
@@ -71,8 +68,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 
         /// <exclude/>
         [SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference", MessageId = "2#")]
-        protected virtual void WriteAttribute(ServiceAttribute attr, byte[] buffer, ref int offset)
-        {
+        protected virtual void WriteAttribute(ServiceAttribute attr, byte[] buffer, ref int offset) {
             int len;
             len = CreateAttrId(attr.Id, buffer, offset);
             offset += len;
@@ -106,8 +102,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <returns>An array of <see cref="T:System.Byte"/> containing the resultant
         /// record bytes.  The length of the array is the length of the record bytes.
         /// </returns>
-        public byte[] CreateServiceRecord(ServiceRecord record)
-        {
+        public byte[] CreateServiceRecord(ServiceRecord record) {
             const int MaxiOutputSize = 256;
             byte[] tmpResult = new byte[MaxiOutputSize];
             int length = CreateServiceRecord(record, tmpResult);
@@ -118,8 +113,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 
         //--------
 
-        private static void VerifyWriteSpaceRemaining(int requiredLength, byte[] buffer, int offset)
-        {
+        private static void VerifyWriteSpaceRemaining(int requiredLength, byte[] buffer, int offset) {
             int spaceRemaining = buffer.Length - offset;
             if (requiredLength > spaceRemaining) {
                 // I never know what exception to throw in a 'overrun' case.
@@ -131,8 +125,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         }
 
         /// <exclude/>
-        protected virtual int CreateAttrId(ServiceAttributeId attrId, byte[] buf, int offset)
-        {
+        protected virtual int CreateAttrId(ServiceAttributeId attrId, byte[] buf, int offset) {
             ServiceElement dummyElement
                 = new ServiceElement(
                     ElementType.UInt16, unchecked((UInt16)attrId));
@@ -151,8 +144,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// 
         /// <returns>The total length of the encoded element written to the buffer
         /// </returns>
-        protected virtual int CreateElement(ServiceElement element, byte[] buf, int offset)
-        {
+        protected virtual int CreateElement(ServiceElement element, byte[] buf, int offset) {
             int totalLength;
             //
             if (element.ElementTypeDescriptor == ElementTypeDescriptor.ElementSequence
@@ -166,7 +158,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
                 }//for
                 CompleteHeaderWrite(headerState, buf, offset, out totalLength);
                 //----------------
-            } else if (element.ElementTypeDescriptor == ElementTypeDescriptor.UnsignedInteger
+            }
+            else if (element.ElementTypeDescriptor == ElementTypeDescriptor.UnsignedInteger
                     || element.ElementTypeDescriptor == ElementTypeDescriptor.TwosComplementInteger) {
                 switch (element.ElementType) {
                     case ElementType.UInt8:
@@ -200,12 +193,15 @@ namespace InTheHand.Net.Bluetooth.Sdp
                         break;
                 }//switch
                 //----------------
-            } else if (element.ElementTypeDescriptor == ElementTypeDescriptor.Uuid) {
+            }
+            else if (element.ElementTypeDescriptor == ElementTypeDescriptor.Uuid) {
                 if (element.ElementType == ElementType.Uuid16) {
                     WriteUInt16(element, (UInt16)element.Value, buf, ref offset, out totalLength);
-                } else if (element.ElementType == ElementType.Uuid32) {
+                }
+                else if (element.ElementType == ElementType.Uuid32) {
                     WriteUInt32(element, (UInt32)element.Value, buf, ref offset, out totalLength);
-                } else {
+                }
+                else {
                     //TODO If the 'Guid' holds a 'Bluetooth-based' UUID, then should we write the short form?
                     byte[] bytes;
                     System.Diagnostics.Debug.Assert(element.ElementType == ElementType.Uuid128);
@@ -215,35 +211,38 @@ namespace InTheHand.Net.Bluetooth.Sdp
                     WriteFixedLength(element, bytes, buf, ref offset, out totalLength);
                 }
                 //----------------
-            } else if (element.ElementTypeDescriptor == ElementTypeDescriptor.Url) {
+            }
+            else if (element.ElementTypeDescriptor == ElementTypeDescriptor.Url) {
                 Uri uri = element.GetValueAsUri();
                 string uriString = uri.ToString();
                 byte[] valueBytes = System.Text.Encoding.ASCII.GetBytes(uriString);
                 WriteVariableLength(element, valueBytes, buf, ref offset, out totalLength);
                 //----------------
-            } else if (element.ElementTypeDescriptor == ElementTypeDescriptor.TextString) {
+            }
+            else if (element.ElementTypeDescriptor == ElementTypeDescriptor.TextString) {
                 byte[] valueBytes;
-                if (element.Value is string valueString)
-                {
+                if (element.Value is string valueString) {
                     valueBytes = System.Text.Encoding.UTF8.GetBytes(valueString);
                 }
-                else
-                {
+                else {
                     System.Diagnostics.Debug.Assert(element.Value is byte[]);
                     valueBytes = (byte[])element.Value;
                 }
                 WriteVariableLength(element, valueBytes, buf, ref offset, out totalLength);
                 //----------------
-            } else if (element.ElementTypeDescriptor == ElementTypeDescriptor.Nil) {
+            }
+            else if (element.ElementTypeDescriptor == ElementTypeDescriptor.Nil) {
                 WriteFixedLength(element, new byte[0], buf, ref offset, out totalLength);
                 //----------------
-            } else if (element.ElementTypeDescriptor == ElementTypeDescriptor.Boolean) {
+            }
+            else if (element.ElementTypeDescriptor == ElementTypeDescriptor.Boolean) {
                 bool value = (bool)element.Value;
                 byte[] valueBytes = new byte[1];
                 valueBytes[0] = value ? (byte)1 : (byte)0;
                 WriteFixedLength(element, valueBytes, buf, ref offset, out totalLength);
                 //----------------
-            } else {
+            }
+            else {
                 totalLength = 0;
             }
             //
@@ -258,8 +257,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         [SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference", MessageId = "3#")]
         [SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "4#")]
         [SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "bytes")]
-        protected virtual void WriteVariableLength(ServiceElement element, byte[] valueBytes, byte[] buf, ref int offset, out int totalLength)
-        {
+        protected virtual void WriteVariableLength(ServiceElement element, byte[] valueBytes, byte[] buf, ref int offset, out int totalLength) {
             HeaderWriteState headerState;
             int curLen;
             curLen = MakeVariableLengthHeader(buf, offset, element.ElementTypeDescriptor, out headerState);
@@ -274,8 +272,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         [SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference", MessageId = "3#")]
         [SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "4#")]
         [SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "bytes")]
-        protected virtual void WriteFixedLength(ServiceElement element, byte[] valueBytes, byte[] buf, ref int offset, out int totalLength)
-        {
+        protected virtual void WriteFixedLength(ServiceElement element, byte[] valueBytes, byte[] buf, ref int offset, out int totalLength) {
             int headerLen = WriteHeaderFixedLength(element.ElementTypeDescriptor, valueBytes.Length, buf, offset, out totalLength);
             offset += headerLen;
             VerifyWriteSpaceRemaining(valueBytes.Length, buf, offset);
@@ -284,52 +281,44 @@ namespace InTheHand.Net.Bluetooth.Sdp
         }
 
         //--------------------------------------------
-        private void WriteUInt16(ServiceElement element, UInt16 value, byte[] buf, ref int offset, out int totalLength)
-        {
+        private void WriteUInt16(ServiceElement element, UInt16 value, byte[] buf, ref int offset, out int totalLength) {
             Int16 valueS = unchecked((Int16)value);
-            WriteInt16(element, valueS, buf, ref  offset, out  totalLength);
+            WriteInt16(element, valueS, buf, ref offset, out totalLength);
         }
-        private void WriteInt16(ServiceElement element, Int16 value, byte[] buf, ref int offset, out int totalLength)
-        {
+        private void WriteInt16(ServiceElement element, Int16 value, byte[] buf, ref int offset, out int totalLength) {
             Int16 host16 = value;
             Int16 net16 = IPAddress.HostToNetworkOrder(host16);
             byte[] valueBytes = BitConverter.GetBytes(net16);
             WriteFixedLength(element, valueBytes, buf, ref offset, out totalLength);
         }
 
-        private void WriteByte(ServiceElement element, Byte value, byte[] buf, ref int offset, out int totalLength)
-        {
+        private void WriteByte(ServiceElement element, Byte value, byte[] buf, ref int offset, out int totalLength) {
             byte[] valueBytes = new byte[1];
             valueBytes[0] = value;
             WriteFixedLength(element, valueBytes, buf, ref offset, out totalLength);
         }
-        private void WriteSByte(ServiceElement element, SByte value, byte[] buf, ref int offset, out int totalLength)
-        {
+        private void WriteSByte(ServiceElement element, SByte value, byte[] buf, ref int offset, out int totalLength) {
             Byte valueU = unchecked((Byte)value);
-            WriteByte(element, valueU, buf, ref  offset, out  totalLength);
+            WriteByte(element, valueU, buf, ref offset, out totalLength);
         }
 
 
-        private void WriteUInt32(ServiceElement element, UInt32 value, byte[] buf, ref int offset, out int totalLength)
-        {
+        private void WriteUInt32(ServiceElement element, UInt32 value, byte[] buf, ref int offset, out int totalLength) {
             Int32 valueS = unchecked((Int32)value);
-            WriteInt32(element, valueS, buf, ref  offset, out  totalLength);
+            WriteInt32(element, valueS, buf, ref offset, out totalLength);
         }
-        private void WriteInt32(ServiceElement element, Int32 value, byte[] buf, ref int offset, out int totalLength)
-        {
+        private void WriteInt32(ServiceElement element, Int32 value, byte[] buf, ref int offset, out int totalLength) {
             Int32 host32 = value;
             Int32 net32 = IPAddress.HostToNetworkOrder(host32);
             byte[] valueBytes = BitConverter.GetBytes(net32);
             WriteFixedLength(element, valueBytes, buf, ref offset, out totalLength);
         }
 
-        private void WriteUInt64(ServiceElement element, UInt64 value, byte[] buf, ref int offset, out int totalLength)
-        {
+        private void WriteUInt64(ServiceElement element, UInt64 value, byte[] buf, ref int offset, out int totalLength) {
             Int64 valueS = unchecked((Int64)value);
-            WriteInt64(element, valueS, buf, ref  offset, out  totalLength);
+            WriteInt64(element, valueS, buf, ref offset, out totalLength);
         }
-        private void WriteInt64(ServiceElement element, Int64 value, byte[] buf, ref int offset, out int totalLength)
-        {
+        private void WriteInt64(ServiceElement element, Int64 value, byte[] buf, ref int offset, out int totalLength) {
             Int64 host64 = value;
             Int64 net64 = IPAddress.HostToNetworkOrder(host64);
             byte[] valueBytes = BitConverter.GetBytes(net64);
@@ -337,19 +326,23 @@ namespace InTheHand.Net.Bluetooth.Sdp
         }
 
         //--------------------------------------------
-        private static SizeIndex FixedLengthToSizeIndex(int contentLength)
-        {
+        private static SizeIndex FixedLengthToSizeIndex(int contentLength) {
             if (contentLength == 0) {
                 return SizeIndex.LengthOneByteOrNil;
-            } else if (contentLength == 1) {
+            }
+            else if (contentLength == 1) {
                 return SizeIndex.LengthOneByteOrNil;
-            } else if (contentLength == 2) {
+            }
+            else if (contentLength == 2) {
                 return SizeIndex.LengthTwoBytes;
-            } else if (contentLength == 4) {
+            }
+            else if (contentLength == 4) {
                 return SizeIndex.LengthFourBytes;
-            } else if (contentLength == 8) {
+            }
+            else if (contentLength == 8) {
                 return SizeIndex.LengthEightBytes;
-            } else {
+            }
+            else {
                 System.Diagnostics.Debug.Assert(contentLength == 16,
                     "FixedLengthToSizeIndex--contentLength not a supported size.");
                 return SizeIndex.LengthSixteenBytes;
@@ -358,8 +351,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 
         private int WriteHeaderFixedLength(ElementTypeDescriptor elementTypeDescriptor, int contentLength,
             byte[] buf, int offset,
-            out int totalLength)
-        {
+            out int totalLength) {
             SizeIndex sizeIndex = FixedLengthToSizeIndex(contentLength);
             int len = WriteHeaderFixedLength_(elementTypeDescriptor, contentLength, sizeIndex, buf, offset, out totalLength);
             return len;
@@ -367,8 +359,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 
         private int WriteHeaderFixedLength_(ElementTypeDescriptor elementTypeDescriptor, int contentLength, SizeIndex sizeIndex,
             byte[] buf, int offset,
-            out int totalLength)
-        {
+            out int totalLength) {
             System.Diagnostics.Debug.Assert(
                 sizeIndex == SizeIndex.LengthOneByteOrNil
                 || sizeIndex == SizeIndex.LengthTwoBytes
@@ -383,24 +374,20 @@ namespace InTheHand.Net.Bluetooth.Sdp
 
         /// <exclude/>
         [SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "3#")]
-        protected virtual int MakeVariableLengthHeader(byte[] buf, int offset, ElementTypeDescriptor elementTypeDescriptor, out HeaderWriteState headerState)
-        {
+        protected virtual int MakeVariableLengthHeader(byte[] buf, int offset, ElementTypeDescriptor elementTypeDescriptor, out HeaderWriteState headerState) {
             HackFxCopHintNonStaticMethod();
             // We only support one-byte length fields (currently?).
             SizeIndex sizeIndex = SizeIndex.AdditionalUInt8;
             int headerLength = 2;
-            if (buf.Length >= byte.MaxValue && buf.Length < short.MaxValue)
-            {
+            if (buf.Length >= byte.MaxValue && buf.Length < short.MaxValue) {
                 sizeIndex = SizeIndex.AdditionalUInt16;
                 headerLength += 1; // AdditionalUInt16 has an extra byte for the length.
             }
-            else if (buf.Length >= short.MaxValue && buf.Length < int.MaxValue)
-            {
+            else if (buf.Length >= short.MaxValue && buf.Length < int.MaxValue) {
                 sizeIndex = SizeIndex.AdditionalUInt32;
                 headerLength += 3; // AdditionalUInt32 has three extra bytes for the length.
             }
-            else if (buf.Length >= int.MaxValue)
-            {
+            else if (buf.Length >= int.MaxValue) {
                 throw new NotSupportedException(ErrorMsgSupportOnlyLength255);
             }
 
@@ -410,8 +397,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 
         /// <exclude/>
         [SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "3#")]
-        protected virtual void CompleteHeaderWrite(HeaderWriteState headerState, byte[] buf, int offsetAtEndOfWritten, out int totalLength)
-        {
+        protected virtual void CompleteHeaderWrite(HeaderWriteState headerState, byte[] buf, int offsetAtEndOfWritten, out int totalLength) {
             HackFxCopHintNonStaticMethod();
             byte headerByte = CreateHeaderByte(headerState.Etd, headerState.SizeIndex);
             buf[headerState.HeaderOffset] = headerByte;
@@ -423,7 +409,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
                     || headerState.SizeIndex == SizeIndex.LengthSixteenBytes) {
                 // Nothing to write-out here.
                 totalLength = offsetAtEndOfWritten - headerState.HeaderOffset;
-            } else {
+            }
+            else {
                 System.Diagnostics.Debug.Assert(
                     headerState.SizeIndex == SizeIndex.AdditionalUInt8
                     || headerState.SizeIndex == SizeIndex.AdditionalUInt16
@@ -441,8 +428,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
                     buf[headerState.HeaderOffset + 1] = valueBytes[0];
                     buf[headerState.HeaderOffset + 2] = valueBytes[1];
                 }
-                else if (headerState.SizeIndex == SizeIndex.AdditionalUInt32)
-                {
+                else if (headerState.SizeIndex == SizeIndex.AdditionalUInt32) {
                     Int32 net32 = IPAddress.HostToNetworkOrder((Int32)contentLength);
                     byte[] valueBytes = BitConverter.GetBytes(net32);
                     buf[headerState.HeaderOffset + 1] = valueBytes[0];
@@ -454,8 +440,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
             }
         }
 
-        private static byte CreateHeaderByte(ElementTypeDescriptor etd, SizeIndex sizeIndex)
-        {
+        private static byte CreateHeaderByte(ElementTypeDescriptor etd, SizeIndex sizeIndex) {
             System.Diagnostics.Debug.Assert((int)etd < 32);
             byte headerByte = (byte)((int)etd << ServiceRecordParser.ElementTypeDescriptorOffset);
             System.Diagnostics.Debug.Assert((int)sizeIndex < 8);
@@ -464,8 +449,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         }
 
         /// <exclude/>
-        protected sealed class HeaderWriteState
-        {
+        protected sealed class HeaderWriteState {
             /// <exclude/>
             public readonly int HeaderOffset;
             /// <exclude/>
@@ -475,8 +459,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
             /// <exclude/>
             public readonly int HeaderLength;
 
-            internal HeaderWriteState(ElementTypeDescriptor elementTypeDescriptor, byte[] buf, int offset, SizeIndex sizeIndex, int headerLength)
-            {
+            internal HeaderWriteState(ElementTypeDescriptor elementTypeDescriptor, byte[] buf, int offset, SizeIndex sizeIndex, int headerLength) {
                 this.Etd = elementTypeDescriptor;
                 this.HeaderOffset = offset;
                 this.SizeIndex = sizeIndex;
@@ -491,8 +474,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
 #endif
-        private void HackFxCopHintNonStaticMethod()
-        {
+        private void HackFxCopHintNonStaticMethod() {
         }
 
         //--------

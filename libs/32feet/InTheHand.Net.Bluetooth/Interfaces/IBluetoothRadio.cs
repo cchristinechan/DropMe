@@ -7,10 +7,8 @@
 
 using System;
 
-namespace InTheHand.Net.Bluetooth
-{
-    internal interface IBluetoothRadio : IDisposable
-    {
+namespace InTheHand.Net.Bluetooth {
+    internal interface IBluetoothRadio : IDisposable {
         string Name { get; }
 
         BluetoothAddress LocalAddress { get; }
