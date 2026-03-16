@@ -8,76 +8,131 @@
              d:DesignHeight="450"
              x:Class="DropMe.Views.Session"
              x:DataType="vm:MainViewModel">
-  <Grid>
+  <Grid Background="#C4E0F2">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-      <StackPanel MaxWidth="430" HorizontalAlignment="Center" Spacing="16" Margin="0,2,0,0">
-        <Border Classes="AppCard">
-          <StackPanel Spacing="8">
-            <TextBlock Classes="PageTitle" Text="Active Drop Session"/>
-            <Border Classes="SubCard">
-              <StackPanel Spacing="6">
-                <TextBlock Classes="SectionTitle" Text="Session ID"/>
-                <TextBlock Text="{Binding SessionId}" TextWrapping="Wrap"/>
-                <TextBlock Classes="BodyMuted"
-                           Text="{Binding SessionStatus, StringFormat='Status: {0}'}"/>
-                <TextBlock Classes="BodyMuted"
-                           Text="{Binding DownloadFolder, StringFormat='Download to: {0}'}"/>
+      <StackPanel MaxWidth="430" HorizontalAlignment="Center" Margin="0,40,0,40">
+        <Border Padding="32"
+                CornerRadius="32"
+                Background="#60FFFFFF"
+                BorderBrush="#80FFFFFF"
+                BorderThickness="2">
+          <StackPanel Spacing="32">
+            
+            <StackPanel Spacing="6">
+              <TextBlock Classes="PageTitle"
+                         Text="Active drop session"
+                         Foreground="#04274A"
+                         FontFamily="Georgia"
+                         HorizontalAlignment="Center"/>
+
+              <TextBlock Classes="BodyMuted"
+                         Text="Secured. Fast."
+                         FontFamily="Georgia"
+                         Foreground="#6604274A"
+                         HorizontalAlignment="Center"/>
+            </StackPanel>
+            
+            <Border Padding="12"
+                    CornerRadius="18"
+                    Background="#E6EBF0"
+                    BorderBrush="#D0D7DD"
+                    BorderThickness="1">
+
+              <StackPanel Spacing="6" HorizontalAlignment="Center">
+
+                <TextBlock Text="iphone Sarah  ↔  desktop Sam"
+                           FontSize="15"
+                           FontFamily="Georgia"
+                           FontWeight="SemiBold"
+                           Foreground="#2A3A4A"
+                           HorizontalAlignment="Center"/>
+
               </StackPanel>
             </Border>
-          </StackPanel>
-        </Border>
 
-        <Border Classes="AppCard">
-          <StackPanel Spacing="12">
-            <TextBlock Classes="SectionTitle" Text="Connected Peers"/>
-            <Border Classes="SubCard" ClipToBounds="True">
-              <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
-                <StackPanel Grid.Column="0" HorizontalAlignment="Center" Spacing="6">
-                  <Image Source="avares://DropMe/Assets/profile_session.jpg"
-                         Width="150"
-                         Height="150"
+
+        
+          <StackPanel Spacing="16">
+            
+            <Border Padding="20"
+                    CornerRadius="20"
+                    Background="#30FFFFFF"
+                    BorderBrush="#10FFFFFF"
+                    BorderThickness="1"
+                    ClipToBounds="True">
+              
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="14"
+                    HorizontalAlignment="Center">
+
+                <StackPanel Grid.Column="0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="6">
+
+                  <Image Source="avares://DropMe/Assets/Animation_DropMe.png"
+                         Width="200"
+                         Height="200"
                          Stretch="Uniform"/>
-                  <TextBlock Classes="BodyMuted" Text="Your device"/>
+
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" HorizontalAlignment="Center" Spacing="6">
-                  <Image Source="avares://DropMe/Assets/profile_session.jpg"
-                         Width="150"
-                         Height="150"
-                         Stretch="Uniform"/>
-                  <TextBlock Classes="BodyMuted" Text="Peer device"/>
-                </StackPanel>
               </Grid>
+
             </Border>
+          </StackPanel>
+            
+            <StackPanel Spacing="22">
+              <TextBlock Text="Actions"
+                         HorizontalAlignment="Center"
+                         FontSize="18"
+                         FontWeight="SemiBold"
+                         Foreground="#04274A"/>
+
+              <Button Height="40"
+                      CornerRadius="26"
+                      Background="#E6E6E6"
+                      Foreground="#04274A"
+                      FontFamily="Georgia"
+                      FontWeight="SemiBold"
+                      Content="Choose download Folder"
+                      Click="ChooseDownloadFolder_Click"/>
+
+              <Button Height="40"
+                      CornerRadius="26"
+                      Background="#E6E6E6"
+                      Foreground="#04274A"
+                      FontFamily="Georgia"
+                      FontWeight="SemiBold"
+                      Content="Send Files"
+                      Click="SendFiles_Click"/>
+
+              <Button Height="40"
+                      CornerRadius="26"
+                      Background="#F2C8C8"
+                      Foreground="#B00020"
+                      FontFamily="Georgia"
+                      FontWeight="SemiBold"
+                      Content="End Session"
+                      Click="BackButton_Click"/>
+            </StackPanel>
+
+            
+            <StackPanel Spacing="12"
+                        IsVisible="{Binding HasSessionMessage}">
+              <TextBlock Classes="SectionTitle" Text="Transfer Updates"/>
+
+              <Border Padding="14"
+                      CornerRadius="16"
+                      Background="#30FFFFFF"
+                      BorderBrush="#10FFFFFF"
+                      BorderThickness="1">
+                <TextBlock Text="{Binding SessionMessage}" TextWrapping="Wrap"/>
+              </Border>
+            </StackPanel>
+
           </StackPanel>
         </Border>
 
-        <Border Classes="AppCard">
-          <StackPanel Spacing="10">
-            <TextBlock Classes="SectionTitle" Text="Actions"/>
-            <Button Classes="FilledAction"
-                    Height="44"
-                    Content="Choose Download Folder"
-                    Click="ChooseDownloadFolder_Click"/>
-            <Button Classes="FilledAction"
-                    Height="44"
-                    Content="Send Files"
-                    Click="SendFiles_Click"/>
-            <Button Classes="DangerAction"
-                    Height="44"
-                    Content="End Session"
-                    Click="BackButton_Click"/>
-          </StackPanel>
-        </Border>
-
-        <Border Classes="AppCard" IsVisible="{Binding HasSessionMessage}">
-          <StackPanel Spacing="8">
-            <TextBlock Classes="SectionTitle" Text="Transfer Updates"/>
-            <Border Classes="SubCard">
-              <TextBlock Text="{Binding SessionMessage}" TextWrapping="Wrap"/>
-            </Border>
-          </StackPanel>
-        </Border>
       </StackPanel>
     </ScrollViewer>
 
