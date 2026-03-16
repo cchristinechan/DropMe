@@ -12,17 +12,19 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using InTheHand.Net.Bluetooth.Platforms.Linux;
+using Tmds.DBus;
 
 namespace InTheHand.Net.Sockets {
-    internal sealed class LinuxBluetoothClient : IBluetoothClient, IDisposable {
+    public sealed class LinuxBluetoothClient : IBluetoothClient, IDisposable {
+        
         private LinuxSocket _socket;
-        private LinuxNetworkStream _stream;
-        private Dictionary<BluetoothAddress, Device> _foundDevices = new();
 
         public LinuxBluetoothClient() {
             if (Environment.OSVersion.Platform != PlatformID.Unix)
@@ -67,7 +69,6 @@ namespace InTheHand.Net.Sockets {
 
 
         public async IAsyncEnumerable<BluetoothDeviceInfo> DiscoverDevicesAsync([EnumeratorCancellation] CancellationToken cancellationToken) {
-            _foundDevices = new();
             TaskCompletionSource<bool> result = new TaskCompletionSource<bool>();
             List<LinuxBluetoothDeviceInfo> devices = new List<LinuxBluetoothDeviceInfo>();
             LinuxBluetoothDeviceInfo device = null;
@@ -82,7 +83,6 @@ namespace InTheHand.Net.Sockets {
                     device = eventArgs.Device;
                     await device.Init();
                     if (device.DeviceAddress != BluetoothAddress.None) {
-                        _foundDevices.Add(device.DeviceAddress, device);
                         waitable.Set();
                     }
                 }
@@ -106,7 +106,7 @@ namespace InTheHand.Net.Sockets {
                     Console.WriteLine(e.Message);
                 }
 
-                await Task.Delay(12800);
+                await Task.Delay(12800); // Same delay as android uses to discover devices
                 Console.WriteLine("Delay over");
                 await adapter.StopDiscoveryAsync();
                 Console.WriteLine("Discovery stopped");
@@ -117,7 +117,6 @@ namespace InTheHand.Net.Sockets {
             var existingDevices = await adapter.GetDevicesAsync();
             foreach (var d in existingDevices) {
                 var linuxInfo = (LinuxBluetoothDeviceInfo)d;
-                _foundDevices.Add(linuxInfo.DeviceAddress, d);
                 await linuxInfo.Init();
                 var deviceInfo = new BluetoothDeviceInfo(linuxInfo);
                 if (deviceInfo.DeviceAddress != BluetoothAddress.None)
@@ -134,12 +133,13 @@ namespace InTheHand.Net.Sockets {
         }
 
         public void Connect(BluetoothAddress address, Guid service) {
-
-            /*
-            var ep = new BluetoothEndPoint(address, service, port: 11);
-            
-            Connect(ep);*/
-
+            var profile = BluezProfile1Manager.Instance;
+            var socketTcs = new TaskCompletionSource<LinuxSocket>();
+            profile.RegisterOnClientConnected(address, (_, socket) => {
+                socketTcs.SetResult(socket);
+            });
+            _socket = socketTcs.Task.Result;
+            profile.UnregisterOnClientConnected(address);
         }
 
         /// <summary>
@@ -154,8 +154,16 @@ namespace InTheHand.Net.Sockets {
         }
 
         public async Task ConnectAsync(BluetoothAddress address, Guid service) {
-            var found = _foundDevices[address];
-            await found.ConnectProfileAsync(service.ToString());
+            var profile = BluezProfile1Manager.Instance;
+            var socketTcs = new TaskCompletionSource<LinuxSocket>();
+            profile.RegisterOnClientConnected(address, (_, socket) => {
+                socketTcs.SetResult(socket);
+                Console.WriteLine("Connected to a server and established a socket connection!");
+            });
+            var dev = await ((Adapter)BluetoothRadio.Default).GetDeviceAsync(address.ToString("C"));
+            await dev.ConnectProfileAsync(service.ToString());
+            _socket = await socketTcs.Task;
+            profile.UnregisterOnClientConnected(address);
         }
 
         public Task<PairState> PairAsync(BluetoothDeviceInfo device) {
@@ -177,13 +185,10 @@ namespace InTheHand.Net.Sockets {
 
         public bool Connected {
             get {
-                /*
                 if (_socket == null)
                     return false;
 
                 return _socket.Connected;
-                */
-                return _stream != null;
             }
         }
 
@@ -199,18 +204,12 @@ namespace InTheHand.Net.Sockets {
         }
 
         public NetworkStream GetStream() {
-            if (Connected) {
-                return _stream;
-            }
-
-            return null;
-            /*
             if (Connected)
             {
                 return new LinuxNetworkStream(_socket, true);
             }
 
-            return null;*/
+            return null;
         }
 
         #region IDisposable Support
