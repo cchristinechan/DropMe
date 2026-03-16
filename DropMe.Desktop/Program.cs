@@ -2,6 +2,8 @@
 using Avalonia;
 using DropMe.Services;
 using DropMe.Desktop.Services;
+using DropMe.Services.Session;
+using InTheHand.Net.Sockets;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DropMe.Desktop;
