@@ -18,7 +18,7 @@ namespace InTheHand.Net.Sockets {
         void Connect(BluetoothAddress address, Guid service);
         void Connect(BluetoothEndPoint remoteEP);
         Task ConnectAsync(BluetoothAddress address, Guid service);
-        Task<PairState> PairAsync(BluetoothDeviceInfo device);
+        Task<PairState> PairAsync(BluetoothAddress address);
 
         void Close();
 
