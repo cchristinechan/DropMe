@@ -54,8 +54,8 @@ namespace InTheHand.Net.Sockets {
             _bluetoothClient = client;
         }
 
-        public Task<PairState> PairAsync(BluetoothDeviceInfo deviceInfo) {
-            return _bluetoothClient.PairAsync(deviceInfo);
+        public Task<PairState> PairAsync(BluetoothAddress address) {
+            return _bluetoothClient.PairAsync(address);
         }
 
         /// <summary>

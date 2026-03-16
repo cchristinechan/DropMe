@@ -145,8 +145,8 @@ namespace InTheHand.Net.Sockets {
         }
 #endif
 
-        public async Task<PairState> PairAsync(BluetoothDeviceInfo device) {
-            var nativeDevice = ((BluetoothAdapter)_radio).GetRemoteDevice(device.DeviceAddress.ToString("C"));
+        public async Task<PairState> PairAsync(BluetoothAddress device) {
+            var nativeDevice = ((BluetoothAdapter)_radio).GetRemoteDevice(device.ToString("C"));
 
             if (nativeDevice.BondState == Bond.Bonded) {
                 return PairState.AlreadyPaired;

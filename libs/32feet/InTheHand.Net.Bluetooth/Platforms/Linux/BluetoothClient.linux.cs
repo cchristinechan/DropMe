@@ -166,12 +166,10 @@ namespace InTheHand.Net.Sockets {
             profile.UnregisterOnClientConnected(address);
         }
 
-        public Task<PairState> PairAsync(BluetoothDeviceInfo device) {
-
-            if (device.PlatformObject is LinuxBluetoothDeviceInfo info) {
-                return info.PairAsync();
-            }
-            throw new PlatformNotSupportedException("Linux method called on non linux object");
+        public async Task<PairState> PairAsync(BluetoothAddress device) {
+            var d = await ((Adapter)BluetoothRadio.Default).GetDeviceAsync(device.ToString("C"));
+            var info = new LinuxBluetoothDeviceInfo(d);
+            return await info.PairAsync();
         }
 
         public void Close() {

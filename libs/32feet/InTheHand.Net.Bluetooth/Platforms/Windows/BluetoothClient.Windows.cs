@@ -80,8 +80,8 @@ namespace InTheHand.Net.Sockets {
             }
         }
 
-        public async Task<PairState> PairAsync(BluetoothDeviceInfo device) {
-            var platformDevice = await BluetoothDevice.FromBluetoothAddressAsync(device.DeviceAddress);
+        public async Task<PairState> PairAsync(BluetoothAddress device) {
+            var platformDevice = await BluetoothDevice.FromBluetoothAddressAsync(device);
             var pairing = platformDevice.DeviceInformation.Pairing;
 
             if (pairing.IsPaired) return PairState.AlreadyPaired;
