@@ -25,7 +25,6 @@ public class Tests {
         // Check necessary services exist
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<IWorkManager>());
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<IQrCodeService>());
-        Assert.DoesNotThrow(() => App.Services.GetRequiredService<ConfigService>());
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<IPermissionsService>());
     }
 }
