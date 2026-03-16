@@ -6,13 +6,11 @@
 // Copyright (c) 2003-2020 In The Hand Ltd, All rights reserved.
 // This source code is licensed under the MIT License
 
-namespace InTheHand.Net.Bluetooth.AttributeIds
-{
+namespace InTheHand.Net.Bluetooth.AttributeIds {
     /// <summary>
     /// Service Attribute IDs defined by the Human Interface Device (HID) Profile specification.
     /// </summary>
-    public static class HidProfileAttributeId
-    {
+    public static class HidProfileAttributeId {
         /// <summary>
         /// HIDDeviceReleaseNumber
         /// </summary>
@@ -23,8 +21,8 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// the product identified by the Bluetooth Device Identification [13] VendorID 
         /// and ProductID attributes. This attribute is intended to differentiate 
         /// between versions of products with identical VendorIDs and ProductIDs. 
-        /// The value of the field is 0xJJMN for version JJ.M.N (JJ – major version 
-        /// number, M – minor version number, N – sub-minor version number). &#x2026;&#x201D;
+        /// The value of the field is 0xJJMN for version JJ.M.N (JJ ï¿½ major version 
+        /// number, M ï¿½ minor version number, N ï¿½ sub-minor version number). &#x2026;&#x201D;
         /// </para>
         /// </remarks>
         public const ServiceAttributeId DeviceReleaseNumber = (ServiceAttributeId)0x0200;
@@ -129,8 +127,8 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// (LANGID) and a base attribute ID. For compatibility with future versions of the
         /// HID profile, additional elements found in a HIDLANGIDBase shall be ignored.
         /// </para><para>The first element, called the HIDLANGID, contains an identifier representing
-        /// the natural language ID. The language is encoded according to the “Universal Serial
-        /// Bus Language Identifiers (LANGIDs)” Specification [9].
+        /// the natural language ID. The language is encoded according to the ï¿½Universal Serial
+        /// Bus Language Identifiers (LANGIDs)ï¿½ Specification [9].
         /// </para><para>The second element, called the HIDLanguageBase, contains an attribute
         /// ID that serves as the base attribute ID for the natural language in the service
         /// record. Different service records within a server may use different base attribute
@@ -195,7 +193,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// <remarks><para>[<c>16-bit unsigned integer</c>]</para>
         /// <para>
         /// &#x201C;The HIDSupervisionTimeout is a 16-bit value which indicates the device
-        /// vendor’s recommended baseband Link Supervision Timeout value in slots. &#x2026;&#x201D;
+        /// vendorï¿½s recommended baseband Link Supervision Timeout value in slots. &#x2026;&#x201D;
         /// </para>
         /// </remarks>
         public const ServiceAttributeId SupervisionTimeout = (ServiceAttributeId)0x020C;
@@ -220,7 +218,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// &#x201C;Each device designed to this specification shall include a 16-bit unsigned
         /// integer version number of the Bluetooth HID Specification (this document) that
         /// the device was designed to. The value of the field is 0xJJMN for version JJ.M.N
-        /// (JJ – major version number, M – minor version number, N – sub-minor version number);
+        /// (JJ ï¿½ major version number, M ï¿½ minor version number, N ï¿½ sub-minor version number);
         /// &#x2026;&#x201D;
         /// </para>
         /// </remarks>
@@ -238,7 +236,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// if set in the HIDSSRHostMaxLatency attribute.This setting is usually used in a
         /// Bluetooth HID device that supports features which require data to be sent with a well-
         /// controlled latency from the Bluetooth HID Host to the Bluetooth HID device. The units of
-        /// this attribute are baseband slots (625µs), identical to the units used in the HCI Sniff
+        /// this attribute are baseband slots (625ï¿½s), identical to the units used in the HCI Sniff
         /// Subrating command.
         /// </para>
         /// </remarks>
@@ -256,7 +254,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// the HIDSSRHostMinTimeout attribute.This setting is usually used in a Bluetooth HID
         /// device that supports features which require data to be sent with a well-controlled latency
         /// from the Bluetooth HID Host to the Bluetooth HID device.The units of this attribute are
-        /// baseband slots (625µs), identical to the units used in the HCI Sniff Subrating command.
+        /// baseband slots (625ï¿½s), identical to the units used in the HCI Sniff Subrating command.
         /// </para>
         /// </remarks>
         public const ServiceAttributeId HostMinTimeout = (ServiceAttributeId)0x0210;

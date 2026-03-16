@@ -14,8 +14,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using Tmds.DBus;
 
-namespace InTheHand.Net.Sockets
-{
+namespace InTheHand.Net.Sockets {
     public sealed class LinuxBluetoothListener : IBluetoothListener {
         private TaskCompletionSource<LinuxSocket> _socketTcs = new();
         public bool Active { get; private set; }
@@ -25,11 +24,10 @@ namespace InTheHand.Net.Sockets
         public ServiceRecord ServiceRecord { get; set; }
         public Guid ServiceUuid { get; set; }
         private BluetoothSdpServer _sdpServer;
-        public void Start()
-        {
+        public void Start() {
             // Validate that the object path is a valid dbus object path
             var objPathEnd = string.IsNullOrEmpty(ServiceName) ? Process.GetCurrentProcess().Id.ToString() : ServiceName;
-            var dbusObjectPath = $"/com/32feet/{objPathEnd}";
+            var dbusObjectPath = $"/com/32feet/listener/{objPathEnd}";
             _sdpServer = new BluetoothSdpServer(dbusObjectPath, ServiceName);
             _sdpServer.OnClientConnected += OnClientConnected;
             Task.Run(async () => await _sdpServer.StartAsync(ServiceUuid)).Wait();
@@ -37,10 +35,8 @@ namespace InTheHand.Net.Sockets
             Active = true;
         }
 
-        public void Stop()
-        {
-            if (Active)
-            {
+        public void Stop() {
+            if (Active) {
                 (_socketTcs.Task.GetAwaiter().GetResult()).Close();
                 _socketTcs = new TaskCompletionSource<LinuxSocket>();
                 Active = false;
@@ -59,15 +55,13 @@ namespace InTheHand.Net.Sockets
             var socket = await _socketTcs.Task;
             return socket;
         }
-        
-        public BluetoothClient AcceptBluetoothClient()
-        {
+
+        public BluetoothClient AcceptBluetoothClient() {
             return new BluetoothClient(new LinuxBluetoothClient((LinuxSocket)AcceptSocket()));
         }
 
-        public async Task<BluetoothClient> AcceptBluetoothClientAsync()
-        {
-            return new BluetoothClient(new LinuxBluetoothClient((LinuxSocket) await AcceptSocketAsync()));
+        public async Task<BluetoothClient> AcceptBluetoothClientAsync() {
+            return new BluetoothClient(new LinuxBluetoothClient((LinuxSocket)await AcceptSocketAsync()));
         }
 
         private void OnClientConnected(Socket clientSocket) {
@@ -76,18 +70,16 @@ namespace InTheHand.Net.Sockets
             }
         }
     }
-    
+
     [DBusInterface("org.bluez.Profile1")]
-    public interface IProfile1 : IDBusObject
-    {
+    public interface IProfile1 : IDBusObject {
         Task NewConnectionAsync(ObjectPath device, CloseSafeHandle fd, IDictionary<string, object> properties);
         Task RequestDisconnectionAsync(ObjectPath device);
         Task ReleaseAsync();
     }
 
     [DBusInterface("org.bluez.ProfileManager1")]
-    public interface IProfileManager1 : IDBusObject
-    {
+    public interface IProfileManager1 : IDBusObject {
         Task RegisterProfileAsync(ObjectPath profile, string uuid, IDictionary<string, object> options);
         Task UnregisterProfileAsync(ObjectPath profile);
     }
@@ -98,8 +90,8 @@ namespace InTheHand.Net.Sockets
         public ObjectPath ObjectPath { get; } = new(objPath);
         private IProfileManager1 _profileManager;
 
-        public async Task StartAsync(Guid guid)
-        {
+        public async Task StartAsync(Guid guid) {
+
             var connection = new Connection("unix:path=/var/run/dbus/system_bus_socket");
             await connection.ConnectAsync().ConfigureAwait(false);
 
@@ -114,12 +106,14 @@ namespace InTheHand.Net.Sockets
             else {
                 service = serviceName;
             }
+
+            Console.WriteLine($"Guid: {guid}");
             var sdpOptions = new Dictionary<string, object>
             {
                 { "Name", service },
                 { "Role", "Server" },
                 { "Channel", (ushort)0 },
-                { "Service", guid.ToString() }
+                { "Service", guid.ToString() },
             };
 
             Console.WriteLine($"Registering SDP Profile for UUID {guid}");
@@ -132,27 +126,23 @@ namespace InTheHand.Net.Sockets
             Console.WriteLine("Successfully unregistered SDP profile");
         }
 
-        public Task NewConnectionAsync(ObjectPath device, CloseSafeHandle fd, IDictionary<string, object> properties)
-        {
+        public Task NewConnectionAsync(ObjectPath device, CloseSafeHandle fd, IDictionary<string, object> properties) {
             Console.WriteLine($"New Connection from device: {device}");
-            try 
-            {
+            try {
                 var handle = fd.DangerousGetHandle();
 
                 var socket = new LinuxSocket(handle.ToInt32());
 
                 OnClientConnected?.Invoke(socket);
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 Console.WriteLine($"Error wrapping Bluetooth socket: {ex.Message}");
             }
 
             return Task.CompletedTask;
         }
 
-        public Task ReleaseAsync() 
-        {
+        public Task ReleaseAsync() {
             return Task.CompletedTask;
         }
 

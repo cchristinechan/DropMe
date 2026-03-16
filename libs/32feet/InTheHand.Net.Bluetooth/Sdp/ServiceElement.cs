@@ -10,8 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace InTheHand.Net.Bluetooth.Sdp
-{
+namespace InTheHand.Net.Bluetooth.Sdp {
 
     /// <summary>
     /// Holds an SDP data element.
@@ -117,8 +116,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
     /// full set of 19+ could be added, it just requires implementation and test&#x2026;
     /// </para>
     /// </remarks>
-    public sealed class ServiceElement
-    {
+    public sealed class ServiceElement {
         //--------------------------------------------------------------
         ElementType m_type;
         ElementTypeDescriptor m_etd;
@@ -192,14 +190,12 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// </code>
         /// </example>
         public ServiceElement(ElementType type, object value)
-            : this(GetEtdForType(type), type, value)
-        { }
+            : this(GetEtdForType(type), type, value) { }
 
 #pragma warning restore 618
 
 
-        private static ElementTypeDescriptor GetEtdForType(ElementType type)
-        {
+        private static ElementTypeDescriptor GetEtdForType(ElementType type) {
             return ServiceRecordParser.GetEtdForType(type);
         }
 
@@ -213,8 +209,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="childElements">A list of elements.
         /// </param>
         public ServiceElement(ElementType type, IList<ServiceElement> childElements)
-            : this(type, (object)childElements)
-        { }
+            : this(type, (object)childElements) { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="T:InTheHand.Net.Bluetooth.ServiceElement"/> class.
@@ -226,17 +221,16 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="childElements">A list of elements.
         /// </param>
         public ServiceElement(ElementType type, params ServiceElement[] childElements)
-            : this(checkTypeSuitsElementParamsArray(type, childElements), (object)childElements)
-        { }
+            : this(checkTypeSuitsElementParamsArray(type, childElements), (object)childElements) { }
 
-        private static ElementType checkTypeSuitsElementParamsArray(ElementType typePassThru, ServiceElement[] childElements)
-        {
+        private static ElementType checkTypeSuitsElementParamsArray(ElementType typePassThru, ServiceElement[] childElements) {
             // Throw a more specific error about the params array when the value is null.
             // As error would be thrown by SetValue, but we can report a more helpful message.
             if (childElements == null) {
                 // Caller passed a literal null, so could be aiming for other ElementType
                 // so can't complain that we need to be a Seq/Alt type.
-            } else {
+            }
+            else {
                 //
                 if (typePassThru != ElementType.ElementSequence && typePassThru != ElementType.ElementAlternative) {
                     throw new ArgumentException(ErrorMsgSeqAltTypeNeedElementArray);
@@ -251,28 +245,30 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// Obsolete, use <see cref="M:InTheHand.Net.Bluetooth.ServiceElement.#ctor(InTheHand.Net.Bluetooth.ElementType,System.Object)"/> instead.
         /// Initializes a new instance of the <see cref="T:InTheHand.Net.Bluetooth.ServiceElement"/> class.
         /// </summary>
-        internal ServiceElement(ElementTypeDescriptor etd, ElementType type, object value)
-        {
+        internal ServiceElement(ElementTypeDescriptor etd, ElementType type, object value) {
             ServiceRecordParser.VerifyTypeMatchesEtd(etd, type);
             m_type = type;
             m_etd = etd;
             SetValue(value);
         }
 
-        internal void SetValue(object value)
-        {
+        internal void SetValue(object value) {
             ElementTypeDescriptor etd = m_etd;
             ElementType type = m_type;
             //
             if (value == null) {
                 if (etd == ElementTypeDescriptor.ElementSequence || etd == ElementTypeDescriptor.ElementAlternative) {
                     throw new ArgumentNullException("value", "Type DataElementSequence and DataElementAlternative need an list of AttributeValue.");
-                } else if (etd == ElementTypeDescriptor.Nil) {
-                } else if (etd == ElementTypeDescriptor.Unknown) {
-                } else {
+                }
+                else if (etd == ElementTypeDescriptor.Nil) {
+                }
+                else if (etd == ElementTypeDescriptor.Unknown) {
+                }
+                else {
                     throw new ArgumentNullException("value", "Null not valid for type: '" + type + "'.");
                 }
-            } else {
+            }
+            else {
                 // Check iff type=seq/alt then value is IList<ServiceElement>
 
                 IList<ServiceElement> asElementList = value as IList<ServiceElement>;
@@ -281,7 +277,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
                     if (asElementList == null) {
                         throw new ArgumentException("Type ElementSequence and ElementAlternative need an list of ServiceElement.");
                     }
-                } else {
+                }
+                else {
                     if (asElementList != null) {
                         throw new ArgumentException("Type ElementSequence and ElementAlternative must be used for an list of ServiceElement.");
                     }
@@ -290,7 +287,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
                 bool validTypeForType;
                 if (type == ElementType.Nil) {
                     validTypeForType = value == null;
-                } else if (etd == ElementTypeDescriptor.UnsignedInteger || etd == ElementTypeDescriptor.TwosComplementInteger) {
+                }
+                else if (etd == ElementTypeDescriptor.UnsignedInteger || etd == ElementTypeDescriptor.TwosComplementInteger) {
                     switch (type) {
                         case ElementType.UInt8:
                             validTypeForType = value is byte;
@@ -322,7 +320,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
                             byte[] arr = value as byte[];
                             if (arr != null && arr.Length == NumBytesIn128bits) {
                                 validTypeForType = true;
-                            } else { // HACK UNTESTED
+                            }
+                            else { // HACK UNTESTED
                                 validTypeForType = false;
                                 throw new ArgumentException(
                                     "Element type '" + type + "' needs a length 16 byte array.");
@@ -333,25 +332,32 @@ namespace InTheHand.Net.Bluetooth.Sdp
                             validTypeForType = false;
                             break;
                     }//switch
-                } else if (type == ElementType.Uuid16) {
+                }
+                else if (type == ElementType.Uuid16) {
                     validTypeForType = value is ushort;
                     validTypeForType = value is ushort;
-                } else if (type == ElementType.Uuid32) {
+                }
+                else if (type == ElementType.Uuid32) {
                     validTypeForType
                         = value is UInt16
                         || value is Int16
                         || value is UInt32
                         || value is Int32
                         ;
-                } else if (type == ElementType.Uuid128) {
+                }
+                else if (type == ElementType.Uuid128) {
                     validTypeForType = value is Guid;
-                } else if (type == ElementType.TextString) {
+                }
+                else if (type == ElementType.TextString) {
                     validTypeForType = value is byte[] || value is String;
-                } else if (type == ElementType.Boolean) {
+                }
+                else if (type == ElementType.Boolean) {
                     validTypeForType = value is bool;
-                } else if (type == ElementType.ElementSequence || type == ElementType.ElementAlternative) {
+                }
+                else if (type == ElementType.ElementSequence || type == ElementType.ElementAlternative) {
                     validTypeForType = asElementList != null;
-                } else {
+                }
+                else {
                     // if (type == ElementType.Url)
                     System.Diagnostics.Debug.Assert(type == ElementType.Url);
                     validTypeForType = value is byte[] || value is Uri || value is string;
@@ -434,21 +440,19 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// The value wasn&#x2019;t convertible to the required type, e.g. if -1 is
         /// passed for element type UInt8, as shown above.
         /// </exception>
-        public static ServiceElement CreateNumericalServiceElement(ElementType elementType, object value)
-        {
+        public static ServiceElement CreateNumericalServiceElement(ElementType elementType, object value) {
             ElementTypeDescriptor etd = GetEtdForType(elementType);
             if (!(etd == ElementTypeDescriptor.UnsignedInteger
                    || etd == ElementTypeDescriptor.TwosComplementInteger)) {
                 throw new ArgumentException(string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                    ErrorMsgFmtCreateNumericalGivenNonNumber, 
+                    ErrorMsgFmtCreateNumericalGivenNonNumber,
                     etd/*, (int)etd, elementType, (int)elementType*/));
             }
             object valueConverted = ConvertNumericalValue(elementType, value);
             return new ServiceElement(elementType, valueConverted);
         }
 
-        private static object ConvertNumericalValue(ElementType elementType, object value)
-        {
+        private static object ConvertNumericalValue(ElementType elementType, object value) {
             object naturalTypedValue = null;
             Exception innerEx;
             //
@@ -490,12 +494,14 @@ namespace InTheHand.Net.Bluetooth.Sdp
                             break;
                     }
                     return naturalTypedValue;
-                } catch (OverflowException ex) {
+                }
+                catch (OverflowException ex) {
                     innerEx = ex;
                     //} catch (InvalidCastException ex) {
                     //    innerEx = ex;
                 }
-            } else {
+            }
+            else {
                 innerEx = null;
             }
             throw ServiceRecordParser.new_ArgumentOutOfRangeException(
@@ -509,8 +515,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <summary>
         /// Gets the type of the element as an <see cref="T:InTheHand.Net.Bluetooth.ElementType"/>.
         /// </summary>
-        public ElementType ElementType
-        {
+        public ElementType ElementType {
             [System.Diagnostics.DebuggerStepThrough]
             get { return m_type; }
         }
@@ -519,8 +524,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// Gets the SDP Element Type Descriptor of the element
         /// as an <see cref="T:InTheHand.Net.Bluetooth.ElementTypeDescriptor"/>.
         /// </summary>
-        public ElementTypeDescriptor ElementTypeDescriptor
-        {
+        public ElementTypeDescriptor ElementTypeDescriptor {
             [System.Diagnostics.DebuggerStepThrough]
             get { return m_etd; }
         }
@@ -536,8 +540,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <see cref="M:InTheHand.Net.Bluetooth.ServiceElement.GetValueAsUri"/>, 
         /// <see cref="M:InTheHand.Net.Bluetooth.ServiceElement.GetValueAsUuid"/>, etc.
         /// </remarks>
-        public object Value
-        {
+        public object Value {
             [System.Diagnostics.DebuggerStepThrough]
             get { return m_rawValue; }
         }
@@ -558,8 +561,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
 #endif
-        public IList<ServiceElement> GetValueAsElementList()
-        {
+        public IList<ServiceElement> GetValueAsElementList() {
             if (m_etd != ElementTypeDescriptor.ElementSequence && m_etd != ElementTypeDescriptor.ElementAlternative) {
                 throw new InvalidOperationException(ErrorMsgNotSeqAltType);
             }
@@ -584,8 +586,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
 #endif
-        public ServiceElement[] GetValueAsElementArray()
-        {
+        public ServiceElement[] GetValueAsElementArray() {
             IList<ServiceElement> list = GetValueAsElementList();
             ServiceElement[] arr = new ServiceElement[list.Count];
             GetValueAsElementList().CopyTo(arr, 0);
@@ -633,8 +634,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
 #endif
-        public Uri GetValueAsUri()
-        {
+        public Uri GetValueAsUri() {
             if (m_type != ElementType.Url) {
                 throw new InvalidOperationException(ErrorMsgNotUrlType);
             }
@@ -645,7 +645,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
                 string str;
                 if (arr != null) {
                     str = ServiceRecordParser.CreateUriStringFromBytes(arr);
-                } else {
+                }
+                else {
                     str = (string)m_rawValue;
                 }
                 asUri = new Uri(str);
@@ -669,8 +670,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
 #endif
-        public Guid GetValueAsUuid()
-        {
+        public Guid GetValueAsUuid() {
             if (m_etd != ElementTypeDescriptor.Uuid) {
                 throw new InvalidOperationException(ErrorMsgNotUuidType);
             }
@@ -679,10 +679,12 @@ namespace InTheHand.Net.Bluetooth.Sdp
             if (m_type == ElementType.Uuid16) {
                 result = BluetoothService.CreateBluetoothUuid((UInt16)Value);
                 return result;
-            } else if (m_type == ElementType.Uuid32) {
+            }
+            else if (m_type == ElementType.Uuid32) {
                 result = BluetoothService.CreateBluetoothUuid((UInt32)Value);
                 return result;
-            } else {
+            }
+            else {
                 return (Guid)Value;
             }
         }
@@ -711,8 +713,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// The service element is not of type 
         /// <see cref="F:InTheHand.Net.Bluetooth.ElementTypeDescriptor.TextString"/>.
         /// </exception>
-        public string GetValueAsString(Encoding encoding)
-        {
+        public string GetValueAsString(Encoding encoding) {
             if (encoding == null) {
                 throw new ArgumentNullException("encoding");
             }
@@ -758,8 +759,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <exception cref="T:System.Text.DecoderFallbackException">
         /// If the value in the service element is not a valid string in the given encoding.
         /// </exception>
-        public string GetValueAsString(LanguageBaseItem languageBase)
-        {
+        public string GetValueAsString(LanguageBaseItem languageBase) {
             if (languageBase == null) {
                 throw new ArgumentNullException("languageBase");
             }
@@ -807,8 +807,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate", Justification = "but throws")]
 #endif
-        public string GetValueAsStringUtf8()
-        {
+        public string GetValueAsStringUtf8() {
             Encoding enc = new UTF8Encoding(false, true); //throwOnInvalidBytes=true
             return GetValueAsString(enc);
         }

@@ -13,10 +13,8 @@ using System.Threading.Tasks;
 using Windows.Devices.Bluetooth.Rfcomm;
 using Windows.Networking.Sockets;
 
-namespace InTheHand.Net.Sockets
-{
-    public sealed class WindowsBluetoothListener : IBluetoothListener
-    {
+namespace InTheHand.Net.Sockets {
+    public sealed class WindowsBluetoothListener : IBluetoothListener {
         private RfcommServiceProvider provider;
         private StreamSocketListener listener;
         private System.Threading.EventWaitHandle listenHandle = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset);
@@ -28,8 +26,7 @@ namespace InTheHand.Net.Sockets
         public ServiceRecord ServiceRecord { get; set; }
         public Guid ServiceUuid { get; set; }
 
-        public void Start()
-        {
+        public void Start() {
             provider = RfcommServiceProvider.CreateAsync(RfcommServiceId.FromUuid(ServiceUuid)).AsTask().GetAwaiter().GetResult();
             listener = new StreamSocketListener();
             listener.ConnectionReceived += Listener_ConnectionReceived;
@@ -38,26 +35,21 @@ namespace InTheHand.Net.Sockets
             Active = true;
         }
 
-        private void Listener_ConnectionReceived(StreamSocketListener sender, StreamSocketListenerConnectionReceivedEventArgs args)
-        {
+        private void Listener_ConnectionReceived(StreamSocketListener sender, StreamSocketListenerConnectionReceivedEventArgs args) {
             pending = true;
             currentClient = new BluetoothClient(new WindowsBluetoothClient(args.Socket));
             listenHandle.Set();
         }
 
-        public void Stop()
-        {
-            if(Active)
-            {
-                if(provider != null)
-                {
+        public void Stop() {
+            if (Active) {
+                if (provider != null) {
                     provider.StopAdvertising();
                     provider = null;
                 }
 
-                if(listener != null)
-                {
-                    listener.ConnectionReceived-=Listener_ConnectionReceived;
+                if (listener != null) {
+                    listener.ConnectionReceived -= Listener_ConnectionReceived;
                     listener.Dispose();
                     listener = null;
                 }
@@ -67,55 +59,47 @@ namespace InTheHand.Net.Sockets
         }
 
         private bool pending = false;
-        public bool Pending()
-        {
+        public bool Pending() {
             return pending;
         }
 
-        public BluetoothClient AcceptBluetoothClient()
-        {
-            if(listener != null)
-            {
+        public BluetoothClient AcceptBluetoothClient() {
+            if (listener != null) {
                 listenHandle.WaitOne();
                 pending = false;
                 return currentClient;
             }
-            else
-            {
+            else {
                 throw new InvalidOperationException();
             }
         }
 
-        public async Task<BluetoothClient> AcceptBluetoothClientAsync()
-        {
-            if(listener != null)
-            {
+        public async Task<BluetoothClient> AcceptBluetoothClientAsync() {
+            if (listener != null) {
                 await FromWaitHandle(listenHandle);
                 pending = false;
                 return currentClient;
             }
-            else
-            {
+            else {
                 throw new InvalidOperationException();
             }
         }
-        
-        
-        private static Task<bool> FromWaitHandle(EventWaitHandle handle)
-        {
+
+
+        private static Task<bool> FromWaitHandle(EventWaitHandle handle) {
             // Handle synchronous cases.
             var alreadySignalled = handle.WaitOne(0);
             if (alreadySignalled)
                 return Task.FromResult(true);
 
-            
+
             var tcs = new TaskCompletionSource<bool>();
-            
+
             ThreadPool.RegisterWaitForSingleObject(
                 waitObject: handle,
-                callBack: (state, @out) => tcs.TrySetResult(!@out), 
-                state: null, 
-                millisecondsTimeOutInterval: -1, 
+                callBack: (state, @out) => tcs.TrySetResult(!@out),
+                state: null,
+                millisecondsTimeOutInterval: -1,
                 executeOnlyOnce: true
             );
             return tcs.Task;

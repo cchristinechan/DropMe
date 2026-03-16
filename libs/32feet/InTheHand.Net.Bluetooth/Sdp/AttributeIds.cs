@@ -9,8 +9,7 @@
 using System;
 using System.Reflection;
 
-namespace InTheHand.Net.Bluetooth.AttributeIds
-{
+namespace InTheHand.Net.Bluetooth.AttributeIds {
 
     /// <summary>
     /// A Service Attribute Id identifies each attribute within an SDP service record.
@@ -42,8 +41,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1008:EnumsShouldHaveZeroValue")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1028:EnumStorageShouldBeInt32")]
 #endif
-    public enum ServiceAttributeId : short
-    {
+    public enum ServiceAttributeId : short {
         // Playing
         // warning: "ServiceAttributeId': base type 'ushort' is not CLS-compliant"
         None = 0,
@@ -58,8 +56,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// specified Attribute ID class sets.  Implementing <see cref="T:System.Enum"/>-like
     /// behaviour.
     /// </summary>
-    public static class AttributeIdLookup
-    {
+    public static class AttributeIdLookup {
         /// <summary>
         /// Retrieves the name of the SDP Attribute ID with the given value in the
         /// specified Attribute ID class sets.
@@ -86,8 +83,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// A string containing the name of the Attribute ID whose numerical value is <paramref name="id"/>,
         /// or a null reference (<c>Nothing</c> in Visual Basic) if no such constant is found.
         /// </returns>
-        public static string GetName(ServiceAttributeId id, Type[] attributeIdDefiningClasses)
-        {
+        public static string GetName(ServiceAttributeId id, Type[] attributeIdDefiningClasses) {
             string name = GetName(id, attributeIdDefiningClasses,
                 new LanguageBaseItem[0], //HACK new LanguageBaseItem[0] -- instead of -- null
                 out LanguageBaseItem applicableLangBase);
@@ -137,8 +133,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "3#")]
 #endif
         public static string GetName(ServiceAttributeId id, Type[] attributeIdDefiningClasses,
-            LanguageBaseItem[] langBaseList, out LanguageBaseItem applicableLangBase)
-        {
+            LanguageBaseItem[] langBaseList, out LanguageBaseItem applicableLangBase) {
             if (attributeIdDefiningClasses == null) {
                 throw new ArgumentNullException("attributeIdDefiningClasses");
             }
@@ -167,7 +162,8 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
                             if (name != null) {
                                 return name;
                             }
-                        } else {
+                        }
+                        else {
                             // No just a normal Attribute, not language base offsetting.
                             string name = GetNameIfMatches(id, curField);
                             if (name != null) {
@@ -188,10 +184,9 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// and using one of the languages from the supplied LanguageBaseItem 
         /// in the specified AttributeID class sets
         /// </summary>
-        private static string 
+        private static string
             GetNameIfMatchesMultiLang(ServiceAttributeId id, System.Reflection.FieldInfo curField,
-            LanguageBaseItem[] langBaseList, out LanguageBaseItem applicableLangBase)
-        {
+            LanguageBaseItem[] langBaseList, out LanguageBaseItem applicableLangBase) {
             foreach (LanguageBaseItem curBaseItem in langBaseList) {
                 ServiceAttributeId baseOffset = curBaseItem.AttributeIdBase;
                 ServiceAttributeId realId = id;
@@ -211,8 +206,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         }
 
         // Check if the current field has the supplied value.
-        private static string GetNameIfMatches(ServiceAttributeId id, System.Reflection.FieldInfo curField)
-        {
+        private static string GetNameIfMatches(ServiceAttributeId id, System.Reflection.FieldInfo curField) {
             object rawValue;
 
             // Does this require less permissions than the GetValue version.
@@ -256,14 +250,12 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// offset applied to its numerical ID when added to a record.
     /// </summary>
     [System.AttributeUsage(System.AttributeTargets.Field)]
-    public sealed class StringWithLanguageBaseAttribute : System.Attribute
-    {
+    public sealed class StringWithLanguageBaseAttribute : System.Attribute {
         /// <summary>
         /// Initializes a new instance of the <see cref="T:InTheHand.Net.Bluetooth.StringWithLanguageBaseAttribute"/>
         /// class. 
         /// </summary>
-        public StringWithLanguageBaseAttribute()
-        { }
+        public StringWithLanguageBaseAttribute() { }
 
     }//class
 

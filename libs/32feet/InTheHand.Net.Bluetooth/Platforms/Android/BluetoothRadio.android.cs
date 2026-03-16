@@ -10,34 +10,27 @@ using Android.Content;
 using Android.Content.PM;
 using System;
 
-namespace InTheHand.Net.Bluetooth
-{
-    partial class BluetoothRadio
-    {
-        public static implicit operator BluetoothAdapter(BluetoothRadio radio)
-        {
+namespace InTheHand.Net.Bluetooth {
+    partial class BluetoothRadio {
+        public static implicit operator BluetoothAdapter(BluetoothRadio radio) {
             return ((AndroidBluetoothRadio)radio.Radio).Adapter;
         }
 
-        public static implicit operator BluetoothRadio(BluetoothAdapter adapter)
-        {
+        public static implicit operator BluetoothRadio(BluetoothAdapter adapter) {
             return new BluetoothRadio((AndroidBluetoothRadio)adapter);
         }
     }
-    
-    internal sealed class AndroidBluetoothRadio : IBluetoothRadio
-    {
+
+    internal sealed class AndroidBluetoothRadio : IBluetoothRadio {
         private static readonly BluetoothManager manager;
 
-        static AndroidBluetoothRadio()
-        {
+        static AndroidBluetoothRadio() {
             manager = InTheHand.AndroidActivity.CurrentActivity.GetSystemService(Context.BluetoothService) as BluetoothManager;
         }
 
         internal static BluetoothManager Manager { get => manager; }
 
-        internal static IBluetoothRadio GetDefault()
-        {
+        internal static IBluetoothRadio GetDefault() {
             if (manager == null)
                 throw new PlatformNotSupportedException();
 
@@ -47,13 +40,11 @@ namespace InTheHand.Net.Bluetooth
             return new AndroidBluetoothRadio(manager.Adapter);
         }
 
-        public static implicit operator BluetoothAdapter(AndroidBluetoothRadio radio)
-        {
+        public static implicit operator BluetoothAdapter(AndroidBluetoothRadio radio) {
             return radio._adapter;
         }
 
-        public static implicit operator AndroidBluetoothRadio(BluetoothAdapter adapter)
-        {
+        public static implicit operator AndroidBluetoothRadio(BluetoothAdapter adapter) {
             return new AndroidBluetoothRadio(adapter);
         }
 
@@ -61,8 +52,7 @@ namespace InTheHand.Net.Bluetooth
 
         internal BluetoothAdapter Adapter { get => _adapter; }
 
-        private AndroidBluetoothRadio(BluetoothAdapter adapter)
-        {
+        private AndroidBluetoothRadio(BluetoothAdapter adapter) {
             _adapter = adapter;
         }
 
@@ -70,21 +60,17 @@ namespace InTheHand.Net.Bluetooth
 
         public BluetoothAddress LocalAddress { get => BluetoothAddress.Parse(_adapter.Address); }
 
-        public RadioMode Mode
-        {
-            get
-            {
+        public RadioMode Mode {
+            get {
                 State state = _adapter.State;
 
-                switch (state)
-                {
+                switch (state) {
                     case State.TurningOff:
                     case State.Off:
                         return RadioMode.PowerOff;
 
                     default:
-                        switch (_adapter.ScanMode)
-                        {
+                        switch (_adapter.ScanMode) {
                             case ScanMode.ConnectableDiscoverable:
                                 return RadioMode.Discoverable;
 
@@ -97,10 +83,8 @@ namespace InTheHand.Net.Bluetooth
                         }
                 }
             }
-            set
-            {
-                switch (value)
-                {
+            set {
+                switch (value) {
                     case RadioMode.PowerOff:
                         _adapter.Disable();
                         break;
@@ -117,18 +101,14 @@ namespace InTheHand.Net.Bluetooth
 
         public CompanyIdentifier Manufacturer { get => CompanyIdentifier.Unknown; }
 
-        public BluetoothVersion LmpVersion
-        {
-            get
-            {
+        public BluetoothVersion LmpVersion {
+            get {
                 // make best guess at supported version based on the features which Android exposes.
 
-                if (OperatingSystem.IsAndroidVersionAtLeast(26))
-                {
+                if (OperatingSystem.IsAndroidVersionAtLeast(26)) {
 #if NET7_0_OR_GREATER
-                    if (OperatingSystem.IsAndroidVersionAtLeast(33))
-                    {
-                        if(_adapter.IsLeAudioSupported() == (int)CurrentBluetoothStatusCodes.FeatureSupported) 
+                    if (OperatingSystem.IsAndroidVersionAtLeast(33)) {
+                        if (_adapter.IsLeAudioSupported() == (int)CurrentBluetoothStatusCodes.FeatureSupported)
                             return BluetoothVersion.Version52;
                     }
 #endif
@@ -149,20 +129,16 @@ namespace InTheHand.Net.Bluetooth
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
-        void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
+        void Dispose(bool disposing) {
+            if (!disposedValue) {
+                if (disposing) {
                 }
 
                 disposedValue = true;
             }
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             Dispose(true);
         }
 

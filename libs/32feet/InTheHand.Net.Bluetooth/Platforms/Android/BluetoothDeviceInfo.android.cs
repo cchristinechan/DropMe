@@ -15,14 +15,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Sockets
-{
-    internal sealed class AndroidBluetoothDeviceInfo : IBluetoothDeviceInfo
-    {
+namespace InTheHand.Net.Sockets {
+    internal sealed class AndroidBluetoothDeviceInfo : IBluetoothDeviceInfo {
         private readonly BluetoothDevice _device;
 
-        internal AndroidBluetoothDeviceInfo(BluetoothAddress address)
-        {
+        internal AndroidBluetoothDeviceInfo(BluetoothAddress address) {
             var device = ((BluetoothAdapter)BluetoothRadio.Default).GetRemoteDevice(address.ToString());
 
             if (device is null)
@@ -31,21 +28,18 @@ namespace InTheHand.Net.Sockets
             _device = device;
         }
 
-        internal AndroidBluetoothDeviceInfo(BluetoothDevice device)
-        {
+        internal AndroidBluetoothDeviceInfo(BluetoothDevice device) {
             if (device is null)
                 throw new ArgumentNullException(nameof(device));
 
             _device = device;
         }
 
-        public static implicit operator BluetoothDevice(AndroidBluetoothDeviceInfo deviceInfo)
-        {
+        public static implicit operator BluetoothDevice(AndroidBluetoothDeviceInfo deviceInfo) {
             return deviceInfo._device;
         }
 
-        public static implicit operator AndroidBluetoothDeviceInfo(BluetoothDevice device)
-        {
+        public static implicit operator AndroidBluetoothDeviceInfo(BluetoothDevice device) {
             return new AndroidBluetoothDeviceInfo(device);
         }
 
@@ -54,12 +48,9 @@ namespace InTheHand.Net.Sockets
         public string DeviceName { get => _device.Name; }
 
         private ClassOfDevice _cod;
-        public ClassOfDevice ClassOfDevice
-        {
-            get
-            {
-                if (_cod == 0)
-                {
+        public ClassOfDevice ClassOfDevice {
+            get {
+                if (_cod == 0) {
                     _cod = ClassOfDeviceHelper.ToClassOfDevice(_device.BluetoothClass);
                 }
 
@@ -68,8 +59,7 @@ namespace InTheHand.Net.Sockets
         }
 
         // WIP
-        private Guid UUIDToGuid(UUID uuid)
-        {
+        private Guid UUIDToGuid(UUID uuid) {
             byte[] bytes = new byte[16];
             BitConverter.GetBytes(uuid.MostSignificantBits).CopyTo(bytes, 0);
             BitConverter.GetBytes(uuid.LeastSignificantBits).CopyTo(bytes, 8);
@@ -77,21 +67,15 @@ namespace InTheHand.Net.Sockets
             return new Guid(bytes);
         }
 
-        public async Task<IEnumerable<Guid>> GetRfcommServicesAsync(bool cached)
-        {
-            if (cached)
-            {
+        public async Task<IEnumerable<Guid>> GetRfcommServicesAsync(bool cached) {
+            if (cached) {
                 List<Guid> services = new List<Guid>();
                 var uuids = _device.GetUuids();
-                Console.WriteLine($"UUIDS: {uuids}");
-                if (uuids != null)
-                {
-                    foreach (var uuid in uuids)
-                    {
+                if (uuids != null) {
+                    foreach (var uuid in uuids) {
                         var u = Guid.Parse(uuid.Uuid.ToString());
 
-                        if (u != BluetoothService.BluetoothBase)
-                        {
+                        if (u != BluetoothService.BluetoothBase) {
                             services.Add(u);
                         }
                     }
@@ -107,8 +91,8 @@ namespace InTheHand.Net.Sockets
 
             bool success = _device.FetchUuidsWithSdp();
 
-            if (!success)
-            {
+            if (!success) {
+                Console.WriteLine("Couldnt fetch uuids with sdp");
                 AndroidActivity.CurrentActivity.UnregisterReceiver(receiver);
                 return System.Array.AsReadOnly(System.Array.Empty<Guid>());
             }
@@ -117,16 +101,14 @@ namespace InTheHand.Net.Sockets
 
         void IBluetoothDeviceInfo.Refresh() { }
 
-        public bool Connected
-        {
-            get
-            {
+        public bool Connected {
+            get {
                 Method m = _device.Class.GetMethod("isConnected", null);
                 bool connected = (bool)m.Invoke(_device, null);
                 return connected;
             }
         }
 
-        public bool Authenticated {  get => _device.BondState == Bond.Bonded; }
+        public bool Authenticated { get => _device.BondState == Bond.Bonded; }
     }
 }

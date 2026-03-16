@@ -8,8 +8,7 @@
 using System;
 using System.Reflection;
 
-namespace InTheHand.Net.Bluetooth
-{
+namespace InTheHand.Net.Bluetooth {
     /// <summary>
     /// Standard Bluetooth Profile identifiers.
     /// </summary>
@@ -20,8 +19,7 @@ namespace InTheHand.Net.Bluetooth
     /// <para>The Bluetooth Base UUID is {00000000-0000-1000-8000-00805F9B34FB}
     /// </para>
     /// </remarks>
-    public static class BluetoothService
-    {
+    public static class BluetoothService {
         /// <summary>
         /// Represents an empty service Guid.
         /// </summary>
@@ -408,8 +406,7 @@ namespace InTheHand.Net.Bluetooth
         /// A string containing the name of the service class whose UUID value is <paramref name="uuid"/>,
         /// or a null reference (<c>Nothing</c> in Visual Basic) if no such constant is found.
         /// </returns>
-        public static string GetName(Guid uuid)
-        {
+        public static string GetName(Guid uuid) {
             System.Reflection.FieldInfo[] fields
                 = typeof(BluetoothService).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
             foreach (System.Reflection.FieldInfo curField in fields) {
@@ -435,8 +432,7 @@ namespace InTheHand.Net.Bluetooth
         /// A string containing the name of the service class whose UUID value is <paramref name="uuid16"/>,
         /// or a null reference (<c>Nothing</c> in Visual Basic) if no such constant is found.
         /// </returns>
-        public static string GetName(short uuid16)
-        {
+        public static string GetName(short uuid16) {
             return GetName(CreateBluetoothUuid(uuid16));
         }
 
@@ -450,8 +446,7 @@ namespace InTheHand.Net.Bluetooth
         /// A string containing the name of the service class whose UUID value is <paramref name="uuid16"/>,
         /// or a null reference (<c>Nothing</c> in Visual Basic) if no such constant is found.
         /// </returns>
-        public static string GetName(ushort uuid16)
-        {
+        public static string GetName(ushort uuid16) {
             return GetName(CreateBluetoothUuid(uuid16));
         }
 
@@ -465,8 +460,7 @@ namespace InTheHand.Net.Bluetooth
         /// A string containing the name of the service class whose UUID value is <paramref name="uuid32"/>,
         /// or a null reference (<c>Nothing</c> in Visual Basic) if no such constant is found.
         /// </returns>
-        public static string GetName(int uuid32)
-        {
+        public static string GetName(int uuid32) {
             return GetName(CreateBluetoothUuid(uuid32));
         }
 
@@ -480,8 +474,7 @@ namespace InTheHand.Net.Bluetooth
         /// A string containing the name of the service class whose UUID value is <paramref name="uuid32"/>,
         /// or a null reference (<c>Nothing</c> in Visual Basic) if no such constant is found.
         /// </returns>
-        public static string GetName(uint uuid32)
-        {
+        public static string GetName(uint uuid32) {
             return GetName(CreateBluetoothUuid(uuid32));
         }
         #endregion
@@ -497,8 +490,7 @@ namespace InTheHand.Net.Bluetooth
         /// A <see cref="T:System.Guid"/> containing the full 128-bit form of the
         /// supplied Bluetooth service class UUID.
         /// </returns>
-        public static Guid CreateBluetoothUuid(short uuid16)
-        {
+        public static Guid CreateBluetoothUuid(short uuid16) {
             return CreateBluetoothUuid(unchecked((int)uuid16));
         }
 
@@ -512,8 +504,7 @@ namespace InTheHand.Net.Bluetooth
         /// A <see cref="T:System.Guid"/> containing the full 128-bit form of the
         /// supplied Bluetooth service class UUID.
         /// </returns>
-        public static Guid CreateBluetoothUuid(ushort uuid16)
-        {
+        public static Guid CreateBluetoothUuid(ushort uuid16) {
             return CreateBluetoothUuid((uint)uuid16);
         }
 
@@ -527,9 +518,8 @@ namespace InTheHand.Net.Bluetooth
         /// A <see cref="T:System.Guid"/> containing the full 128-bit form of the
         /// supplied Bluetooth service class UUID.
         /// </returns>
-        public static Guid CreateBluetoothUuid(int uuid32)
-        {
-            // Base UUID: 00000000-0000-1000-8000-00805f9b34fb.
+        public static Guid CreateBluetoothUuid(int uuid32) {
+            // Baseï¿½UUID:ï¿½00000000-0000-1000-8000-00805f9b34fb.
             Guid uuid = new Guid(uuid32, 0x0000, 0x1000, 0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb);
             return uuid;
         }
@@ -544,15 +534,13 @@ namespace InTheHand.Net.Bluetooth
         /// A <see cref="T:System.Guid"/> containing the full 128-bit form of the
         /// supplied Bluetooth service class UUID.
         /// </returns>
-        public static Guid CreateBluetoothUuid(uint uuid32)
-        {
+        public static Guid CreateBluetoothUuid(uint uuid32) {
             return CreateBluetoothUuid(unchecked((int)uuid32));
         }
         #endregion
 
         #region To Short form
-        internal static ushort? GetAsClassId16(Guid service)
-        {
+        internal static ushort? GetAsClassId16(Guid service) {
             var barr = service.ToByteArray();
             ushort classId16 = BitConverter.ToUInt16(barr, 0);
             var recreated = CreateBluetoothUuid(classId16);

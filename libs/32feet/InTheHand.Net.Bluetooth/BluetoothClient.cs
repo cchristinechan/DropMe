@@ -14,17 +14,14 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Sockets
-{
+namespace InTheHand.Net.Sockets {
     /// <summary>
     /// Provides client connections for Bluetooth Rfcomm network services.
     /// </summary>
-    public sealed class BluetoothClient : IDisposable
-    {
+    public sealed class BluetoothClient : IDisposable {
         private IBluetoothClient _bluetoothClient;
 
-        public BluetoothClient()
-        {
+        public BluetoothClient() {
 #if ANDROID || MONOANDROID
             _bluetoothClient = new AndroidBluetoothClient();
 #elif IOS || __IOS__
@@ -53,22 +50,19 @@ namespace InTheHand.Net.Sockets
                 throw new PlatformNotSupportedException();
         }
 
-        internal BluetoothClient(IBluetoothClient client)
-        {
+        internal BluetoothClient(IBluetoothClient client) {
             _bluetoothClient = client;
         }
 
-        public Task<PairState> PairAsync(IBluetoothDeviceInfo deviceInfo) {
+        public Task<PairState> PairAsync(BluetoothDeviceInfo deviceInfo) {
             return _bluetoothClient.PairAsync(deviceInfo);
         }
-        
+
         /// <summary>
         /// Returns a collection of paired devices.
         /// </summary>
-        public IEnumerable<BluetoothDeviceInfo> PairedDevices
-        {
-            get
-            {
+        public IEnumerable<BluetoothDeviceInfo> PairedDevices {
+            get {
                 return _bluetoothClient.PairedDevices;
             }
         }
@@ -77,8 +71,7 @@ namespace InTheHand.Net.Sockets
         /// Discovers accessible Bluetooth devices, and returns their names and addresses.
         /// </summary>
         /// <returns>A collection of BluetoothDeviceInfo objects describing the devices discovered.</returns>
-        public IReadOnlyCollection<BluetoothDeviceInfo> DiscoverDevices()
-        {
+        public IReadOnlyCollection<BluetoothDeviceInfo> DiscoverDevices() {
             return DiscoverDevices(255);
         }
 
@@ -86,14 +79,12 @@ namespace InTheHand.Net.Sockets
         /// Discovers accessible Bluetooth devices, and returns their names and addresses.
         /// </summary>
         /// <returns>A collection of BluetoothDeviceInfo objects describing the devices discovered.</returns>
-        public IReadOnlyCollection<BluetoothDeviceInfo> DiscoverDevices(int maxDevices)
-        {
+        public IReadOnlyCollection<BluetoothDeviceInfo> DiscoverDevices(int maxDevices) {
             return _bluetoothClient.DiscoverDevices(maxDevices);
         }
 
 #if NET6_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-        public IAsyncEnumerable<BluetoothDeviceInfo> DiscoverDevicesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
+        public IAsyncEnumerable<BluetoothDeviceInfo> DiscoverDevicesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default) {
             return _bluetoothClient.DiscoverDevicesAsync(cancellationToken);
         }
 #endif
@@ -104,8 +95,7 @@ namespace InTheHand.Net.Sockets
         /// <param name="service">The Service UUID of the service on the remote host.
         /// The standard Bluetooth service UUIDs are provided on <see cref="BluetoothService"/>.</param>
         /// <remarks>On iOS the connection will be made to the first protocol exposed by the ExternalAccessory unless you first provide a mapping between the Uuid of your choice and the protocol name using <see cref="BluetoothServiceProtocolMapping"/>.</remarks>
-        public void Connect(BluetoothAddress address, Guid service)
-        {
+        public void Connect(BluetoothAddress address, Guid service) {
             _bluetoothClient.Connect(address, service);
         }
 
@@ -113,8 +103,7 @@ namespace InTheHand.Net.Sockets
         /// Connects the client to a remote Bluetooth host using the specified endpoint.
         /// </summary>
         /// <param name="remoteEP">The <see cref="BluetoothEndPoint"/> to which you intend to connect.</param>
-        public void Connect(BluetoothEndPoint remoteEP)
-        {
+        public void Connect(BluetoothEndPoint remoteEP) {
             if (remoteEP == null)
                 throw new ArgumentNullException(nameof(remoteEP));
 
@@ -128,8 +117,7 @@ namespace InTheHand.Net.Sockets
         /// <param name="service">The service UUID of the remote host.</param>
         /// <returns></returns>
         /// <exception cref="PlatformNotSupportedException"></exception>
-        public Task ConnectAsync(BluetoothAddress address, Guid service)
-        {
+        public Task ConnectAsync(BluetoothAddress address, Guid service) {
             return _bluetoothClient.ConnectAsync(address, service);
         }
 
@@ -137,16 +125,14 @@ namespace InTheHand.Net.Sockets
         /// Closes the BluetoothClient and the underlying connection.
         /// </summary>
         /// <remarks>The Close method marks the instance as disposed and requests that the associated Socket close the Bluetooth connection</remarks>
-        public void Close()
-        {
+        public void Close() {
             _bluetoothClient.Close();
         }
 
         /// <summary>
         /// Sets whether an authenticated connection is required.
         /// </summary>
-        public bool Authenticate
-        {
+        public bool Authenticate {
             [DebuggerStepThrough]
             get => _bluetoothClient.Authenticate;
             [DebuggerStepThrough]
@@ -156,8 +142,7 @@ namespace InTheHand.Net.Sockets
         /// <summary>
         /// Gets the underlying Socket.
         /// </summary>
-        public Socket Client
-        {
+        public Socket Client {
             [DebuggerStepThrough]
             get => _bluetoothClient.Client;
         }
@@ -165,8 +150,7 @@ namespace InTheHand.Net.Sockets
         /// <summary>
         /// Gets a value indicating whether the underlying Socket for a BluetoothClient is connected to a remote host.
         /// </summary>
-        public bool Connected
-        {
+        public bool Connected {
             [DebuggerStepThrough]
             get => _bluetoothClient.Connected;
         }
@@ -174,8 +158,7 @@ namespace InTheHand.Net.Sockets
         /// <summary>
         /// Sets whether an encrypted connection is required.
         /// </summary>
-        public bool Encrypt
-        {
+        public bool Encrypt {
             [DebuggerStepThrough]
             get => _bluetoothClient.Encrypt;
             [DebuggerStepThrough]
@@ -187,8 +170,7 @@ namespace InTheHand.Net.Sockets
         /// </summary>
         /// <remarks>On Windows the actual value used is expressed in units of 1.28 seconds, so will be the nearest match for the value supplied.
         /// The default value is 10 seconds. The maximum is 61 seconds.</remarks>
-        public TimeSpan InquiryLength
-        {
+        public TimeSpan InquiryLength {
             [DebuggerStepThrough]
             get => _bluetoothClient.InquiryLength;
             [DebuggerStepThrough]
@@ -198,8 +180,7 @@ namespace InTheHand.Net.Sockets
         /// <summary>
         /// Gets the name of the remote device.
         /// </summary>
-        public string RemoteMachineName
-        {
+        public string RemoteMachineName {
             [DebuggerStepThrough]
             get => _bluetoothClient.RemoteMachineName;
         }
@@ -214,8 +195,7 @@ namespace InTheHand.Net.Sockets
         /// <summary>
         /// Closes the BluetoothClient and the underlying connection.
         /// </summary>
-        public void Dispose()
-        {
+        public void Dispose() {
             _bluetoothClient.Dispose();
             _bluetoothClient = null;
         }

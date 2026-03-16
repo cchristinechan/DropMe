@@ -5,8 +5,7 @@
 // Copyright (c) 2003-2023 In The Hand Ltd, All rights reserved.
 // This source code is licensed under the MIT License
 
-namespace InTheHand.Net.Bluetooth
-{
+namespace InTheHand.Net.Bluetooth {
     /// <summary>
     /// Class of Device flags as assigned in the Bluetooth specifications.
     /// </summary>
@@ -18,8 +17,7 @@ namespace InTheHand.Net.Bluetooth
     /// </para>
     /// </remarks>
     /// <seealso cref="ServiceClass"/>
-    public enum DeviceClass
-    {
+    public enum DeviceClass {
         /// <summary>
         /// Miscellaneous &#x2014; 
         /// [Ref #2: Used where a more specific Major Device Class code

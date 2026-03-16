@@ -9,15 +9,12 @@ using System;
 using System.IO;
 using System.Net.Sockets;
 
-namespace InTheHand.Net.Sockets
-{
-    internal sealed class LinuxNetworkStream : NonSocketNetworkStream
-    {
+namespace InTheHand.Net.Sockets {
+    internal sealed class LinuxNetworkStream : NonSocketNetworkStream {
         private readonly LinuxSocket _socket;
         private readonly bool _ownsSocket;
 
-        public LinuxNetworkStream(LinuxSocket socket, bool ownsSocket)
-        {
+        public LinuxNetworkStream(LinuxSocket socket, bool ownsSocket) {
             if (socket is null)
                 throw new ArgumentNullException(nameof(socket));
 
@@ -25,20 +22,16 @@ namespace InTheHand.Net.Sockets
             _ownsSocket = ownsSocket;
         }
 
-        public override void Close()
-        {
-            if(_ownsSocket)
-            {
+        public override void Close() {
+            if (_ownsSocket) {
                 _socket.Close();
             }
 
             base.Close();
         }
 
-        public override bool DataAvailable
-        {
-            get
-            {
+        public override bool DataAvailable {
+            get {
                 return _socket.Available > 0;
             }
         }
@@ -53,27 +46,22 @@ namespace InTheHand.Net.Sockets
 
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
 
-        public override void Flush()
-        {
+        public override void Flush() {
         }
 
-        public override int Read(byte[] buffer, int offset, int count)
-        {
+        public override int Read(byte[] buffer, int offset, int count) {
             return _socket.Receive(buffer, offset, count, SocketFlags.None);
         }
 
-        public override long Seek(long offset, SeekOrigin origin)
-        {
+        public override long Seek(long offset, SeekOrigin origin) {
             throw new NotSupportedException();
         }
 
-        public override void SetLength(long value)
-        {
+        public override void SetLength(long value) {
             throw new NotSupportedException();
         }
 
-        public override void Write(byte[] buffer, int offset, int count)
-        {
+        public override void Write(byte[] buffer, int offset, int count) {
             _socket.Send(buffer, offset, count, SocketFlags.None);
         }
     }

@@ -7,8 +7,7 @@
 
 using System;
 
-namespace InTheHand.Net.Bluetooth
-{
+namespace InTheHand.Net.Bluetooth {
     /// <summary>
     /// Standard Bluetooth Protocol identifiers.
     /// </summary>
@@ -19,8 +18,7 @@ namespace InTheHand.Net.Bluetooth
     /// <para>The Bluetooth Base UUID is {00000000-0000-1000-8000-00805F9B34FB}
     /// </para>
     /// </remarks>
-    public static class BluetoothProtocol
-    {
+    public static class BluetoothProtocol {
 #pragma warning disable 1591
         /// <summary>
         /// [0x0001]

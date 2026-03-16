@@ -10,16 +10,14 @@ using InTheHand.Net.Bluetooth.Sdp;
 using System;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Sockets
-{
-    public interface IBluetoothListener
-    {
+namespace InTheHand.Net.Sockets {
+    public interface IBluetoothListener {
         void Start();
 
         void Stop();
 
         bool Pending();
-        
+
         bool Active { get; }
 
         Guid ServiceUuid { get; set; }

@@ -8,8 +8,7 @@
 using System;
 using System.Diagnostics;
 
-namespace InTheHand.Net.Bluetooth
-{
+namespace InTheHand.Net.Bluetooth {
     /// <summary>
     /// Describes the device and service capabilities of a device.
     /// </summary>
@@ -24,8 +23,7 @@ namespace InTheHand.Net.Bluetooth
 #if !UAP
     [Serializable]
 #endif
-    public sealed class ClassOfDevice : IEquatable<ClassOfDevice>
-    {
+    public sealed class ClassOfDevice : IEquatable<ClassOfDevice> {
         private readonly uint _cod;
 
         /// <summary>
@@ -41,21 +39,18 @@ namespace InTheHand.Net.Bluetooth
         /// <param name="cod">A <see cref="T:System.UInt32"/> containing the
         /// raw Class of Device value.
         /// </param>
-        internal ClassOfDevice(uint cod)
-        {
+        internal ClassOfDevice(uint cod) {
             _cod = cod;
         }
-        
-        public static implicit operator uint(ClassOfDevice cod)
-        {
+
+        public static implicit operator uint(ClassOfDevice cod) {
             if (cod == null)
                 return 0;
 
             return cod._cod;
         }
 
-        public static explicit operator ClassOfDevice(uint cod)
-        {
+        public static explicit operator ClassOfDevice(uint cod) {
             return new ClassOfDevice(cod);
         }
 
@@ -69,8 +64,7 @@ namespace InTheHand.Net.Bluetooth
         /// <param name="service">A <see cref="T:InTheHand.Net.Bluetooth.ServiceClass"/>
         /// value.
         /// </param>
-        public ClassOfDevice(DeviceClass device, ServiceClass service)
-        {
+        public ClassOfDevice(DeviceClass device, ServiceClass service) {
             var scU = ((uint)service) << 13;
             _cod = (uint)device | scU;
         }
@@ -78,10 +72,8 @@ namespace InTheHand.Net.Bluetooth
         /// <summary>
         /// Returns the device type.
         /// </summary>
-        public DeviceClass Device
-        {
-            get
-            {
+        public DeviceClass Device {
+            get {
                 return (DeviceClass)(_cod & 0x001ffc);
             }
         }
@@ -89,10 +81,8 @@ namespace InTheHand.Net.Bluetooth
         /// <summary>
         /// Returns the major device type.
         /// </summary>
-        public DeviceClass MajorDevice
-        {
-            get
-            {
+        public DeviceClass MajorDevice {
+            get {
                 return (DeviceClass)(_cod & 0x001f00);
             }
         }
@@ -100,10 +90,8 @@ namespace InTheHand.Net.Bluetooth
         /// <summary>
         /// Returns supported service types.
         /// </summary>
-        public ServiceClass Service
-        {
-            get
-            {
+        public ServiceClass Service {
+            get {
                 return (ServiceClass)(_cod >> 13);
             }
         }
@@ -111,8 +99,7 @@ namespace InTheHand.Net.Bluetooth
         /// <summary>
         /// Gets the numerical value.
         /// </summary>
-        public uint Value
-        {
+        public uint Value {
             get { return _cod; }
         }
 
@@ -120,11 +107,10 @@ namespace InTheHand.Net.Bluetooth
         /// Gets the numerical value, suitable for CLS Compliance.
         /// </summary>
         /// <seealso cref="P:InTheHand.Net.Bluetooth.ClassOfDevice.Value"/>
-        [Obsolete("Use the UInt32 value",true)]
+        [Obsolete("Use the UInt32 value", true)]
         [DebuggerHidden]
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public int ValueAsInt32
-        {
+        public int ValueAsInt32 {
             get { return unchecked((int)_cod); }
         }
 
@@ -144,8 +130,7 @@ namespace InTheHand.Net.Bluetooth
         /// Returns the hash code for this instance.
         /// </summary>
         /// <returns>A hash code for the current object.</returns>
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return _cod.GetHashCode();
         }
 
@@ -157,8 +142,7 @@ namespace InTheHand.Net.Bluetooth
         /// the numerical value represented in a hexadecimal
         /// e.g. "720104", "5A020C".
         /// </returns>
-        public override string ToString()
-        {
+        public override string ToString() {
             return _cod.ToString("X");
         }
 
@@ -172,8 +156,7 @@ namespace InTheHand.Net.Bluetooth
         /// <returns>true if <paramref name="obj"/> is an instance of <see cref="T:InTheHand.Net.Bluetooth.ClassOfDevice"/>
         /// and equals the value of this instance; otherwise, false.
         /// </returns>
-        public override bool Equals(object obj)
-        {
+        public override bool Equals(object obj) {
             return Equals(obj as ClassOfDevice);
         }
 
@@ -187,8 +170,7 @@ namespace InTheHand.Net.Bluetooth
         /// <returns>true if <paramref name="other"/>
         /// has the same value as this instance; otherwise, false.
         /// </returns>
-        public bool Equals(ClassOfDevice other)
-        {
+        public bool Equals(ClassOfDevice other) {
             if (other == null)
                 return false;
             return _cod == other._cod;

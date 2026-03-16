@@ -8,14 +8,12 @@
 
 using System;
 
-namespace InTheHand.Net.Bluetooth.AttributeIds
-{
+namespace InTheHand.Net.Bluetooth.AttributeIds {
     /// <summary>
     /// Service Attribute IDs defined by the OBEX related specifications,
     /// i.e. Object Push and Synchronization Profiles specifications.
     /// </summary>
-    public static class ObexAttributeId
-    {
+    public static class ObexAttributeId {
         /// <summary>
         /// GOEP L2Cap PSM
         /// </summary>
@@ -180,8 +178,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
 #if ! V1
  static
 #endif
- class BasicPrintingProfileAttributeId
-    {
+ class BasicPrintingProfileAttributeId {
 #if V1
         private BasicPrintingProfileAttributeId() { }
 #endif
@@ -308,8 +305,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
 #if ! V1
  static
 #endif
- class PersonalAreaNetworkingProfileAttributeId
-    {
+ class PersonalAreaNetworkingProfileAttributeId {
 #if V1
         private PersonalAreaNetworkingProfileAttributeId() { }
 #endif
@@ -348,8 +344,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// <summary>
     /// Service Attribute IDs defined by the Headset Profile specification.
     /// </summary>
-    public static class HeadsetProfileAttributeId
-    {
+    public static class HeadsetProfileAttributeId {
         /// <summary>
         /// Remote audio volume control
         /// </summary>
@@ -361,8 +356,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// <summary>
     /// Service Attribute IDs defined by the Hand-Free Profile specification.
     /// </summary>HandFreeProfile
-    public static class HandsFreeProfileAttributeId
-    {
+    public static class HandsFreeProfileAttributeId {
         //moved from above
         //[AttributeIdsOfServiceClass(HandsFreeProfileAttributeId.Handsfree)]
         //[AttributeIdsOfServiceClass(HandsFreeProfileAttributeId.GenericAudio)]
@@ -376,7 +370,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// <para>&#x201C;The "Network" attribute states, if the AG has the capability 
         /// to reject incoming calls[4]. This attribute is not encoded as a data element 
         /// sequence; it is simply an 8-bit unsigned integer. The information given 
-        /// in the “Network” attribute shall be the same as the information given 
+        /// in the ï¿½Networkï¿½ attribute shall be the same as the information given 
         /// in Bit 5 of the unsolicited result code +BRSF (see Section 4.24.3). An 
         /// attribute value of 0x00 is translated to a bit value of 0; an attribute 
         /// value of 0x01 is translated to a bit value of 1.&#x201D;
@@ -404,7 +398,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// 3       Voice recognition activation (yes/no, 1= yes, 0 = no)       0
         /// 4       Remote volume control (yes/no, 1 = yes, 0 = no)             0
         /// </code>
-        /// <para>Table 5.2 “SupportedFeatures” attribute bit mapping for the HF</para>
+        /// <para>Table 5.2 ï¿½SupportedFeaturesï¿½ attribute bit mapping for the HF</para>
         /// <code lang="none">
         /// Bit     Feature                                             Default in AG
         /// (0=LSB)
@@ -414,7 +408,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
         /// 3       In-band ring tone capability (yes/no, 1 = yes, 0 = no)  1
         /// 4       Attach a phone number to a voice tag (yes/no, 1 = yes, 0 = no)  0
         /// </code>
-        /// Table 5.4 “SupportedFeatures” attribute bit mapping for the AG&#x201D;
+        /// Table 5.4 ï¿½SupportedFeaturesï¿½ attribute bit mapping for the AG&#x201D;
         /// </para>
         /// [<c>UInt16</c>]</remarks>
         public const ServiceAttributeId SupportedFeatures = (ServiceAttributeId)0x0311;
@@ -427,8 +421,7 @@ namespace InTheHand.Net.Bluetooth.AttributeIds
     /// <summary>
     /// Service Attribute IDs defined by the Health Device Profile specification.
     /// </summary>
-public static class HealthDeviceAttributeId
-    {
+    public static class HealthDeviceAttributeId {
         /// <summary>
         /// SupportFeaturesList
         /// </summary>

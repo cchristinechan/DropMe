@@ -9,10 +9,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Bluetooth
-{
-    public interface IBluetoothDeviceInfo
-    {
+namespace InTheHand.Net.Bluetooth {
+    public interface IBluetoothDeviceInfo {
         void Refresh();
 
         BluetoothAddress DeviceAddress { get; }
@@ -22,7 +20,7 @@ namespace InTheHand.Net.Bluetooth
         ClassOfDevice ClassOfDevice { get; }
 
         Task<IEnumerable<Guid>> GetRfcommServicesAsync(bool cached);
-        
+
         bool Connected { get; }
 
         bool Authenticated { get; }

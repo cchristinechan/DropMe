@@ -7,12 +7,9 @@
 
 using System;
 
-namespace InTheHand.Net
-{
-    internal static class Exceptions
-    {
-        public static NotImplementedException GetNotImplementedException()
-        {
+namespace InTheHand.Net {
+    internal static class Exceptions {
+        public static NotImplementedException GetNotImplementedException() {
             return new NotImplementedException("This functionality is not implemented in the portable version of this assembly. You should reference the NuGet package from your main application project in order to reference the platform-specific implementation.");
         }
     }

@@ -8,8 +8,7 @@
 using InTheHand.Net.Bluetooth.AttributeIds;
 using System;
 
-namespace InTheHand.Net.Bluetooth.Sdp
-{
+namespace InTheHand.Net.Bluetooth.Sdp {
 
     /// <summary>
     /// Holds an attribute from an SDP service record.
@@ -24,8 +23,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
 #if CODE_ANALYSIS
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
 #endif
-    public sealed class ServiceAttribute
-    {
+    public sealed class ServiceAttribute {
         //--------------------------------------------------------------
         readonly ServiceAttributeId m_id;
         readonly ServiceElement m_element;
@@ -38,8 +36,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// -
         /// <param name="id">The Attribute Id as a <see cref="T:InTheHand.Net.Bluetooth.ServiceAttributeId"/>.</param>
         /// <param name="value">The value as a <see cref="T:InTheHand.Net.Bluetooth.ServiceElement"/>.</param>
-        public ServiceAttribute(ServiceAttributeId id, ServiceElement value)
-        {
+        public ServiceAttribute(ServiceAttributeId id, ServiceElement value) {
             m_id = id;
             m_element = value;
         }
@@ -51,8 +48,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <param name="id">The Attribute Id as a <see cref="T:System.UInt16"/>.</param>
         /// <param name="value">The value as a <see cref="T:InTheHand.Net.Bluetooth.ServiceElement"/>.</param>
         public ServiceAttribute(ushort id, ServiceElement value)
-            : this(unchecked((ServiceAttributeId)(Int16)id), value)
-        { }
+            : this(unchecked((ServiceAttributeId)(Int16)id), value) { }
 
         //--------------------------------------------------------------
 
@@ -67,8 +63,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// before 0x0001 which is backwards.
         /// </note>
         /// </remarks>
-        public ServiceAttributeId Id
-        {
+        public ServiceAttributeId Id {
             [System.Diagnostics.DebuggerStepThrough]
             get { return m_id; }
         }
@@ -85,10 +80,8 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// when it should sort as { 0x0001, 0x0302, 0x8001,0xFFFF }
         /// </para>
         /// </remarks>
-        internal Int64 IdAsOrdinalNumber
-        {
-            get
-            {
+        internal Int64 IdAsOrdinalNumber {
+            get {
                 var u32 = unchecked((UInt32)m_id);
                 return u32;
             }
@@ -97,8 +90,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
         /// <summary>
         /// Get the value of this attributes as a <see cref="T:InTheHand.Net.Bluetooth.ServiceElement"/>
         /// </summary>
-        public ServiceElement Value
-        {
+        public ServiceElement Value {
             [System.Diagnostics.DebuggerStepThrough]
             get { return m_element; }
         }

@@ -7,8 +7,7 @@
 
 using System.Net.Sockets;
 
-namespace InTheHand.Net.Sockets
-{
+namespace InTheHand.Net.Sockets {
     /// <summary>
     /// Specifies additional protocols that the <see cref="Socket"/> class supports.
     /// </summary>
@@ -16,8 +15,7 @@ namespace InTheHand.Net.Sockets
     /// <para>These constants are defined by the Bluetooth SIG - <see href="https://www.bluetooth.com/specifications/assigned-numbers/service-discovery/"/>
     /// </para>
     /// </remarks>
-    public static class BluetoothProtocolType
-    {
+    public static class BluetoothProtocolType {
         /// <summary>
         /// Service Discovery Protocol (bt-sdp)
         /// </summary>

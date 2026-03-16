@@ -12,35 +12,28 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Bluetooth
-{
+namespace InTheHand.Net.Bluetooth {
     [BroadcastReceiver(Enabled = true, Exported = false)]
-    internal class BluetoothUuidReceiver : BroadcastReceiver
-    {
+    internal class BluetoothUuidReceiver : BroadcastReceiver {
         private TaskCompletionSource<IEnumerable<Guid>> _tcs;
 
         // contractual obligation - do not use
         public BluetoothUuidReceiver() { }
 
-        public BluetoothUuidReceiver(TaskCompletionSource<IEnumerable<Guid>> taskCompletion)
-        {
+        public BluetoothUuidReceiver(TaskCompletionSource<IEnumerable<Guid>> taskCompletion) {
             _tcs = taskCompletion;
         }
 
-        public override void OnReceive(Context context, Intent intent)
-        {
-            if (intent.Action == BluetoothDevice.ActionUuid)
-            {
+        public override void OnReceive(Context context, Intent intent) {
+            if (intent.Action == BluetoothDevice.ActionUuid) {
                 // process uuids;
-                if (intent.Extras.ContainsKey(BluetoothDevice.ExtraUuid))
-                {
+                if (intent.Extras.ContainsKey(BluetoothDevice.ExtraUuid)) {
                     var list = intent.GetParcelableArrayExtra(BluetoothDevice.ExtraUuid);
                     if (list == null)
                         return;
 
                     List<Guid> uuids = new List<Guid>();
-                    foreach (var item in list)
-                    {
+                    foreach (var item in list) {
                         var uuid = item as ParcelUuid;
                         try {
                             var g = Guid.Parse(uuid.ToString());
@@ -51,9 +44,6 @@ namespace InTheHand.Net.Bluetooth
                         catch (Exception ex) {
                             Console.WriteLine("Exception in on receive:  " + ex.Message);
                         }
-                        
-                        
-
                     }
 
                     _tcs.TrySetResult(uuids.AsReadOnly());

@@ -7,8 +7,7 @@
 
 using System;
 
-namespace InTheHand.Net.Bluetooth.Sdp
-{
+namespace InTheHand.Net.Bluetooth.Sdp {
     /// <summary>
     /// Configures what type of element will be added by the <see cref="T:InTheHand.Net.Bluetooth.ServiceRecordBuilder"/>
     /// for the <see cref="F:InTheHand.Net.Bluetooth.AttributeIds.UniversalAttributeId.ProtocolDescriptorList"/> 
@@ -19,8 +18,7 @@ namespace InTheHand.Net.Bluetooth.Sdp
     /// property.
     /// </para>
     /// </remarks>
-    public enum BluetoothProtocolDescriptorType
-    {
+    public enum BluetoothProtocolDescriptorType {
         /// <summary>
         /// No PDL attribute will be added.
         /// </summary>

@@ -11,18 +11,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Sockets
-{
+namespace InTheHand.Net.Sockets {
     /// <summary>
     /// Provides information about an available device obtained by the client during device discovery.
     /// </summary>
     [DebuggerDisplay("({DeviceAddress.ToString(\"C\")}) {DeviceName}")]
-    public sealed partial class BluetoothDeviceInfo : IEquatable<BluetoothDeviceInfo>, IBluetoothDeviceInfo
-    {
+    public sealed partial class BluetoothDeviceInfo : IEquatable<BluetoothDeviceInfo> {
         private readonly IBluetoothDeviceInfo _bluetoothDeviceInfo;
-
-        internal BluetoothDeviceInfo(IBluetoothDeviceInfo bluetoothDeviceInfo)
-        {
+        public IBluetoothDeviceInfo PlatformObject => _bluetoothDeviceInfo;
+        internal BluetoothDeviceInfo(IBluetoothDeviceInfo bluetoothDeviceInfo) {
             _bluetoothDeviceInfo = bluetoothDeviceInfo;
         }
 
@@ -32,8 +29,7 @@ namespace InTheHand.Net.Sockets
         /// <param name="address">Bluetooth address of remote device.</param>
         /// <exception cref="PlatformNotSupportedException">Current platform doesn't support initialization from an address.</exception>
         /// <remarks>Supported on Android, Linux, Win32 and Windows</remarks>
-        public BluetoothDeviceInfo(BluetoothAddress address)
-        {
+        public BluetoothDeviceInfo(BluetoothAddress address) {
 #if ANDROID || MONOANDROID
             _bluetoothDeviceInfo = new AndroidBluetoothDeviceInfo(address);
 #elif IOS || __IOS__
@@ -64,7 +60,7 @@ namespace InTheHand.Net.Sockets
         /// <summary>
         /// Forces the system to refresh the device information.
         /// </summary>
-        public void Refresh() =>  _bluetoothDeviceInfo.Refresh();
+        public void Refresh() => _bluetoothDeviceInfo.Refresh();
 
         /// <summary>
         /// Gets the device identifier.
@@ -88,7 +84,7 @@ namespace InTheHand.Net.Sockets
         /// <param name="cached">If true and supported on the runtime platform return locally cached devices without doing an SDP request.</param>
         /// <returns>All available Rfcomm service UUIDs on the remote device.</returns>
         public Task<IEnumerable<Guid>> GetRfcommServicesAsync(bool cached = true) => _bluetoothDeviceInfo.GetRfcommServicesAsync(cached);
-        
+
         /// <summary>
         /// Specifies whether the device is connected.
         /// </summary>
@@ -100,15 +96,14 @@ namespace InTheHand.Net.Sockets
         /// </summary>
         public bool Authenticated { get => _bluetoothDeviceInfo.Authenticated; }
 
-        
+
 
         /// <summary>
         /// Compares two BluetoothDeviceInfo instances for equality.
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public bool Equals(BluetoothDeviceInfo other)
-        {
+        public bool Equals(BluetoothDeviceInfo other) {
             if (other is null)
                 return false;
 
@@ -120,10 +115,8 @@ namespace InTheHand.Net.Sockets
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public override bool Equals(object obj)
-        {
-            if(obj is BluetoothDeviceInfo info)
-            {
+        public override bool Equals(object obj) {
+            if (obj is BluetoothDeviceInfo info) {
                 return Equals(info);
             }
 
@@ -134,8 +127,7 @@ namespace InTheHand.Net.Sockets
         /// 
         /// </summary>
         /// <returns></returns>
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return DeviceAddress.GetHashCode();
         }
     }

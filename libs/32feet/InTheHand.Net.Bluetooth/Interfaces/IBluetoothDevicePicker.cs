@@ -9,10 +9,8 @@ using InTheHand.Net.Sockets;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace InTheHand.Net.Bluetooth
-{
-    internal interface IBluetoothDevicePicker
-    {
+namespace InTheHand.Net.Bluetooth {
+    internal interface IBluetoothDevicePicker {
         Task<BluetoothDeviceInfo> PickSingleDeviceAsync(List<ClassOfDevice> classOfDevices, bool requireAuthentication);
     }
 }
