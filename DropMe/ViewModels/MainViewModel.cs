@@ -15,6 +15,7 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using DropMe.Services;
 using DropMe.Services.Session;
+using InTheHand.Net.Sockets;
 
 namespace DropMe.ViewModels;
 
@@ -41,6 +42,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private int _qrHandled = 0;
     private readonly IDeviceService _device;
     private readonly IStorageService _storageService;
+    private readonly IPermissionsService _permissionsService;
     private string? _lastGeneratedInviteText;
     private string? _localInviteSessionId;
     private readonly List<string> _availableCameras = new();
@@ -114,8 +116,6 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     public Func<Task<(string, Stream)?>>? PickFileStreamUi;
     public Func<Task>? PickDownloadFolderUi;
 
-    public sealed record FileOfferInfo(Guid FileId, string Name, long Size);
-
     private TaskCompletionSource<bool>? _pendingFileOfferTcs;
 
     private bool _hasPendingFileOffer;
@@ -171,6 +171,8 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         get => _status;
         private set { _status = value; OnPropertyChanged(); }
     }
+
+    private IBluetoothListener _bluetoothListener;
     public int SelectedCameraIndex {
         get => _selectedCameraIndex;
         set {
@@ -187,12 +189,16 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         QrDecoder decoder,
         IQrCodeService qr,
         IDeviceService device,
-        IStorageService storageService) {
+        IStorageService storageService,
+        IBluetoothListener bluetoothListener,
+        IPermissionsService permissionsService) {
         _camera = camera;
         _decoder = decoder;
         _qr = qr;
         _device = device;
         _storageService = storageService;
+        _bluetoothListener = bluetoothListener;
+        _permissionsService = permissionsService;
 
         _camera.FrameArrived += OnFrameArrived;
         Status = "Ready";
@@ -300,10 +306,29 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
                 _session = null;
             }
+            /*
+                    _session = new TcpServerSession(_storageService, new IPEndPoint(IPAddress.Any, port));
 
-            _session = new TcpServerSession(_storageService, new IPEndPoint(IPAddress.Any, port));
+                    if (_session is TcpServerSession h) {
+                        h.FileSaved += path =>
+                            Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
-            if (_session is TcpServerSession h) {
+                        h.FileAcked += (_, sha) =>
+                            Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered : SHA256={sha}");
+
+                        h.FileOfferDecision = async offer => {
+                            var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
+                            return FileOfferDecisionUi is null || await FileOfferDecisionUi(info);
+                        };
+                    }
+                    */
+            if (!_permissionsService.HasBluetoothPermissions) {
+                await _permissionsService.RequestBluetoothPermission();
+            }
+            await _permissionsService.RequestBluetoothDiscoverablePermission(300);
+            // HANDLE DENIAL
+            _session = new BluetoothServerSession(_bluetoothListener);
+            if (_session is BluetoothServerSession h) {
                 h.FileSaved += path =>
                     Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
@@ -316,6 +341,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                 };
             }
 
+            Console.WriteLine("About to start connecting");
             await _session.Connect(_sessionCts.Token);
             await _session.StartAsync(_sessionCts.Token);
 
@@ -335,6 +361,12 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
 
     public async Task StartScanAsync() {
+        if (!_permissionsService.HasCameraPermissions) {
+            await _permissionsService.RequestCameraPermission();
+        }
+        // HANDLE DENIAL
+        _renderTimer?.Start();
+
         if (_scanCts is not null) return;
 
         _scanCts = new CancellationTokenSource();
@@ -724,6 +756,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             var ep = new IPEndPoint(
                 IPAddress.Parse(invite.Ip),
                 invite.Port);
+            /*
             _session = new TcpClientSession(_storageService, ep);
 
             if (_session is TcpClientSession h) {
@@ -738,7 +771,22 @@ public sealed class MainViewModel : INotifyPropertyChanged {
                     return FileOfferDecisionUi is null ? true : await FileOfferDecisionUi(info);
                 };
             }
+            */
 
+            _session = new BluetoothClientSession();
+            if (_session is BluetoothClientSession h) {
+                h.FileSaved += path =>
+                    Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
+
+                h.FileAcked += (_, sha) =>
+                    Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered ✅ SHA256={sha}");
+
+                h.FileOfferDecision = async offer => {
+                    var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
+                    return FileOfferDecisionUi is null ? true : await FileOfferDecisionUi(info);
+                };
+            }
+            Console.WriteLine("Handling QR code decode, connectingx");
             await _session.Connect(_sessionCts.Token);
             await _session.StartAsync(_sessionCts.Token);
             StartSessionMonitor(_session, _sessionCts.Token);
