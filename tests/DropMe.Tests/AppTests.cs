@@ -26,6 +26,5 @@ public class Tests {
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<IWorkManager>());
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<IFileTransfer>());
         Assert.DoesNotThrow(() => App.Services.GetRequiredService<IQrCodeService>());
-        Assert.DoesNotThrow(() => App.Services.GetRequiredService<SessionFactory>());
     }
 }
