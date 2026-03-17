@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace DropMe.Services.Session;
 
 public static class SessionFraming {
-    private static readonly byte[] Magic = { (byte)'D', (byte)'M', (byte)'S', (byte)'1' };
+    private static readonly byte[] Magic = "DMS1"u8.ToArray();
     private const byte Version = 1;
     private const int HeaderLen = 4 + 1 + 1 + 2 + 4; // magic + ver + type + flags + len
 
@@ -30,12 +32,13 @@ public static class SessionFraming {
         header[4] = Version;
         header[5] = (byte)type;
         header[6] = 0; header[7] = 0; // flags reserved
-        BinaryPrimitives.WriteUInt32LittleEndian(header.Slice(8, 4), (uint)msg.Payload.Length);
+
+        var serialised = JsonSerializer.SerializeToUtf8Bytes(msg);
+        
+        BinaryPrimitives.WriteUInt32LittleEndian(header.Slice(8, 4), (uint)serialised.Length);
 
         await stream.WriteAsync(header.ToArray(), ct).ConfigureAwait(false);
-        if (!msg.Payload.IsEmpty)
-            await stream.WriteAsync(msg.Payload, ct).ConfigureAwait(false);
-
+        await stream.WriteAsync(serialised, ct).ConfigureAwait(false);
         await stream.FlushAsync(ct).ConfigureAwait(false);
     }
 
@@ -54,19 +57,19 @@ public static class SessionFraming {
         var payload = new byte[len];
         if (len > 0)
             await stream.ReadExactlyAsync(payload, 0, (int)len, ct).ConfigureAwait(false);
-
+        var span = new ReadOnlySpan<byte>(payload);
         return type switch {
-            SessionMessageType.Ping => new PingMsg(),
-            SessionMessageType.Pong => new PongMsg(),
-            SessionMessageType.FileOffer => new FileOfferMsg(payload),
-            SessionMessageType.FileAccept => new FileAcceptMsg(payload),
-            SessionMessageType.FileReject => new FileRejectMsg(payload),
-            SessionMessageType.FileChunk => new FileChunkMsg(payload),
-            SessionMessageType.FileDone => new FileDoneMsg(payload),
-            SessionMessageType.FileAck => new FileAcceptMsg(payload),
-            SessionMessageType.SwitchConnectionRequest => new SwitchConnectionRequest(),
-            SessionMessageType.SwitchConnectionAccept => new SwitchConnectionAccept(),
-            SessionMessageType.SwitchConnectionReject => new SwitchConnectionReject(),
+            SessionMessageType.Ping => JsonSerializer.Deserialize<PingMsg>(span),
+            SessionMessageType.Pong => JsonSerializer.Deserialize<PongMsg>(span),
+            SessionMessageType.FileOffer => JsonSerializer.Deserialize<FileOfferMsg>(span),
+            SessionMessageType.FileAccept => JsonSerializer.Deserialize<FileAcceptMsg>(span),
+            SessionMessageType.FileReject => JsonSerializer.Deserialize<FileRejectMsg>(span),
+            SessionMessageType.FileChunk => JsonSerializer.Deserialize<FileChunkMsg>(span),
+            SessionMessageType.FileDone => JsonSerializer.Deserialize<FileDoneMsg>(span),
+            SessionMessageType.FileAck => JsonSerializer.Deserialize<FileAcceptMsg>(span),
+            SessionMessageType.SwitchConnectionRequest => JsonSerializer.Deserialize<SwitchConnectionRequest>(span),
+            SessionMessageType.SwitchConnectionAccept => JsonSerializer.Deserialize<SwitchConnectionAccept>(span),
+            SessionMessageType.SwitchConnectionReject => JsonSerializer.Deserialize<SwitchConnectionReject>(span),
             _ => throw new ArgumentOutOfRangeException("Somehow created an invalid message type?")
         };
     }
