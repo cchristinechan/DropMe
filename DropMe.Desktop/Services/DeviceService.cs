@@ -1,7 +1,10 @@
+using System;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using DropMe.Services;
+using InTheHand.Net;
+using InTheHand.Net.Bluetooth;
 
 namespace DropMe.Desktop.Services;
 
@@ -31,5 +34,17 @@ public sealed class DeviceService : IDeviceService {
 
         // Fallback (still better than crashing)
         return "127.0.0.1";
+    }
+
+    public (BluetoothAddress? address, string name)? GetLocalBluetoothInfo() {
+        // Supported bluetooth platforms
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()) {
+            var radio = BluetoothRadio.Default;
+            // Bluetooth unavailable
+            if (radio == null) return null;
+            return (radio.LocalAddress, radio.Name);   
+        }
+
+        return null;
     }
 }

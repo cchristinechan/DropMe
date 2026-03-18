@@ -3,6 +3,8 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using DropMe.Services;
+using InTheHand.Net;
+using InTheHand.Net.Bluetooth;
 
 namespace DropMe.Android.Services;
 
@@ -27,5 +29,13 @@ public class DeviceService : IDeviceService {
         }
 
         return "0.0.0.0";
+    }
+
+    public (BluetoothAddress? address, string name)? GetLocalBluetoothInfo() {
+        var radio = BluetoothRadio.Default;
+        // Bluetooth unavailable
+        if (radio == null) return null;
+        var name = radio.Name;
+        return (null, name);
     }
 }
