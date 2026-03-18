@@ -2,7 +2,9 @@
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Text.Json;
+using System.Text.Unicode;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,7 +36,8 @@ public static class MessageFraming {
         header[5] = (byte)type;
         header[6] = 0; header[7] = 0; // flags reserved
 
-        var serialised = JsonSerializer.SerializeToUtf8Bytes(msg);
+        // Need get type or it for some reason won't resolve the actual type of msg and always serialise it as {}
+        var serialised = JsonSerializer.SerializeToUtf8Bytes(msg, msg.GetType());
 
         BinaryPrimitives.WriteUInt32LittleEndian(header.Slice(8, 4), (uint)serialised.Length);
 
