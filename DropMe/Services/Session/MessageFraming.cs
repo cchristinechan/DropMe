@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DropMe.Services.Session;
 
-public static class SessionFraming {
+public static class MessageFraming {
     private static readonly byte[] Magic = "DMS1"u8.ToArray();
     private const byte Version = 1;
     private const int HeaderLen = 4 + 1 + 1 + 2 + 4; // magic + ver + type + flags + len
@@ -25,6 +25,7 @@ public static class SessionFraming {
             SwitchConnectionReject => SessionMessageType.SwitchConnectionReject,
             FileChunkMsg => SessionMessageType.FileChunk,
             FileDoneMsg => SessionMessageType.FileDone,
+            DisconnectMsg => SessionMessageType.Disconnect,
             _ => throw new ArgumentOutOfRangeException("Somehow created an invalid message type?")
         };
         Span<byte> header = stackalloc byte[HeaderLen];
@@ -34,7 +35,7 @@ public static class SessionFraming {
         header[6] = 0; header[7] = 0; // flags reserved
 
         var serialised = JsonSerializer.SerializeToUtf8Bytes(msg);
-        
+
         BinaryPrimitives.WriteUInt32LittleEndian(header.Slice(8, 4), (uint)serialised.Length);
 
         await stream.WriteAsync(header.ToArray(), ct).ConfigureAwait(false);
@@ -70,6 +71,7 @@ public static class SessionFraming {
             SessionMessageType.SwitchConnectionRequest => JsonSerializer.Deserialize<SwitchConnectionRequest>(span),
             SessionMessageType.SwitchConnectionAccept => JsonSerializer.Deserialize<SwitchConnectionAccept>(span),
             SessionMessageType.SwitchConnectionReject => JsonSerializer.Deserialize<SwitchConnectionReject>(span),
+            SessionMessageType.Disconnect => JsonSerializer.Deserialize<DisconnectMsg>(span),
             _ => throw new ArgumentOutOfRangeException("Somehow created an invalid message type?")
         };
     }
