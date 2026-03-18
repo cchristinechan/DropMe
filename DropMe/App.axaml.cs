@@ -36,13 +36,18 @@ public partial class App : Application {
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
-
-            desktop.MainWindow = new MainWindow {
+            var window =  new MainWindow {
                 DataContext = viewmodel,
                 Content = new MainView() {
                     DataContext = viewmodel
                 }
             };
+            window.Closed += (sender, args) => {
+                if (window.DataContext is IDisposable vm) {
+                    vm.Dispose();
+                }
+            };
+            desktop.MainWindow = window;
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
             view.DataContext = viewmodel;
