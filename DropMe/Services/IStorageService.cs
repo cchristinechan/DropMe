@@ -18,7 +18,7 @@ public interface IStorageService {
     /// </summary>
     /// <param name="fileName">The name of the file within the downloads folder to be opened.</param>
     /// <returns>The stream and associated path of the file opened.</returns>
-    public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName);
+    public (Stream, string)? OpenDownloadFileWriteStream(string fileName);
     /// <summary>
     /// Gets a user friendly label of the downloads folder. This may or may not be a valid path so should not be used
     /// to open files.

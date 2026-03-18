@@ -32,7 +32,7 @@ public class AndroidStorageService : IStorageService {
         }
     }
 
-    public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName) {
+    public (Stream, string)? OpenDownloadFileWriteStream(string fileName) {
         var context = AndroidApplication.Context;
         // Use internal files by default, maybe later change this to external
         var folder = _downloadsFolder is not null ? DocumentFile.FromTreeUri(context, _downloadsFolder) : DocumentFile.FromFile(context.FilesDir);
