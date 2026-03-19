@@ -337,7 +337,7 @@ public class SessionManager(IStorageService storageService) : IDisposable {
                     lock (_fileTransferStates) {
                         var output =
                             storageService.OpenDownloadFileWriteStream(
-                                $"recv_{DateTime.Now:yyyyMMdd_HHmmss}_{AesGcmFileTransfer.SanitizeName(fileOffer.Name)}");
+                                $"recv_{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeName(fileOffer.Name)}");
                         if (output is var (stream, outputPath)) {
                             var ableToAdd = _fileTransferStates.TryAdd(fileOffer.FileId,
                                 new ReceiveInProgress(stream, outputPath, fileOffer.Size, 0,
@@ -503,6 +503,10 @@ public class SessionManager(IStorageService storageService) : IDisposable {
             FileSaved?.Invoke(completedState.SavePath);
             await SendMessage(new FileAckMsg(fileId, sha256), _sessionCtSource.Token).ConfigureAwait(false);
         }
+    }
+
+    private static string SanitizeName(string name) {
+        return Path.GetInvalidFileNameChars().Aggregate(name, (current, c) => current.Replace(c, '_'));
     }
 
     public void Dispose() {
