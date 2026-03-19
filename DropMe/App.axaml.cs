@@ -36,7 +36,7 @@ public partial class App : Application {
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
-            var window =  new MainWindow {
+            var window = new MainWindow {
                 DataContext = viewmodel,
                 Content = new MainView() {
                     DataContext = viewmodel
