@@ -1,39 +1,72 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using DropMe.ViewModels;
+using Avalonia.Media;
+using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
+using Avalonia.Media;
+using Avalonia.Styling;
 
 namespace DropMe.Views;
 
-public partial class TransferPage : UserControl {
-    public TransferPage() {
+public partial class TransferPage : UserControl
+{
+    public TransferPage()
+    {
         InitializeComponent();
-        AttachedToVisualTree += async (_, _) => {
-            if (DataContext is MainViewModel vm)
-                await vm.PrepareMainPageAsync(homeMessage: vm.HomeSessionMessage, regenerateQr: true);
+
+        AttachedToVisualTree += async (_, _) =>
+        {
+            if (DataContext is MainViewModel vm2)
+                await vm2.PrepareMainPageAsync(homeMessage: vm2.HomeSessionMessage, regenerateQr: true);
         };
     }
 
-    private void InitializeComponent() {
-        AvaloniaXamlLoader.Load(this);
-    }
-
-    private void GenerateQr_Click(object? sender, RoutedEventArgs e) {
+    private void GenerateQr_Click(object? sender, RoutedEventArgs e)
+    {
         if (DataContext is MainViewModel vm)
             vm.GenerateQr();
     }
 
-    private async void ToggleScan_Click(object? sender, RoutedEventArgs e) {
+    private async void ToggleScan_Click(object? sender, RoutedEventArgs e)
+    {
         if (DataContext is not MainViewModel vm)
             return;
 
-        if (vm.IsScanning) {
+        if (vm.IsScanning)
+        {
             await vm.StopScanAsync();
             vm.GenerateQr();
         }
-        else {
+        else
+        {
             await vm.StartScanAsync();
         }
     }
+
+    private async void ScanMode_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+            return;
+
+        if (!vm.IsScanning)
+            await vm.StartScanAsync();
+        
+    }
+
+    private async void DisplayMode_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+            return;
+
+        if (vm.IsScanning)
+            await vm.StopScanAsync();
+
+        vm.GenerateQr();
+        
+    }
+    
 }

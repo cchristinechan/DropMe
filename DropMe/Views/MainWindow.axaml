@@ -9,7 +9,8 @@
         Height="850"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
-        Title="DropMe">
+        Title="DropMe"
+        Background="#CFE6F5">
         <ContentControl x:Name="MainContent" />
 </Window>
 

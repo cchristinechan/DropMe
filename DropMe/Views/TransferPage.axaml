@@ -4,113 +4,164 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="clr-namespace:DropMe.ViewModels"
-    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    mc:Ignorable="d"
     x:Class="DropMe.Views.TransferPage"
     x:DataType="vm:MainViewModel">
+
   <UserControl.Styles>
+    <!-- Background -->
     <Style Selector="UserControl">
       <Setter Property="Background" Value="#CFE6F5"/>
     </Style>
 
-    <Style Selector="TextBlock.Title">
-      <Setter Property="FontFamily" Value="Georgia"/>
-      <Setter Property="FontSize" Value="78"/>
+    <!-- Mobile-friendly typography -->
+    <Style Selector="TextBlock.PageTitle">
+      <Setter Property="FontSize" Value="54"/>
       <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="Foreground" Value="#0E2A4A"/>
       <Setter Property="HorizontalAlignment" Value="Center"/>
       <Setter Property="TextAlignment" Value="Center"/>
     </Style>
 
-    <Style Selector="TextBlock.Subtitle">
-      <Setter Property="FontFamily" Value="Georgia"/>
-      <Setter Property="FontSize" Value="36"/>
-      <Setter Property="Foreground" Value="Black"/>
+    <Style Selector="TextBlock.PageKicker">
+      <Setter Property="FontSize" Value="20"/>
+      <Setter Property="FontStyle" Value="Italic"/>
+      <Setter Property="Foreground" Value="#0E2A4A"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+      <Setter Property="Opacity" Value="0.85"/>
     </Style>
 
-    <Style Selector="TextBlock.Body">
-      <Setter Property="FontSize" Value="20"/>
-      <Setter Property="Foreground" Value="Black"/>
+    <Style Selector="TextBlock.SectionTitle">
+      <Setter Property="FontSize" Value="22"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#35536D"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
       <Setter Property="TextAlignment" Value="Center"/>
     </Style>
 
-    <Style Selector="Button.Pill">
-      <Setter Property="Background" Value="White"/>
-      <Setter Property="Foreground" Value="Black"/>
+    <Style Selector="TextBlock.BodyText">
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="Foreground" Value="#1B2B3A"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="Opacity" Value="0.9"/>
+    </Style>
+
+    <Style Selector="Border.Divider">
+      <Setter Property="Background" Value="#7D9AB0"/>
+      <Setter Property="Height" Value="2"/>
+      <Setter Property="Opacity" Value="0.45"/>
+      <Setter Property="CornerRadius" Value="2"/>
+    </Style>
+
+    <!-- QR card: responsive (no fixed width/height) -->
+    <Style Selector="Border.QrCard">
+      <Setter Property="Background" Value="#F6FBFF"/>
+      <Setter Property="CornerRadius" Value="22"/>
+      <Setter Property="Padding" Value="14"/>
+      <Setter Property="BoxShadow" Value="0 8 22 #30000000"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="MaxWidth" Value="360"/>
+    </Style>
+
+    <!-- Revolut-style segmented slider -->
+    <Style Selector="Border.SegmentHost">
+      <Setter Property="Background" Value="#F5FBFE"/>
+      <Setter Property="CornerRadius" Value="999"/>
+      <Setter Property="Padding" Value="4"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="ToggleButton.Segment">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="#D0D0D0"/>
       <Setter Property="BorderThickness" Value="0"/>
       <Setter Property="CornerRadius" Value="999"/>
-      <Setter Property="Padding" Value="34,18"/>
-      <Setter Property="FontSize" Value="24"/>
+      <Setter Property="Padding" Value="14,10"/>
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="MinWidth" Value="140"/>
       <Setter Property="HorizontalContentAlignment" Value="Center"/>
       <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
-    <Style Selector="Button.Pill:pointerover > ContentPresenter">
-      <Setter Property="Background" Value="#A0A0A0"/>
+    <Style Selector="ToggleButton.Segment:checked">
+      <Setter Property="Background" Value="#5A5A5A"/>
+      <Setter Property="Foreground" Value="White"/>
     </Style>
 
-    <Style Selector="Button.Pill:pressed > ContentPresenter">
-      <Setter Property="Background" Value="#8F8F8F"/>
+    <Style Selector="ToggleButton.Segment:pointerover">
+      <Setter Property="Background" Value="#2B2B2B"/>
     </Style>
 
-    <Style Selector="Border.Card">
-      <Setter Property="Background" Value="White"/>
-      <Setter Property="CornerRadius" Value="26"/>
-      <Setter Property="Padding" Value="18"/>
-      <Setter Property="Width" Value="360"/>
-      <Setter Property="Height" Value="360"/>
+    <Style Selector="ToggleButton.Segment:checked:pointerover">
+      <Setter Property="Background" Value="#5A5A5A"/>
     </Style>
   </UserControl.Styles>
 
-  <Grid Background="#CFE6F5">
-    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="22" Margin="40">
-      <StackPanel Spacing="4" HorizontalAlignment="Center">
-        <TextBlock Classes="Title" Text="DropMe"/>
-        <TextBlock Classes="Subtitle" Text="Secure file transfer for all"/>
-      </StackPanel>
+  <!-- Scroll so nothing is cut off on small screens -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto"
+                HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Spacing="16" Margin="18,18,18,28">
 
-      <TextBlock Classes="Body"
-                 Width="820"
-                 TextWrapping="Wrap"
-                 Text="Scan a QR code to join a secure transfer session, or share your generated QR with the other device."/>
+      <!-- Header -->
+      <TextBlock Classes="PageTitle" Text="DropMe" Margin="0,10,0,0"/>
+      <!-- <TextBlock Classes="PageKicker" Text="in 2 steps"/> -->
 
-      <StackPanel Orientation="Horizontal" Spacing="24" HorizontalAlignment="Center" Margin="0,10,0,0">
-        <Button Classes="Pill" Content="{Binding ScanButtonText}" Click="ToggleScan_Click"/>
-        <Button Classes="Pill"
-                Content="Generate New QR"
-                IsVisible="{Binding ShowGeneratedQr}"
-                Click="GenerateQr_Click"/>
-      </StackPanel>
+      <Grid Margin="0,6,0,0" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+        <Border Classes="Divider" Grid.Column="0" Margin="0,0,12,0"/>
+        <TextBlock Classes="SectionTitle" Grid.Column="1" Text="How it works"/>
+        <Border Classes="Divider" Grid.Column="2" Margin="12,0,0,0"/>
+      </Grid>
 
-      <TextBlock Text="{Binding HomeSessionMessage}"
-                 FontSize="16"
-                 Foreground="#9A2A2A"
-                 HorizontalAlignment="Center"
-                 TextWrapping="Wrap"
-                 MaxWidth="800"/>
+      <TextBlock Classes="BodyText" Text="Scan or Display QR code to enter a session"/>
+      <TextBlock Classes="BodyText" Text="Share the files"/>
 
-      <Border Classes="Card" HorizontalAlignment="Center" Margin="0,8,0,0">
-        <Grid>
-          <TextBlock Text="{Binding MainCardTitle}"
-                     FontSize="16"
-                     HorizontalAlignment="Center"
-                     VerticalAlignment="Top"
-                     Margin="0,4,0,0"/>
+      <Border Classes="Divider" Margin="0,6,0,0"/>
+      
 
-          <Image Source="{Binding QrImage}"
-                 IsVisible="{Binding ShowGeneratedQr}"
-                 Margin="12,18,12,12"
-                 Stretch="Uniform"
-                 HorizontalAlignment="Center"
-                 VerticalAlignment="Center"/>
+      <!-- Card -->
+      <Border Classes="QrCard">
+        <!-- Use a square container so QR never stretches off-screen -->
+        <Viewbox Stretch="Uniform">
+          <Grid Width="280" Height="280">
+            <Image Source="{Binding QrImage}"
+                   IsVisible="{Binding ShowGeneratedQr}"
+                   Stretch="Uniform"/>
 
-          <Image Source="{Binding Preview}"
-                 IsVisible="{Binding IsScanning}"
-                 Margin="12,18,12,12"
-                 Stretch="Uniform"
-                 HorizontalAlignment="Center"
-                 VerticalAlignment="Center"/>
+            <Image Source="{Binding Preview}"
+                   IsVisible="{Binding IsScanning}"
+                   Stretch="Uniform"/>
+          </Grid>
+        </Viewbox>
+      </Border>
+      
+      <!-- Slider centered -->
+      <Border Classes="SegmentHost" Margin="0,10,0,6">
+        <Grid ColumnDefinitions="Auto,Auto">
+          <ToggleButton Classes="Segment"
+                        Grid.Column="0"
+                        Content="Display"
+                        IsChecked="{Binding ShowGeneratedQr}"
+                        Click="DisplayMode_Click"/>
+
+          <ToggleButton Classes="Segment"
+                        Grid.Column="1"
+                        Content="Scan"
+                        IsChecked="{Binding IsScanning}"
+                        Click="ScanMode_Click"/>
         </Grid>
       </Border>
+
+      <!-- Status message -->
+      <TextBlock Text="{Binding HomeSessionMessage}"
+                 FontSize="14"
+                 Foreground="#9A2A2A"
+                 TextWrapping="Wrap"
+                 HorizontalAlignment="Center"
+                 MaxWidth="360"
+                 Margin="0,6,0,0"/>
     </StackPanel>
-  </Grid>
+  </ScrollViewer>
 </UserControl>
