@@ -14,7 +14,7 @@ core_build:
     - cd DropMe
     - dotnet workload restore
   script:
-    - dotnet build
+    - dotnet build -c Debug
 
 desktop_build:
   stage: build
@@ -24,7 +24,7 @@ desktop_build:
     - cd DropMe.Desktop
     - dotnet workload restore
   script:
-    - dotnet build
+    - dotnet build -c Debug
 
 android_build:
   stage: build
@@ -34,7 +34,7 @@ android_build:
     - cd DropMe.Android
     - dotnet workload restore
   script:
-    - dotnet build
+    - dotnet build -c Debug
 
 core_test:
   stage: test
@@ -95,6 +95,7 @@ pkgbuild_install:
     - pacman -Syu git --noconfirm
     - useradd -m -s /bin/bash build
     - passwd -l build
+    - cd linux/arch
     - runuser -u build -- sed -i "s|git+https://gitlab.scss.tcd.ie|git+https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.scss.tcd.ie|g" PKGBUILD
     - "echo 'build ALL=(root) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/build-pacman"
     - chmod 0440 /etc/sudoers.d/build-pacman

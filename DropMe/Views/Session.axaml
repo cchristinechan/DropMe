@@ -3,201 +3,169 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:DropMe.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d"
+             d:DesignWidth="800"
+             d:DesignHeight="450"
              x:Class="DropMe.Views.Session"
              x:DataType="vm:MainViewModel">
-    
-    <UserControl.Styles>
-        <Style Selector="Button.SessionButton">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="Foreground" Value="Black"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#8AAECC"/>
-            <Setter Property="CornerRadius" Value="8"/>
-        </Style>
+  <Grid Background="#C4E0F2">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel MaxWidth="430" HorizontalAlignment="Center" Margin="0,40,0,40">
+        <Border Padding="32"
+                CornerRadius="32"
+                Background="#60FFFFFF"
+                BorderBrush="#80FFFFFF"
+                BorderThickness="2">
+          <StackPanel Spacing="32">
+            
+            <StackPanel Spacing="6">
+              <TextBlock Classes="PageTitle"
+                         Text="Active drop session"
+                         Foreground="#04274A"
+                         FontFamily="Georgia"
+                         HorizontalAlignment="Center"/>
 
-        <Style Selector="Button.SessionButton:pointerover > ContentPresenter">
-            <Setter Property="Background" Value="#E6F1FA"/>
-            <Setter Property="Foreground" Value="Black"/>
-        </Style>
+              <TextBlock Classes="BodyMuted"
+                         Text="Secured. Fast."
+                         FontFamily="Georgia"
+                         Foreground="#6604274A"
+                         HorizontalAlignment="Center"/>
+            </StackPanel>
+            
+            <Border Padding="12"
+                    CornerRadius="18"
+                    Background="#E6EBF0"
+                    BorderBrush="#D0D7DD"
+                    BorderThickness="1">
 
-        <Style Selector="Button.SessionButton:pressed > ContentPresenter">
-            <Setter Property="Background" Value="#D6E7F6"/>
-            <Setter Property="Foreground" Value="Black"/>
-        </Style>
+              <StackPanel Spacing="6" HorizontalAlignment="Center">
 
-        <Style Selector="Button.Danger:pointerover > ContentPresenter">
-            <Setter Property="Background" Value="#C83A3A"/>
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
+                <TextBlock Text="iphone Sarah  ↔  desktop Sam"
+                           FontSize="15"
+                           FontFamily="Georgia"
+                           FontWeight="SemiBold"
+                           Foreground="#2A3A4A"
+                           HorizontalAlignment="Center"/>
 
-        <Style Selector="Button.Danger:pressed > ContentPresenter">
-            <Setter Property="Background" Value="#B03030"/>
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
+              </StackPanel>
+            </Border>
 
-        <Style Selector="Button.SendButton">
-            <Setter Property="Background" Value="#EAF4FF"/>
-            <Setter Property="Foreground" Value="#1A2A3A"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#8AAECC"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
 
-        <Style Selector="Button.SendButton:pointerover > ContentPresenter">
-            <Setter Property="Background" Value="#DCEEFF"/>
-        </Style>
+        
+          <StackPanel Spacing="16">
+            
+            <Border Padding="20"
+                    CornerRadius="20"
+                    Background="#30FFFFFF"
+                    BorderBrush="#10FFFFFF"
+                    BorderThickness="1"
+                    ClipToBounds="True">
+              
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="14"
+                    HorizontalAlignment="Center">
 
-        <Style Selector="Button.SendButton:pressed > ContentPresenter">
-            <Setter Property="Background" Value="#CFE7FF"/>
-        </Style>
-    </UserControl.Styles>
-
-    <Grid Background="#C4E0F2">
-        <Viewbox Stretch="Uniform">
-            <Grid Width="800" Height="450" RowDefinitions="Auto,*,Auto">
-                <Grid Grid.Row="0"
-                      Margin="12"
-                      ColumnDefinitions="270,*,Auto"
-                      ColumnSpacing="10"
-                      ZIndex="5">
-                    <Border Grid.Column="0"
-                            Padding="10,8"
-                            CornerRadius="8"
-                            Background="#AAC3D8">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Download Folder"
-                                       FontSize="13"
-                                       FontWeight="SemiBold"
-                                       Foreground="#0F1F2F"/>
-                            <Button Classes="SessionButton"
-                                    Content="Choose Folder"
-                                    HorizontalAlignment="Left"
-                                    Width="120"
-                                    Height="32"
-                                    Click="ChooseDownloadFolder_Click"/>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Column="1"
-                            Padding="10,8"
-                            CornerRadius="8"
-                            Background="#AAC3D8">
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Session ID"
-                                       FontSize="14"
-                                       FontWeight="SemiBold"
-                                       Foreground="#0F1F2F"/>
-                            <TextBlock Text="{Binding SessionId}"
-                                       FontSize="12"
-                                       MaxWidth="360"
-                                       TextTrimming="CharacterEllipsis"
-                                       Foreground="#0F1F2F"/>
-                            <TextBlock Text="{Binding SessionStatus}"
-                                       FontSize="13"
-                                       Foreground="#0F1F2F"/>
-                        </StackPanel>
-                    </Border>
-
-                    <Button Grid.Column="2"
-                            Classes="SessionButton Danger"
-                            Content="End Session"
-                            Click="BackButton_Click"
-                            Width="105"
-                            Height="35"
-                            CornerRadius="8"
-                            Background="Red"
-                            Foreground="White"
-                            FontWeight="Bold"/>
-                </Grid>
-
-                <Grid Grid.Row="1">
-                    <Border Width="500"
-                            Height="250"
-                            Background="White"
-                            CornerRadius="16"
+                <StackPanel Grid.Column="0"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            ClipToBounds="True">
-                        <Grid>
-                            <Image Source="avares://DropMe/Assets/profile_session.jpg"
-                                   Width="145"
-                                   Height="145"
-                                   HorizontalAlignment="Left"
-                                   VerticalAlignment="Center"
-                                   Margin="34,0,0,0"
-                                   Stretch="Uniform"/>
+                            Spacing="6">
 
-                            <Image Source="avares://DropMe/Assets/profile_session.jpg"
-                                   Width="145"
-                                   Height="145"
-                                   HorizontalAlignment="Right"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,34,0"
-                                   Stretch="Uniform"/>
-                        </Grid>
-                    </Border>
-                </Grid>
+                  <Image Source="avares://DropMe/Assets/Animation_DropMe.png"
+                         Width="200"
+                         Height="200"
+                         Stretch="Uniform"/>
 
-                <StackPanel Grid.Row="2"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Bottom"
-                            Margin="0,0,0,22"
-                            Spacing="10">
-                    <Button Classes="SendButton"
-                            Content="Send Files"
-                            HorizontalAlignment="Center"
-                            Height="38"
-                            Click="SendFiles_Click"
-                            Width="140"/>
-
-                    <TextBlock Text="{Binding SessionMessage}"
-                               HorizontalAlignment="Center"
-                               FontSize="14"
-                               MaxWidth="760"
-                               TextWrapping="Wrap"/>
                 </StackPanel>
 
-                <Border IsVisible="{Binding HasPendingFileOffer}"
-                        Background="#A0000000"
-                        Grid.RowSpan="3"
-                        ZIndex="20">
-                    <Border Width="380"
-                            Background="White"
-                            CornerRadius="12"
-                            Padding="16"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="{Binding PendingFileOfferMessage}"
-                                       FontSize="16"
-                                       FontWeight="Bold"
-                                       Foreground="#0F1F2F"/>
-                            <TextBlock Text="{Binding PendingFileOfferName, StringFormat='File: {0}'}"
-                                       TextWrapping="Wrap"
-                                       Foreground="#0F1F2F"/>
-                            <TextBlock Text="{Binding PendingFileOfferSizeText, StringFormat='Size: {0}'}"
-                                       TextWrapping="Wrap"
-                                       Foreground="#0F1F2F"/>
-                            <StackPanel Orientation="Horizontal"
-                                        HorizontalAlignment="Right"
-                                        Spacing="10">
-                                <Button Classes="SessionButton"
-                                        Content="Reject"
-                                        Width="96"
-                                        Click="RejectIncomingFile_Click"/>
-                                <Button Classes="SessionButton"
-                                        Content="Accept"
-                                        Width="96"
-                                        Click="AcceptIncomingFile_Click"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-                </Border>
-            </Grid>
-        </Viewbox>
-    </Grid>
+              </Grid>
+
+            </Border>
+          </StackPanel>
+            
+            <StackPanel Spacing="22">
+              <TextBlock Text="Actions"
+                         HorizontalAlignment="Center"
+                         FontSize="18"
+                         FontWeight="SemiBold"
+                         Foreground="#04274A"/>
+
+              <Button Height="40"
+                      CornerRadius="26"
+                      Background="#E6E6E6"
+                      Foreground="#04274A"
+                      FontFamily="Georgia"
+                      FontWeight="SemiBold"
+                      Content="Choose download Folder"
+                      Click="ChooseDownloadFolder_Click"/>
+
+              <Button Height="40"
+                      CornerRadius="26"
+                      Background="#E6E6E6"
+                      Foreground="#04274A"
+                      FontFamily="Georgia"
+                      FontWeight="SemiBold"
+                      Content="Send Files"
+                      Click="SendFiles_Click"/>
+
+              <Button Height="40"
+                      CornerRadius="26"
+                      Background="#F2C8C8"
+                      Foreground="#B00020"
+                      FontFamily="Georgia"
+                      FontWeight="SemiBold"
+                      Content="End Session"
+                      Click="BackButton_Click"/>
+            </StackPanel>
+
+            
+            <StackPanel Spacing="12"
+                        IsVisible="{Binding HasSessionMessage}">
+              <TextBlock Classes="SectionTitle" Text="Transfer Updates"/>
+
+              <Border Padding="14"
+                      CornerRadius="16"
+                      Background="#30FFFFFF"
+                      BorderBrush="#10FFFFFF"
+                      BorderThickness="1">
+                <TextBlock Text="{Binding SessionMessage}" TextWrapping="Wrap"/>
+              </Border>
+            </StackPanel>
+
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </ScrollViewer>
+
+    <Border IsVisible="{Binding HasPendingFileOffer}"
+            Background="{DynamicResource WaterOverlayBrush}">
+      <Border Classes="AppCard"
+              MaxWidth="360"
+              Margin="12"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="SectionTitle" Text="{Binding PendingFileOfferMessage}"/>
+          <TextBlock Text="{Binding PendingFileOfferName, StringFormat='File: {0}'}"
+                     TextWrapping="Wrap"/>
+          <TextBlock Classes="BodyMuted"
+                     Text="{Binding PendingFileOfferSizeText, StringFormat='Size: {0}'}"
+                     TextWrapping="Wrap"/>
+
+          <StackPanel Orientation="Horizontal"
+                      Spacing="10"
+                      HorizontalAlignment="Right"
+                      Margin="0,6,0,0">
+            <Button Classes="OutlinedAction"
+                    Width="110"
+                    Content="Reject"
+                    Click="RejectIncomingFile_Click"/>
+            <Button Classes="FilledAction"
+                    Width="110"
+                    Content="Accept"
+                    Click="AcceptIncomingFile_Click"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+  </Grid>
 </UserControl>

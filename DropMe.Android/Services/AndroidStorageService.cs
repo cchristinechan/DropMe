@@ -13,6 +13,10 @@ using AndroidNet = Android.Net;
 namespace DropMe.Android.Services;
 
 public class AndroidStorageService : IStorageService {
+    const string CONFIG_FILE_NAME = "config.json";
+
+    private readonly string configFilePath =
+        Path.Combine(AndroidApplication.Context.FilesDir!.AbsolutePath, CONFIG_FILE_NAME);
     private AndroidNet.Uri? _downloadsFolder;
     public async Task PickDownloadsFolderAsync(Visual? visual) {
         var folders = await TopLevel.GetTopLevel(visual)?
@@ -23,14 +27,15 @@ public class AndroidStorageService : IStorageService {
 
         if (folders.Count > 0) {
             _downloadsFolder = AndroidNet.Uri.Parse(folders[0].Path.ToString());
-            AndroidApplication.Context.ContentResolver.TakePersistableUriPermission(_downloadsFolder,
-                ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
+            //AndroidApplication.Context.ContentResolver.TakePersistableUriPermission(_downloadsFolder,
+            //    ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
         }
     }
 
     public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName) {
         var context = AndroidApplication.Context;
-        var folder = DocumentFile.FromTreeUri(context, _downloadsFolder);
+        // Use internal files by default, maybe later change this to external
+        var folder = _downloadsFolder is not null ? DocumentFile.FromTreeUri(context, _downloadsFolder) : DocumentFile.FromFile(context.FilesDir);
 
         var file = folder?.FindFile(fileName)
                    ?? folder?.CreateFile("application/octet-stream", fileName);
@@ -38,8 +43,31 @@ public class AndroidStorageService : IStorageService {
         if (stream is not null) {
             return (stream, file.Uri!.ToString()!);
         }
-        else {
-            return null;
+        return null;
+    }
+
+    public string? GetDownloadDirectoryLabel() {
+        var path = _downloadsFolder is not null ?
+            _downloadsFolder!.ToString() :
+            AndroidApplication.Context.FilesDir?.Path.ToString();
+        if (path is not null) {
+            return NormalisePath(path);
         }
+
+        return null;
+    }
+
+    public Stream ReadConfig() => File.Open(configFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+
+    public Stream WriteConfig() => File.Open(configFilePath, FileMode.Truncate, FileAccess.Write);
+
+    private string NormalisePath(string str) {
+        const string treeSegment = "/tree/";
+        if (str.StartsWith("content://") && str.Contains(treeSegment)) {
+            int startIndex = str.IndexOf(treeSegment) + treeSegment.Length;
+            string decodedPart = str.Substring(startIndex);
+            return Uri.UnescapeDataString(decodedPart);
+        }
+        return str;
     }
 }
