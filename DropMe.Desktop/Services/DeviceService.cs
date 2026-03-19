@@ -36,10 +36,20 @@ public sealed class DeviceService : IDeviceService {
     public (BluetoothAddress? address, string name)? GetLocalBluetoothInfo() {
         // Supported bluetooth platforms
         if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()) {
-            var radio = BluetoothRadio.Default;
-            // Bluetooth unavailable
-            if (radio == null || radio.Mode == RadioMode.PowerOff) return null;
-            return (radio.LocalAddress, radio.Name);
+            try {
+                var radio = BluetoothRadio.Default;
+                // Bluetooth unavailable
+                if (radio == null || radio.Mode == RadioMode.PowerOff) return null;
+
+                var radioName = string.IsNullOrWhiteSpace(radio.Name)
+                    ? Environment.MachineName
+                    : radio.Name;
+                return (radio.LocalAddress, radioName);
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"Desktop Bluetooth probe failed: {ex.Message}");
+                return null;
+            }
         }
 
         return null;

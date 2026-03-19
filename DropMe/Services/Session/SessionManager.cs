@@ -80,112 +80,134 @@ public class SessionManager(IStorageService storageService) : IDisposable {
     }
 
     public async Task<bool> TryAcceptBluetoothConnection(CancellationToken ct) {
-        using var listener = new BluetoothListener(new Guid(DropMeGuid));
-        var radio = BluetoothRadio.Default;
-        radio.Mode = RadioMode.Discoverable;
-        listener.Start();
-        Console.WriteLine("Bluetooth server started, waiting for connections...");
+        try {
+            using var listener = new BluetoothListener(new Guid(DropMeGuid));
+            var radio = BluetoothRadio.Default;
+            if (radio is null || radio.Mode == RadioMode.PowerOff) {
+                Console.WriteLine("Bluetooth not available while accepting a connection.");
+                return false;
+            }
+            radio.Mode = RadioMode.Discoverable;
+            listener.Start();
+            Console.WriteLine("Bluetooth server started, waiting for connections...");
 
-        using var client = await listener.AcceptBluetoothClientAsync();
-        Console.WriteLine($"Client {client.RemoteMachineName} connected!");
-        radio.Mode = RadioMode.Connectable;
+            using var client = await listener.AcceptBluetoothClientAsync();
+            Console.WriteLine($"Client {client.RemoteMachineName} connected!");
+            radio.Mode = RadioMode.Connectable;
 
-        if (AesSessionKey is null)
-            throw new NullReferenceException("Aes session key must be set before connecting");
+            if (AesSessionKey is null)
+                throw new NullReferenceException("Aes session key must be set before connecting");
 
-        var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
-        if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false))
+            var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+            if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false))
+                return false;
+            Console.WriteLine("Created a connection, handshake successful");
+            var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
+            _bluetoothConnection = (connection, task);
+            Console.WriteLine("Accepted a BT connection!");
+            return BluetoothConnected;
+        }
+        catch (Exception ex) {
+            Console.WriteLine($"Bluetooth accept failed: {ex.Message}");
             return false;
-        Console.WriteLine("Created a connection, handshake successful");
-        var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
-        _bluetoothConnection = (connection, task);
-        Console.WriteLine("Accepted a BT connection!");
-        return BluetoothConnected;
+        }
     }
 
     public async Task<bool> TryEstablishBluetoothConnection(BluetoothAddress knownAddress, string knownName, CancellationToken ct) {
-        using var client = new BluetoothClient();
-        client.Encrypt = true;
-        client.Authenticate = true;
-        Console.WriteLine($"Attempting to pair with known address {knownAddress}");
-        var pairResult = await client.PairAsync(knownAddress).ConfigureAwait(false);
-        Console.WriteLine($"Pairing: {pairResult}");
+        try {
+            using var client = new BluetoothClient();
+            client.Encrypt = true;
+            client.Authenticate = true;
+            Console.WriteLine($"Attempting to pair with known address {knownAddress}");
+            var pairResult = await client.PairAsync(knownAddress).ConfigureAwait(false);
+            Console.WriteLine($"Pairing: {pairResult}");
 
-        Console.WriteLine($"Attempting to connect to known address {knownAddress}");
-        await client.ConnectAsync(knownAddress, new Guid(DropMeGuid)).ConfigureAwait(false);
-        Console.WriteLine($"Connected to {knownAddress}");
+            Console.WriteLine($"Attempting to connect to known address {knownAddress}");
+            await client.ConnectAsync(knownAddress, new Guid(DropMeGuid)).ConfigureAwait(false);
+            Console.WriteLine($"Connected to {knownAddress}");
 
-        if (AesSessionKey is null)
-            throw new NullReferenceException("Aes session key must be set before connecting");
+            if (AesSessionKey is null)
+                throw new NullReferenceException("Aes session key must be set before connecting");
 
-        var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
-        if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false))
+            var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+            if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false))
+                return false;
+            Console.WriteLine("Created a connection, handshake successful");
+            var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
+            _bluetoothConnection = (connection, task);
+            return BluetoothConnected;
+        }
+        catch (Exception ex) {
+            Console.WriteLine($"Bluetooth connect to known address failed: {ex.Message}");
             return false;
-        Console.WriteLine("Created a connection, handshake successful");
-        var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
-        _bluetoothConnection = (connection, task);
-        return BluetoothConnected;
+        }
     }
 
     public async Task<bool> TryEstablishBluetoothConnection(string knownName, CancellationToken ct) {
-        var serviceGuid = new Guid(DropMeGuid);
-        var client = new BluetoothClient();
-        client.Encrypt = true;
-        client.Authenticate = true;
-        Console.WriteLine("Discovering nearby Bluetooth devices...");
-        BluetoothDeviceInfo? matchedDevice = null;
-        // Check each device for the target service
-        var devices = client.DiscoverDevicesAsync(ct).ConfigureAwait(false);
-        var devicesToQuery = new List<BluetoothDeviceInfo>();
-        await foreach (var device in devices) {
-            device.Refresh();
-            Console.WriteLine($"Device: {device.DeviceAddress}");
-            if (!string.IsNullOrEmpty(device.DeviceName)) {
-                Console.WriteLine($"Device has name {device.DeviceName}");
-                devicesToQuery.Add(device);
-            }
-        }
-        Console.WriteLine("Entered querying phase");
-        foreach (var device in devicesToQuery) {
-            try {
-                Console.WriteLine($"Checking device [{device.DeviceAddress}] [{device.DeviceName}] for DropMe");
-                if ((await device.GetRfcommServicesAsync(false).ConfigureAwait(false)).Any(s => s == serviceGuid)) {
-                    Console.WriteLine($"Found DropMe service on {device.DeviceName}!");
-                    matchedDevice = device;
-                    break;
+        try {
+            var serviceGuid = new Guid(DropMeGuid);
+            var client = new BluetoothClient();
+            client.Encrypt = true;
+            client.Authenticate = true;
+            Console.WriteLine("Discovering nearby Bluetooth devices...");
+            BluetoothDeviceInfo? matchedDevice = null;
+            // Check each device for the target service
+            var devices = client.DiscoverDevicesAsync(ct).ConfigureAwait(false);
+            var devicesToQuery = new List<BluetoothDeviceInfo>();
+            await foreach (var device in devices) {
+                device.Refresh();
+                Console.WriteLine($"Device: {device.DeviceAddress}");
+                if (!string.IsNullOrEmpty(device.DeviceName)) {
+                    Console.WriteLine($"Device has name {device.DeviceName}");
+                    devicesToQuery.Add(device);
                 }
             }
-            catch (Exception e) {
-                Console.WriteLine($"Exception {e.Message}");
+            Console.WriteLine("Entered querying phase");
+            foreach (var device in devicesToQuery) {
+                try {
+                    Console.WriteLine($"Checking device [{device.DeviceAddress}] [{device.DeviceName}] for DropMe");
+                    if ((await device.GetRfcommServicesAsync(false).ConfigureAwait(false)).Any(s => s == serviceGuid)) {
+                        Console.WriteLine($"Found DropMe service on {device.DeviceName}!");
+                        matchedDevice = device;
+                        break;
+                    }
+                }
+                catch (Exception e) {
+                    Console.WriteLine($"Exception {e.Message}");
+                }
             }
+            Console.WriteLine("Exited querying phase");
+
+            if (matchedDevice != null) {
+                Console.WriteLine("Attempting to connect to the device");
+                try {
+                    var success = await client.PairAsync(matchedDevice.DeviceAddress).ConfigureAwait(false);
+                    Console.WriteLine($"Pairing: {success}");
+                    await client.ConnectAsync(matchedDevice.DeviceAddress, serviceGuid).ConfigureAwait(false);
+                    Console.WriteLine($"Bluetooth connected to {matchedDevice.DeviceAddress}");
+
+                    if (AesSessionKey is null)
+                        throw new NullReferenceException("Aes session key must be set before connecting");
+
+                    var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+                    if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false))
+                        return false;
+                    Console.WriteLine("Created a connection, handshake successful");
+                    var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
+                    _bluetoothConnection = (connection, task);
+                }
+                catch (Exception e) {
+                    Console.WriteLine($"Exception {e}");
+                }
+            }
+
+            Console.WriteLine("Ended bluetooth discovery");
+            return BluetoothConnected;
         }
-        Console.WriteLine("Exited querying phase");
-
-        if (matchedDevice != null) {
-            Console.WriteLine("Attempting to connect to the device");
-            try {
-                var success = await client.PairAsync(matchedDevice.DeviceAddress).ConfigureAwait(false);
-                Console.WriteLine($"Pairing: {success}");
-                await client.ConnectAsync(matchedDevice.DeviceAddress, serviceGuid).ConfigureAwait(false);
-                Console.WriteLine($"Bluetooth connected to {matchedDevice.DeviceAddress}");
-
-                if (AesSessionKey is null)
-                    throw new NullReferenceException("Aes session key must be set before connecting");
-
-                var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
-                if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false))
-                    return false;
-                Console.WriteLine("Created a connection, handshake successful");
-                var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
-                _bluetoothConnection = (connection, task);
-            }
-            catch (Exception e) {
-                Console.WriteLine($"Exception {e}");
-            }
+        catch (Exception ex) {
+            Console.WriteLine($"Bluetooth discover-and-connect failed: {ex.Message}");
+            return false;
         }
-
-        Console.WriteLine("Ended bluetooth discovery");
-        return BluetoothConnected;
     }
 
     public async Task<bool> Receive() {
