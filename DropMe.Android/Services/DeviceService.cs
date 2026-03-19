@@ -34,7 +34,7 @@ public class DeviceService : IDeviceService {
     public (BluetoothAddress? address, string name)? GetLocalBluetoothInfo() {
         var radio = BluetoothRadio.Default;
         // Bluetooth unavailable
-        if (radio == null) return null;
+        if (radio == null || radio.Mode == RadioMode.PowerOff) return null;
         var name = radio.Name;
         return (null, name);
     }

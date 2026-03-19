@@ -41,8 +41,8 @@ public sealed class DeviceService : IDeviceService {
         if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()) {
             var radio = BluetoothRadio.Default;
             // Bluetooth unavailable
-            if (radio == null) return null;
-            return (radio.LocalAddress, radio.Name);   
+            if (radio == null || radio.Mode == RadioMode.PowerOff) return null;
+            return (radio.LocalAddress, radio.Name);
         }
 
         return null;
