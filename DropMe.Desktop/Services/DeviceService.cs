@@ -9,9 +9,6 @@ using InTheHand.Net.Bluetooth;
 namespace DropMe.Desktop.Services;
 
 public sealed class DeviceService : IDeviceService {
-    public string GetDeviceString() {
-        return "Desktop";
-    }
     public string GetLocalLanIp() {
         foreach (var ni in NetworkInterface.GetAllNetworkInterfaces()) {
             if (ni.OperationalStatus != OperationalStatus.Up)
