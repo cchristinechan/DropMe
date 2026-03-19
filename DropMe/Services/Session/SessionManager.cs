@@ -28,9 +28,10 @@ public class SessionManager(IStorageService storageService) : IDisposable {
     public event Action<string>? FileSaved;
     public event Action<Guid, string /*sha256 hex*/>? FileAcked;
     public event Action<SessionEndReason>? SessionEnded;
+    public byte[]? AesSessionKey { get; set; } // MUST BE SET BEFORE A CONNECTION IS ESTABLISHED
     private const string DropMeGuid = "bc8659c9-3aa7-4faf-ba42-c5feb93d1a3e";
-    private (Connection<TcpClientNsAdapter> connection, Task receiveTask)? _tcpConnection;
-    private (Connection<BluetoothClientNsAdapter> connection, Task receiveTask)? _bluetoothConnection;
+    private (EncryptedConnection<TcpClientNsAdapter> connection, Task receiveTask)? _tcpConnection;
+    private (EncryptedConnection<BluetoothClientNsAdapter> connection, Task receiveTask)? _bluetoothConnection;
     private IConnection? _connectionInUse; // Points to one of the above connections
     private CancellationTokenSource _sessionCtSource = new();
     private readonly Channel<(ChannelToken, DropMeMsg)> _networkSyncChannel = Channel.CreateUnbounded<(ChannelToken, DropMeMsg)>();
@@ -42,8 +43,14 @@ public class SessionManager(IStorageService storageService) : IDisposable {
         listener.Start();
         var client = await listener.AcceptTcpClientAsync(ct);
         listener.Stop();
-        
-        var connection = new Connection<TcpClientNsAdapter>(new TcpClientNsAdapter(client), client.Client.RemoteEndPoint?.ToString() ?? "Unknown");
+
+        if (AesSessionKey is null)
+            throw new NullReferenceException("Aes session key must be set before connecting");
+
+        var connection = new EncryptedConnection<TcpClientNsAdapter>(new TcpClientNsAdapter(client), client.Client.RemoteEndPoint?.ToString() ?? "Unknown", AesSessionKey);
+        if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false))
+            return false;
+        Console.WriteLine("Created a connection, handshake successful");
         var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.TcpConnection, _sessionCtSource.Token);
         _tcpConnection = (connection, task);
         _connectionInUse = connection; // TODO: Negotiate a connection
@@ -58,8 +65,12 @@ public class SessionManager(IStorageService storageService) : IDisposable {
         Console.WriteLine($"Connected to {serverEp}");
         var stream = client.GetStream();
         Console.WriteLine("Got it's stream");
-        var connection = new Connection<TcpClientNsAdapter>(new TcpClientNsAdapter(client), serverEp.Address.ToString());
-        Console.WriteLine("Created a connection");
+        if (AesSessionKey is null)
+            throw new NullReferenceException("Aes session key must be set before connecting");
+        var connection = new EncryptedConnection<TcpClientNsAdapter>(new TcpClientNsAdapter(client), serverEp.Address.ToString(), AesSessionKey);
+        if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false))
+            return false;
+        Console.WriteLine("Created a connection, handshake successful");
         var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.TcpConnection, _sessionCtSource.Token);
         Console.WriteLine("Started handling messages");
         _tcpConnection = (connection, task);
@@ -79,15 +90,20 @@ public class SessionManager(IStorageService storageService) : IDisposable {
         Console.WriteLine($"Client {client.RemoteMachineName} connected!");
         radio.Mode = RadioMode.Connectable;
 
-        var stream = client.GetStream();
-        var connection = new Connection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName);
+        if (AesSessionKey is null)
+            throw new NullReferenceException("Aes session key must be set before connecting");
+
+        var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+        if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false))
+            return false;
+        Console.WriteLine("Created a connection, handshake successful");
         var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
         _bluetoothConnection = (connection, task);
         Console.WriteLine("Accepted a BT connection!");
         return BluetoothConnected;
     }
 
-    public async Task<bool> TryEstablishBluetoothConnection(BluetoothAddress knownAddress, CancellationToken ct) {
+    public async Task<bool> TryEstablishBluetoothConnection(BluetoothAddress knownAddress, string knownName, CancellationToken ct) {
         using var client = new BluetoothClient();
         client.Encrypt = true;
         client.Authenticate = true;
@@ -99,14 +115,19 @@ public class SessionManager(IStorageService storageService) : IDisposable {
         await client.ConnectAsync(knownAddress, new Guid(DropMeGuid)).ConfigureAwait(false);
         Console.WriteLine($"Connected to {knownAddress}");
 
-        var stream = client.GetStream();
-        var connection = new Connection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName);
+        if (AesSessionKey is null)
+            throw new NullReferenceException("Aes session key must be set before connecting");
+
+        var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+        if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false))
+            return false;
+        Console.WriteLine("Created a connection, handshake successful");
         var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
         _bluetoothConnection = (connection, task);
         return BluetoothConnected;
     }
 
-    public async Task<bool> TryEstablishBluetoothConnection(CancellationToken ct) {
+    public async Task<bool> TryEstablishBluetoothConnection(string knownName, CancellationToken ct) {
         var serviceGuid = new Guid(DropMeGuid);
         var client = new BluetoothClient();
         client.Encrypt = true;
@@ -148,8 +169,13 @@ public class SessionManager(IStorageService storageService) : IDisposable {
                 await client.ConnectAsync(matchedDevice.DeviceAddress, serviceGuid).ConfigureAwait(false);
                 Console.WriteLine($"Bluetooth connected to {matchedDevice.DeviceAddress}");
 
-                var stream = client.GetStream();
-                var connection = new Connection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName);
+                if (AesSessionKey is null)
+                    throw new NullReferenceException("Aes session key must be set before connecting");
+
+                var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+                if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false))
+                    return false;
+                Console.WriteLine("Created a connection, handshake successful");
                 var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
                 _bluetoothConnection = (connection, task);
             }
@@ -163,7 +189,7 @@ public class SessionManager(IStorageService storageService) : IDisposable {
     }
 
     public async Task<bool> Receive() {
-        
+
         await foreach (var (token, message) in _networkSyncChannel.Reader.ReadAllAsync()) {
             Console.WriteLine($"Received: {message}");
             // Perform quick check on the connections and if they have a fault close them properly,
@@ -399,15 +425,15 @@ public class SessionManager(IStorageService storageService) : IDisposable {
 
     private bool TrySwitchConnection(ChannelToken token) {
         (IConnection, Task)? newConnection;
-         switch (token) {
-             case ChannelToken.TcpConnection:
-                 newConnection = _tcpConnection;
-                 break;
-             case ChannelToken.BluetoothConnection:
-                 newConnection = _bluetoothConnection;
-                 break;
-             default:
-                 throw new ArgumentOutOfRangeException($"Somehow matched on non existent enum varient {token}");
+        switch (token) {
+            case ChannelToken.TcpConnection:
+                newConnection = _tcpConnection;
+                break;
+            case ChannelToken.BluetoothConnection:
+                newConnection = _bluetoothConnection;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException($"Somehow matched on non existent enum varient {token}");
         }
 
         if (newConnection?.Item1 is { IsConnected: true }) {
@@ -483,7 +509,7 @@ public class SessionManager(IStorageService storageService) : IDisposable {
         _tcpConnection?.connection.Dispose();
         _bluetoothConnection?.connection.Dispose();
     }
-    
+
     public enum SessionEndReason {
         AllChannelsDisconnected,
         PeerRequested

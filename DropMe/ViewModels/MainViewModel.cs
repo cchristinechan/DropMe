@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
@@ -14,11 +15,12 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using DropMe.Services;
 using DropMe.Services.Session;
+using InTheHand.Net;
 using InTheHand.Net.Sockets;
 
 namespace DropMe.ViewModels;
 
-public sealed class MainViewModel : INotifyPropertyChanged {
+public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     // Keep true while testing two app instances on the same computer.
     // Set to false later to block same-machine loopback connections.
     private const bool AllowSameMachineConnectionsForTesting = true;
@@ -33,20 +35,19 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private readonly object _frameLock = new();
     private int _previewFrameCounter = 0;
     private DispatcherTimer? _renderTimer;
-    private ISession? _session;
-    private CancellationTokenSource? _sessionCts;
-    private CancellationTokenSource? _sessionMonitorCts;
+    private SessionManager _sessionManager;
+    private CancellationTokenSource _sessionListenCts = new();
+    private CancellationTokenSource _sessionEstablishCts = new();
     private bool _isStoppingSession;
     private int _qrHandled = 0;
     private readonly IDeviceService _device;
     private readonly IStorageService _storageService;
     private readonly IPermissionsService _permissionsService;
-    private string? _lastGeneratedInviteText;
-    private string? _localInviteSessionId;
+    private QrCodeData? _lastGeneratedQrCodeData;
+    private Guid? _localInviteSessionId;
 
 
-    public bool IsConnected => _session?.State == SessionState.Connected;
-
+    public bool IsConnected => _sessionManager.IsConnected;
     public bool IsScanning => _scanCts is not null;
     public bool ShowGeneratedQr => !IsScanning;
     public string MainCardTitle => IsScanning ? "Camera Preview" : "Your QR Code";
@@ -169,22 +170,46 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         private set { _status = value; OnPropertyChanged(); }
     }
 
-    private IBluetoothListener _bluetoothListener;
     public MainViewModel(
         ICameraService camera,
         QrDecoder decoder,
         IQrCodeService qr,
         IDeviceService device,
         IStorageService storageService,
-        IBluetoothListener bluetoothListener,
         IPermissionsService permissionsService) {
         _camera = camera;
         _decoder = decoder;
         _qr = qr;
         _device = device;
         _storageService = storageService;
-        _bluetoothListener = bluetoothListener;
         _permissionsService = permissionsService;
+        _sessionManager = new SessionManager(_storageService);
+
+        // Give the session manager callbacks
+        _sessionManager.FileSaved += path =>
+            Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
+
+        _sessionManager.FileAcked += (_, sha) =>
+            Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered : SHA256={sha}");
+
+        _sessionManager.FileOfferDecision = async offer => {
+            var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
+            return FileOfferDecisionUi is null || await FileOfferDecisionUi(info);
+        };
+
+        _sessionManager.SessionEnded += reason => {
+            Dispatcher.UIThread.Post(async () => {
+                if (_isStoppingSession)
+                    return;
+
+                await StopSessionAsync(
+                    homeMessage: $"Session disconnected {reason.ToString()}.");
+                await PrepareMainPageAsync(
+                    homeMessage: $"Session disconnected {reason.ToString()}.",
+                    regenerateQr: true);
+                Status = $"Session ended: peer disconnected {reason.ToString()}.";
+            });
+        };
 
         _camera.FrameArrived += OnFrameArrived;
         Status = "Ready";
@@ -198,35 +223,38 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
     public void GenerateQr() {
         try {
-            var psk = new byte[32];
-            RandomNumberGenerator.Fill(psk);
+            var aesKey = new byte[32];
+            RandomNumberGenerator.Fill(aesKey);
 
             var ip = _device.GetLocalLanIp();
             var port = ReserveAvailableTcpPort();
-
-            var invite = new ConnectionInvite(
+            var btInfo = _device.GetLocalBluetoothInfo();
+            BtConnectionInfo? btConnInfo = null;
+            if (btInfo is var (address, name)) {
+                btConnInfo = new BtConnectionInfo(address?.ToString(), name);
+            }
+            var invite = new QrCodeData(
                 V: 2,
-                Ip: ip,
-                Port: port,
-                Sid: Guid.NewGuid().ToString("N"),
-                Psk: ConnectionInviteCodec.Base64UrlEncode(psk),
-                Transport: "lan",
-                Ssid: null,
-                Bssid: null
+                Sid: Guid.NewGuid(),
+                LanInfo: new LanConnectionInfo(ip, port),
+                BtInfo: btConnInfo,
+                AesKey: aesKey
             );
 
-            SessionId = invite.Sid;
-            _localInviteSessionId = invite.Sid;
+            _lastGeneratedQrCodeData = invite;
 
-            var text = ConnectionInviteCodec.Encode(invite);
-            _lastGeneratedInviteText = text;
+            SessionId = invite.Sid.ToString("N");
+            _localInviteSessionId = invite.Sid;
+            Console.WriteLine("Trying to gen text");
+            var text = QrCodeDataCodec.Encode(invite);
+            Console.WriteLine($"Qr code text: {text}");
             var bmp = _qr.Generate(text, pixelsPerModule: 10);
 
             Dispatcher.UIThread.Post(() => {
                 QrImage = bmp;
             });
 
-            _ = StartHostingAsync(port);
+            _ = StartHostingAsync(port, btConnInfo is not null, aesKey);
         }
         catch (Exception ex) {
             Status = $"QR error: {ex.Message}";
@@ -242,73 +270,75 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     }
 
 
-    private async Task StartHostingAsync(int port) {
+    private async Task StartHostingAsync(int port, bool btEnabled, byte[] aesKey) {
+        Debug.Assert(aesKey.Length == 32, "AES key must be 32 bytes");
+        _sessionManager.AesSessionKey = aesKey;
         try {
-            _sessionMonitorCts?.Cancel();
-            _sessionMonitorCts?.Dispose();
-            _sessionMonitorCts = null;
-
-            _sessionCts?.Cancel();
-            _sessionCts?.Dispose();
-            _sessionCts = new CancellationTokenSource();
-
-            if (_session is not null) {
-                try {
-                    await _session.StopAsync();
-                }
-                catch {
-                    // Best effort: old session may already be closed/canceled.
-                }
-
-                _session = null;
-            }
-            /*
-                    _session = new TcpServerSession(_storageService, new IPEndPoint(IPAddress.Any, port));
-
-                    if (_session is TcpServerSession h) {
-                        h.FileSaved += path =>
-                            Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
-
-                        h.FileAcked += (_, sha) =>
-                            Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered : SHA256={sha}");
-
-                        h.FileOfferDecision = async offer => {
-                            var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
-                            return FileOfferDecisionUi is null || await FileOfferDecisionUi(info);
-                        };
-                    }
-                    */
             if (!_permissionsService.HasBluetoothPermissions) {
                 await _permissionsService.RequestBluetoothPermission();
             }
             await _permissionsService.RequestBluetoothDiscoverablePermission(300);
-            // HANDLE DENIAL
-            _session = new BluetoothServerSession(_bluetoothListener);
-            if (_session is BluetoothServerSession h) {
-                h.FileSaved += path =>
-                    Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
-                h.FileAcked += (_, sha) =>
-                    Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered : SHA256={sha}");
+            // ONLY DO BLUETOOTH IF HAVE PERMISSION
 
-                h.FileOfferDecision = async offer => {
-                    var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
-                    return FileOfferDecisionUi is null || await FileOfferDecisionUi(info);
-                };
+            Console.WriteLine("Listening for TCP connections");
+            var acceptTcpTask = Task.Run(async () => await _sessionManager
+                .TryAcceptTcpConnection(new IPEndPoint(IPAddress.Any, port), _sessionListenCts.Token).ConfigureAwait(false));
+
+            var connectionEstablished = false;
+            if (btEnabled) {
+                Console.WriteLine("Listening for BT connections");
+                var acceptBluetoothTask = Task.Run(async () =>
+                    await _sessionManager.TryAcceptBluetoothConnection(_sessionListenCts.Token).ConfigureAwait(false));
+
+                while (!connectionEstablished) {
+                    var finishedTask = await Task.WhenAny(acceptTcpTask, acceptBluetoothTask).ConfigureAwait(false);
+
+                    if (finishedTask == acceptTcpTask) {
+                        Console.WriteLine("TCP Task ended");
+                        connectionEstablished = await acceptTcpTask;
+                        // If couldn't form a connection retry
+                        if (!connectionEstablished)
+                            acceptTcpTask = Task.Run(async () => await _sessionManager
+                                .TryAcceptTcpConnection(new IPEndPoint(IPAddress.Any, port), _sessionListenCts.Token)
+                                .ConfigureAwait(false));
+                    }
+                    else if (finishedTask == acceptBluetoothTask) {
+                        Console.WriteLine("BT Task ended");
+                        try {
+                            connectionEstablished = await acceptBluetoothTask;
+
+                        }
+                        catch (Exception e) {
+                            Console.WriteLine($"BT Exception {e}");
+                        }
+
+                        // If couldn't form a connection retry
+                        if (!connectionEstablished)
+                            acceptBluetoothTask = Task.Run(async () =>
+                                await _sessionManager.TryAcceptBluetoothConnection(_sessionListenCts.Token)
+                                    .ConfigureAwait(false));
+                    }
+                }
+            }
+            else {
+                while (!connectionEstablished) {
+                    connectionEstablished = await acceptTcpTask;
+                    if (!connectionEstablished)
+                        acceptTcpTask = Task.Run(async () => await _sessionManager
+                            .TryAcceptTcpConnection(new IPEndPoint(IPAddress.Any, port), _sessionListenCts.Token).ConfigureAwait(false));
+                }
             }
 
-            Console.WriteLine("About to start connecting");
-            await _session.Connect(_sessionCts.Token);
-            await _session.StartAsync(_sessionCts.Token);
+            Console.WriteLine("Exited loop");
 
-            StartSessionMonitor(_session, _sessionCts.Token);
-
-            Status = $"Connected to {_session.Peer}";
+            Status = $"Connected to {_sessionManager.PeerName}";
             SessionStatus = "Connected";
             HomeSessionMessage = null;
             Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
 
             OnPropertyChanged(nameof(IsConnected));
+            await _sessionManager.Receive();
         }
         catch (Exception ex) {
             Status = $"Host error: {ex.Message}";
@@ -434,22 +464,24 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             }
 
             if (snapshot is not null) {
-                var decoded = _decoder.TryDecode(snapshot);
-                if (!string.IsNullOrWhiteSpace(decoded)) {
-                    DecodedText = decoded;
-                    Status = "QR decoded";
-                    if (Interlocked.Exchange(ref _qrHandled, 1) == 1)
-                        return;
-                    _ = HandleQrDecodedAsync(decoded); // fire-and-forget async workflow
+                var decodedText = _decoder.TryDecode(snapshot);
+                if (!string.IsNullOrWhiteSpace(decodedText)) {
+                    if (QrCodeDataCodec.TryDecode(decodedText, out var qrCodeData)) {
+                        DecodedText = decodedText;
+                        Status = "QR decoded";
+                        if (Interlocked.Exchange(ref _qrHandled, 1) == 1)
+                            return;
+                        _ = HandleQrDecodedAsync(qrCodeData!); // fire-and-forget async workflow, qr code data not null as checked trydecode return value
+                    }
+                    else {
+                        Status = "Invalid QR code data";
+                    }
                 }
 
             }
         }
 
     }
-
-
-
 
     private void EnsurePreviewBitmap(int width, int height) {
         if (Preview is not null && Preview.PixelSize.Width == width && Preview.PixelSize.Height == height)
@@ -461,87 +493,95 @@ public sealed class MainViewModel : INotifyPropertyChanged {
             PixelFormat.Bgra8888,
             AlphaFormat.Unpremul);
     }
-    private async Task HandleQrDecodedAsync(string decoded) {
+    private async Task HandleQrDecodedAsync(QrCodeData qrCodeData) {
+        var endpoint = new IPEndPoint(IPAddress.Parse(qrCodeData.LanInfo.Address), qrCodeData.LanInfo.Port);
         try {
-            if (string.Equals(decoded, _lastGeneratedInviteText, StringComparison.Ordinal)) {
+            if (qrCodeData == _lastGeneratedQrCodeData) {
                 Status = "Ignored your own QR code.";
                 Interlocked.Exchange(ref _qrHandled, 0);
                 return;
             }
 
-            Status = "Parsing invite…";
-
-            if (!ConnectionInviteCodec.TryDecode(decoded, out var invite) || invite is null) {
-                Status = "Invalid invite";
-                Interlocked.Exchange(ref _qrHandled, 0);
-                return;
-            }
-
             if (!AllowSameMachineConnectionsForTesting &&
-                string.Equals(invite.Ip, _device.GetLocalLanIp(), StringComparison.OrdinalIgnoreCase)) {
+                string.Equals(endpoint.Address.ToString(), _device.GetLocalLanIp(), StringComparison.OrdinalIgnoreCase)) {
                 Status = "Blocked: this QR points to your own computer.";
                 Interlocked.Exchange(ref _qrHandled, 0);
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(_localInviteSessionId) &&
-                string.Equals(invite.Sid, _localInviteSessionId, StringComparison.Ordinal)) {
+            if (_localInviteSessionId is not null && qrCodeData.Sid == _localInviteSessionId) {
                 Status = "Ignored your own QR code.";
                 Interlocked.Exchange(ref _qrHandled, 0);
                 return;
             }
 
             await StopScanAsync();
-            SessionId = invite.Sid;
+            SessionId = qrCodeData.Sid.ToString();
 
             Status = "Connecting to peer…";
 
-            _sessionCts = new CancellationTokenSource();
-
-            var ep = new IPEndPoint(
-                IPAddress.Parse(invite.Ip),
-                invite.Port);
-            /*
-            _session = new TcpClientSession(_storageService, ep);
-
-            if (_session is TcpClientSession h) {
-                h.FileSaved += path =>
-                    Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
-
-                h.FileAcked += (_, sha) =>
-                    Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered ✅ SHA256={sha}");
-
-                h.FileOfferDecision = async offer => {
-                    var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
-                    return FileOfferDecisionUi is null ? true : await FileOfferDecisionUi(info);
-                };
+            if (!_permissionsService.HasBluetoothPermissions) {
+                await _permissionsService.RequestBluetoothPermission();
             }
-            */
 
-            _session = new BluetoothClientSession();
-            if (_session is BluetoothClientSession h) {
-                h.FileSaved += path =>
-                    Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
+            _sessionManager.AesSessionKey = qrCodeData.AesKey;
+            // ONLY DO BLUETOOTH IF HAVE PERMISSION
+            Func<Task<bool>>? tryEstablishBtFunc = null;
 
-                h.FileAcked += (_, sha) =>
-                    Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered ✅ SHA256={sha}");
-
-                h.FileOfferDecision = async offer => {
-                    var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
-                    return FileOfferDecisionUi is null ? true : await FileOfferDecisionUi(info);
-                };
+            if (qrCodeData.BtInfo is { } info) {
+                if (info.Address is not null && BluetoothAddress.TryParse(info.Address, out var btAddr)) {
+                    tryEstablishBtFunc = async () => await _sessionManager.TryEstablishBluetoothConnection(btAddr, info.Name, _sessionEstablishCts.Token);
+                }
+                else {
+                    tryEstablishBtFunc = async () =>
+                        await _sessionManager.TryEstablishBluetoothConnection(info.Name, _sessionEstablishCts.Token)
+                            .ConfigureAwait(false);
+                }
             }
-            Console.WriteLine("Handling QR code decode, connectingx");
-            await _session.Connect(_sessionCts.Token);
-            await _session.StartAsync(_sessionCts.Token);
-            StartSessionMonitor(_session, _sessionCts.Token);
+            Console.WriteLine("Session manager trying to establish TCP and BT connections with the server");
+            var establishTcpTask = Task.Run(async () => await _sessionManager
+                .TryEstablishTcpConnection(endpoint, _sessionEstablishCts.Token).ConfigureAwait(false));
 
-            Status = $"Connected to {invite.Ip}:{invite.Port}";
+            // If server indicated bluetooth is available try to connect to both else only tcp
+            var connectionEstablished = false;
+            if (tryEstablishBtFunc is not null) {
+                var establishBtTask = Task.Run(tryEstablishBtFunc);
+
+                while (!connectionEstablished) {
+                    var finishedTask = await Task.WhenAny(establishTcpTask, establishBtTask).ConfigureAwait(false);
+
+                    if (finishedTask == establishTcpTask) {
+                        connectionEstablished = await establishTcpTask;
+                        Console.WriteLine($"Established TCP: {connectionEstablished}");
+                        // If couldn't form a connection retry
+                        if (!connectionEstablished)
+                            establishTcpTask = Task.Run(async () => await _sessionManager
+                                .TryEstablishTcpConnection(endpoint, _sessionEstablishCts.Token).ConfigureAwait(false));
+                    }
+                    else if (finishedTask == establishBtTask) {
+                        connectionEstablished = await establishBtTask;
+                        Console.WriteLine("Established BT");
+                        // If couldn't form a connection retry
+                        if (!connectionEstablished)
+                            establishBtTask = Task.Run(tryEstablishBtFunc);
+                    }
+                }
+            }
+            else {
+                while (!connectionEstablished) {
+                    connectionEstablished = await establishTcpTask;
+                    establishTcpTask = Task.Run(async () => await _sessionManager
+                        .TryEstablishTcpConnection(endpoint, _sessionEstablishCts.Token).ConfigureAwait(false));
+                }
+            }
+
+            Status = $"Connected to {_sessionManager.PeerName}";
             SessionStatus = "Connected";
             HomeSessionMessage = null;
             Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
 
             OnPropertyChanged(nameof(IsConnected));
+            await _sessionManager.Receive();
         }
         catch (Exception ex) {
             Status = $"Connection failed: {ex.Message}";
@@ -549,28 +589,17 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         }
     }
 
-    public async Task StopSessionAsync(bool resetToReady = true, string? homeMessage = null) {
+    public async Task StopSessionAsync(string? homeMessage = null) {
         try {
             _isStoppingSession = true;
             RejectPendingFileOffer();
-            _sessionMonitorCts?.Cancel();
-            _sessionMonitorCts?.Dispose();
-            _sessionMonitorCts = null;
 
-            _sessionCts?.Cancel();
-            _sessionCts?.Dispose();
-            _sessionCts = null;
-
-            if (_session is not null) {
-                await _session.StopAsync();
-                _session = null;
-            }
+            await _sessionManager.StopSession();
 
             SessionId = null;
             SessionStatus = "Not connected";
             SessionMessage = null;
-            if (resetToReady)
-                Status = "Ready";
+            Status = "Ready";
             if (!string.IsNullOrWhiteSpace(homeMessage))
                 HomeSessionMessage = homeMessage;
 
@@ -639,9 +668,6 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         }
     }
     public async Task SendFileAsync() {
-        if (_session is null)
-            return;
-
         try {
             var file = PickFileStreamUi is null
                 ? null
@@ -649,12 +675,11 @@ public sealed class MainViewModel : INotifyPropertyChanged {
 
             if (file is var (filename, filestream)) {
                 Status = "Sending file…";
-                await _session.SendFileAsync(filestream, filename, CancellationToken.None);
+                await _sessionManager.SendFileAsync(filestream, filename, CancellationToken.None);
                 Status = "File sent.";
             }
             else {
                 Status = "Send canceled.";
-                return;
             }
         }
         catch (Exception ex) {
@@ -705,42 +730,6 @@ public sealed class MainViewModel : INotifyPropertyChanged {
         });
     }
 
-    private void StartSessionMonitor(ISession session, CancellationToken sessionToken) {
-        _sessionMonitorCts?.Cancel();
-        _sessionMonitorCts?.Dispose();
-        _sessionMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(sessionToken);
-
-        var monitorToken = _sessionMonitorCts.Token;
-        _ = Task.Run(async () => {
-            try {
-                while (!monitorToken.IsCancellationRequested) {
-                    var state = session.State;
-                    if (state is SessionState.Closed or SessionState.Error) {
-                        if (_isStoppingSession)
-                            return;
-
-                        Dispatcher.UIThread.Post(async () => {
-                            if (_isStoppingSession)
-                                return;
-
-                            await StopSessionAsync(
-                                resetToReady: false,
-                                homeMessage: "Session disconnected.");
-                            await PrepareMainPageAsync(
-                                homeMessage: "Session disconnected.",
-                                regenerateQr: true);
-                            Status = "Session ended: peer disconnected.";
-                        });
-                        return;
-                    }
-
-                    await Task.Delay(250, monitorToken);
-                }
-            }
-            catch (OperationCanceledException) { }
-        }, monitorToken);
-    }
-
     public async Task DoPickDownloadsFolder(Visual? visual) {
         await _storageService.PickDownloadsFolderAsync(visual);
         DownloadFolder = _storageService.GetDownloadDirectoryLabel();
@@ -751,4 +740,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
     private void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
+    public void Dispose() {
+        _sessionManager.Dispose();
+    }
 }
