@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -15,7 +16,7 @@ public static class MessageFraming {
     private const byte Version = 1;
     private const int HeaderLen = 4 + 1 + 1 + 2 + 4; // magic + ver + type + flags + len
 
-    public static async Task WriteAsync(Stream stream, DropMeMsg msg, CancellationToken ct = default) {
+    public static (byte[] header, byte[] body) FrameMessage(DropMeMsg msg) {
         var type = msg switch {
             PingMsg => SessionMessageType.Ping,
             PongMsg => SessionMessageType.Pong,
@@ -30,7 +31,7 @@ public static class MessageFraming {
             DisconnectMsg => SessionMessageType.Disconnect,
             _ => throw new ArgumentOutOfRangeException("Somehow created an invalid message type?")
         };
-        Span<byte> header = stackalloc byte[HeaderLen];
+        var header = new byte[HeaderLen];
         header[0] = Magic[0]; header[1] = Magic[1]; header[2] = Magic[2]; header[3] = Magic[3];
         header[4] = Version;
         header[5] = (byte)type;
@@ -39,16 +40,13 @@ public static class MessageFraming {
         // Need get type or it for some reason won't resolve the actual type of msg and always serialise it as {}
         var serialised = JsonSerializer.SerializeToUtf8Bytes(msg, msg.GetType());
 
-        BinaryPrimitives.WriteUInt32LittleEndian(header.Slice(8, 4), (uint)serialised.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan()[8..(8 + 4)], (uint)serialised.Length);
 
-        await stream.WriteAsync(header.ToArray(), ct).ConfigureAwait(false);
-        await stream.WriteAsync(serialised, ct).ConfigureAwait(false);
-        await stream.FlushAsync(ct).ConfigureAwait(false);
+        return (header, serialised);
     }
 
-    public static async Task<DropMeMsg> ReadAsync(Stream stream, CancellationToken ct = default) {
-        var header = new byte[HeaderLen];
-        await stream.ReadExactlyAsync(header, 0, header.Length, ct).ConfigureAwait(false);
+    public static DropMeMsg ParseMessage(byte[] data) {
+        var header = data.AsSpan()[0..HeaderLen];
 
         if (header[0] != Magic[0] || header[1] != Magic[1] || header[2] != Magic[2] || header[3] != Magic[3])
             throw new InvalidDataException("Bad magic.");
@@ -56,12 +54,9 @@ public static class MessageFraming {
             throw new InvalidDataException($"Unsupported version: {header[4]}");
 
         var type = (SessionMessageType)header[5];
-        var len = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(8, 4));
+        var len = BinaryPrimitives.ReadUInt32LittleEndian(header[8..(8 + 4)]);
 
-        var payload = new byte[len];
-        if (len > 0)
-            await stream.ReadExactlyAsync(payload, 0, (int)len, ct).ConfigureAwait(false);
-        var span = new ReadOnlySpan<byte>(payload);
+        var span = data[HeaderLen..];
         return type switch {
             SessionMessageType.Ping => JsonSerializer.Deserialize<PingMsg>(span),
             SessionMessageType.Pong => JsonSerializer.Deserialize<PongMsg>(span),
