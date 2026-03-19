@@ -220,7 +220,7 @@ public class ConfigServiceTestsStorageMock : IStorageService {
         throw new NotImplementedException();
     }
 
-    public (Stream, string)? OpenDownloadFileWriteStreamAsync(string fileName) {
+    public (Stream, string)? OpenDownloadFileWriteStream(string fileName) {
         throw new NotImplementedException();
     }
 
