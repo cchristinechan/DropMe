@@ -18,7 +18,7 @@ public class BluezProfile1Manager {
             lock (_lock) {
                 if (_instance == null) {
                     _instance = new Profile1("DropMe", new Guid(ServiceGuid));
-                    _instance.StartAsync().RunSynchronously();
+                    _instance.StartAsync().Wait();
                 }
                 return _instance;
             }
