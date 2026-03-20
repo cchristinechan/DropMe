@@ -49,7 +49,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     private Guid? _localInviteSessionId;
 
     private string? _lastGeneratedInviteText;
-    private string? _localInviteSessionId;
     private readonly List<string> _availableCameras = new();
     private int _selectedCameraIndex;
 

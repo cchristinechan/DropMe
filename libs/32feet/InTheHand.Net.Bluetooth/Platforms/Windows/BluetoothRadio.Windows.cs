@@ -50,14 +50,27 @@ namespace InTheHand.Net.Bluetooth {
 
         public RadioMode Mode {
             get {
+                if (_radio == null) {
+                    return RadioMode.PowerOff;
+                }
                 return _radio.State == RadioState.On ? RadioMode.Connectable : RadioMode.PowerOff;
             }
             set {
-                Windows.UI.Core.CoreWindow.GetForCurrentThread().DispatcherQueue.TryEnqueue(async () => {
-                    if (await Radio.RequestAccessAsync() == RadioAccessStatus.Allowed) {
-                        await _radio.SetStateAsync(value == RadioMode.PowerOff ? RadioState.Off : RadioState.On);
+                var targetState = value == RadioMode.PowerOff ? RadioState.Off : RadioState.On;
+                try {
+                    var coreWindow = Windows.UI.Core.CoreWindow.GetForCurrentThread();
+                    if (coreWindow != null && coreWindow.DispatcherQueue != null) {
+                        coreWindow.DispatcherQueue.TryEnqueue(() => {
+                            _ = SetStateAsync(targetState);
+                        });
+                        return;
                     }
-                });
+                }
+                catch {
+                    // Ignore and fall through to direct path.
+                }
+
+                _ = SetStateAsync(targetState);
             }
         }
 
@@ -80,5 +93,20 @@ namespace InTheHand.Net.Bluetooth {
         }
 
         public ushort LmpSubversion { get => 0; }
+
+        private async Task SetStateAsync(RadioState targetState) {
+            if (_radio == null) {
+                return;
+            }
+
+            try {
+                if (await Radio.RequestAccessAsync() == RadioAccessStatus.Allowed) {
+                    await _radio.SetStateAsync(targetState);
+                }
+            }
+            catch (Exception ex) {
+                Debug.WriteLine(ex);
+            }
+        }
     }
 }

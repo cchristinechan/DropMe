@@ -254,33 +254,53 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
     private async Task<IConnection> AcceptBluetoothConnection(CancellationToken ct) {
         using var listener = new BluetoothListener(new Guid(DropMeGuid));
         var radio = BluetoothRadio.Default;
-        radio.Mode = RadioMode.Discoverable;
+        SetRadioMode(radio, RadioMode.Discoverable, "AcceptBluetoothConnection startup");
+
         listener.Start();
         Console.WriteLine("Bluetooth server started, waiting for connections...");
 
-        while (!BluetoothConnected) {
-            var client = await listener.AcceptBluetoothClientAsync();
-            Console.WriteLine($"Client {client.RemoteMachineName} connected!");
-            radio.Mode = RadioMode.Connectable;
+        try {
+            while (!BluetoothConnected) {
+                var client = await listener.AcceptBluetoothClientAsync();
+                Console.WriteLine($"Client {client.RemoteMachineName} connected!");
+                SetRadioMode(radio, RadioMode.Connectable, "AcceptBluetoothConnection after connect");
 
-            if (AesSessionKey is null)
-                throw new NullReferenceException("Aes session key must be set before connecting");
+                if (AesSessionKey is null)
+                    throw new NullReferenceException("Aes session key must be set before connecting");
 
-            var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
-            if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false)) {
-                Console.WriteLine($"Client {connection.PeerName} tried to connect with a bad handshake");
-                client.Close();
-            }
-            else {
-                Console.WriteLine("Created a connection, handshake successful");
-                var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, sessionCt);
-                _bluetoothConnection = (connection, task);
-                Console.WriteLine("Accepted a BT connection!");
+                var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+                if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false)) {
+                    Console.WriteLine($"Client {connection.PeerName} tried to connect with a bad handshake");
+                    client.Close();
+                }
+                else {
+                    Console.WriteLine("Created a connection, handshake successful");
+                    var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, sessionCt);
+                    _bluetoothConnection = (connection, task);
+                    Console.WriteLine("Accepted a BT connection!");
+                }
             }
         }
-        listener.Stop();
-        radio.Mode = RadioMode.Discoverable;
+        finally {
+            listener.Stop();
+            SetRadioMode(radio, RadioMode.Discoverable, "AcceptBluetoothConnection cleanup");
+        }
         return _bluetoothConnection!.Value.connection;
+    }
+
+    private static void SetRadioMode(BluetoothRadio? radio, RadioMode mode, string reason) {
+        if (radio is null) {
+            Console.WriteLine($"Skipping radio mode change to {mode}: no local radio available ({reason})");
+            return;
+        }
+
+        try {
+            radio.Mode = mode;
+            Console.WriteLine($"Set Bluetooth radio mode to {mode} ({reason})");
+        }
+        catch (Exception e) {
+            Console.WriteLine($"Failed to set Bluetooth radio mode to {mode} during {reason}: {e.Message}");
+        }
     }
 
     private async Task<IConnection?> EstablishTcpConnection(IPEndPoint serverEp, CancellationToken ct) {

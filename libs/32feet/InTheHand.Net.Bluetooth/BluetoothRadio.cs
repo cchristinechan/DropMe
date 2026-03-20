@@ -73,7 +73,14 @@ namespace InTheHand.Net.Bluetooth {
         /// <summary>
         /// Gets or sets the Scan Mode of the radio.
         /// </summary>
-        public RadioMode Mode { get => _radio.Mode; set => _radio.Mode = value; }
+        public RadioMode Mode {
+            get => _radio?.Mode ?? RadioMode.PowerOff;
+            set {
+                if (_radio != null) {
+                    _radio.Mode = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets the company identifier for the radio (if available).
