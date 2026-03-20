@@ -4,264 +4,92 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using InTheHand.Net;
-using InTheHand.Net.Bluetooth;
-using InTheHand.Net.Sockets;
 
 namespace DropMe.Services.Session;
 
-public enum ChannelToken {
-    TcpConnection, BluetoothConnection
-}
-
-public class SessionManager(IStorageService storageService) : IDisposable {
+public class SessionManager : IDisposable {
     public Func<FileOfferInfo, Task<bool>>? FileOfferDecision { get; set; }
-    public bool IsConnected => TcpConnected || BluetoothConnected;
-    public bool TcpConnected => _tcpConnection?.connection is { IsConnected: true };
-    public bool BluetoothConnected => _bluetoothConnection?.connection is { IsConnected: true };
-    public string? PeerName => _connectionInUse?.PeerName;
+    public bool TcpConnected => _connectionManager.TcpConnected;
+    public bool BtConnected => _connectionManager.BluetoothConnected;
+    public bool IsConnected => _connectionManager.IsConnected;
+    public string? PeerName => _connectionManager.PeerName;
     public event Action<string>? FileSaved;
     public event Action<Guid, string /*sha256 hex*/>? FileAcked;
     public event Action<SessionEndReason>? SessionEnded;
-    public byte[]? AesSessionKey { get; set; } // MUST BE SET BEFORE A CONNECTION IS ESTABLISHED
-    private const string DropMeGuid = "bc8659c9-3aa7-4faf-ba42-c5feb93d1a3e";
-    private (EncryptedConnection<TcpClientNsAdapter> connection, Task receiveTask)? _tcpConnection;
-    private (EncryptedConnection<BluetoothClientNsAdapter> connection, Task receiveTask)? _bluetoothConnection;
-    private IConnection? _connectionInUse; // Points to one of the above connections
-    private CancellationTokenSource _sessionCtSource = new();
-    private readonly Channel<(ChannelToken, DropMeMsg)> _networkSyncChannel = Channel.CreateUnbounded<(ChannelToken, DropMeMsg)>();
+
+    public byte[]? AesSessionKey {
+        set => _connectionManager.AesSessionKey = value;
+    } // MUST BE SET BEFORE A CONNECTION IS ESTABLISHED
+
+    private readonly CancellationTokenSource _sessionCtSource = new();
+    private readonly ConnectionManager _connectionManager;
+    private readonly IStorageService _storageService;
     private readonly Dictionary<Guid, FileTransferState> _fileTransferStates = new Dictionary<Guid, FileTransferState>();
+    private bool _disposed = false;
 
-    public async Task<bool> TryAcceptTcpConnection(IPEndPoint listenEp, CancellationToken ct) {
-        Console.WriteLine("Waiting for TCP connections");
-        var listener = new TcpListener(listenEp);
-        listener.Start();
-        var client = await listener.AcceptTcpClientAsync(ct);
-        listener.Stop();
-
-        if (AesSessionKey is null)
-            throw new NullReferenceException("Aes session key must be set before connecting");
-
-        var connection = new EncryptedConnection<TcpClientNsAdapter>(new TcpClientNsAdapter(client), client.Client.RemoteEndPoint?.ToString() ?? "Unknown", AesSessionKey);
-        if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false))
-            return false;
-        Console.WriteLine("Created a connection, handshake successful");
-        var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.TcpConnection, _sessionCtSource.Token);
-        _tcpConnection = (connection, task);
-        _connectionInUse = connection; // TODO: Negotiate a connection
-        Console.WriteLine($"Accepted a TCP connection {TcpConnected}!");
-        return TcpConnected;
+    public SessionManager(IStorageService storageService) {
+        _storageService = storageService;
+        _connectionManager = new ConnectionManager(_sessionCtSource.Token);
     }
 
-    public async Task<bool> TryEstablishTcpConnection(IPEndPoint serverEp, CancellationToken ct) {
-        var client = new TcpClient();
-        Console.WriteLine($"Trying to connect to {serverEp}");
-        await client.ConnectAsync(serverEp, ct).ConfigureAwait(false);
-        Console.WriteLine($"Connected to {serverEp}");
-        var stream = client.GetStream();
-        Console.WriteLine("Got it's stream");
-        if (AesSessionKey is null)
-            throw new NullReferenceException("Aes session key must be set before connecting");
-        var connection = new EncryptedConnection<TcpClientNsAdapter>(new TcpClientNsAdapter(client), serverEp.Address.ToString(), AesSessionKey);
-        if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false))
-            return false;
-        Console.WriteLine("Created a connection, handshake successful");
-        var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.TcpConnection, _sessionCtSource.Token);
-        Console.WriteLine("Started handling messages");
-        _tcpConnection = (connection, task);
-        _connectionInUse = connection; // TODO: Negotiate a connection
-        Console.WriteLine("Returning");
-        return TcpConnected;
+    public Task ListenTcp(IPEndPoint listenEp, CancellationToken ct) {
+        return _connectionManager.TryAcceptTcpConnection(listenEp, ct);
     }
 
-    public async Task<bool> TryAcceptBluetoothConnection(CancellationToken ct) {
-        using var listener = new BluetoothListener(new Guid(DropMeGuid));
-        var radio = BluetoothRadio.Default;
-        radio.Mode = RadioMode.Discoverable;
-        listener.Start();
-        Console.WriteLine("Bluetooth server started, waiting for connections...");
-
-        using var client = await listener.AcceptBluetoothClientAsync();
-        Console.WriteLine($"Client {client.RemoteMachineName} connected!");
-        radio.Mode = RadioMode.Connectable;
-
-        if (AesSessionKey is null)
-            throw new NullReferenceException("Aes session key must be set before connecting");
-
-        var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
-        if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false))
-            return false;
-        Console.WriteLine("Created a connection, handshake successful");
-        var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
-        _bluetoothConnection = (connection, task);
-        Console.WriteLine("Accepted a BT connection!");
-        return BluetoothConnected;
+    public Task ListenTcpAndBt(IPEndPoint listenEp, CancellationToken ct) {
+        return _connectionManager.TryAcceptTcpAndBtConnections(listenEp, ct);
     }
 
-    public async Task<bool> TryEstablishBluetoothConnection(BluetoothAddress knownAddress, string knownName, CancellationToken ct) {
-        using var client = new BluetoothClient();
-        client.Encrypt = true;
-        client.Authenticate = true;
-        Console.WriteLine($"Attempting to pair with known address {knownAddress}");
-        var pairResult = await client.PairAsync(knownAddress).ConfigureAwait(false);
-        Console.WriteLine($"Pairing: {pairResult}");
-
-        Console.WriteLine($"Attempting to connect to known address {knownAddress}");
-        await client.ConnectAsync(knownAddress, new Guid(DropMeGuid)).ConfigureAwait(false);
-        Console.WriteLine($"Connected to {knownAddress}");
-
-        if (AesSessionKey is null)
-            throw new NullReferenceException("Aes session key must be set before connecting");
-
-        var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
-        if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false))
-            return false;
-        Console.WriteLine("Created a connection, handshake successful");
-        var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
-        _bluetoothConnection = (connection, task);
-        return BluetoothConnected;
+    public Task EstablishConnections(IPEndPoint? lanServerEp, BluetoothAddress? btAddr, string? btName, CancellationToken ct) {
+        Console.WriteLine($"Trying to establish connection with {lanServerEp} {btAddr} {btName}");
+        return _connectionManager.EstablishConnections(lanServerEp, btAddr, btName, ct);
     }
 
-    public async Task<bool> TryEstablishBluetoothConnection(string knownName, CancellationToken ct) {
-        var serviceGuid = new Guid(DropMeGuid);
-        var client = new BluetoothClient();
-        client.Encrypt = true;
-        client.Authenticate = true;
-        Console.WriteLine("Discovering nearby Bluetooth devices...");
-        BluetoothDeviceInfo? matchedDevice = null;
-        // Check each device for the target service
-        var devices = client.DiscoverDevicesAsync(ct).ConfigureAwait(false);
-        var devicesToQuery = new List<BluetoothDeviceInfo>();
-        await foreach (var device in devices) {
-            device.Refresh();
-            Console.WriteLine($"Device: {device.DeviceAddress}");
-            if (!string.IsNullOrEmpty(device.DeviceName)) {
-                Console.WriteLine($"Device has name {device.DeviceName}");
-                devicesToQuery.Add(device);
+    public async Task<bool> StartReceiveLoop() {
+        Debug.Assert(!_disposed, "Cannot receive on disposed session, create a new session manager");
+        try {
+            await foreach (var msg in _connectionManager.ReceiveMessages()) {
+                await RespondToDataMessage(msg);
             }
+
+            SessionEnded?.Invoke(SessionEndReason.PeerRequested);
+            return true;
         }
-        Console.WriteLine("Entered querying phase");
-        foreach (var device in devicesToQuery) {
-            try {
-                Console.WriteLine($"Checking device [{device.DeviceAddress}] [{device.DeviceName}] for DropMe");
-                if ((await device.GetRfcommServicesAsync(false).ConfigureAwait(false)).Any(s => s == serviceGuid)) {
-                    Console.WriteLine($"Found DropMe service on {device.DeviceName}!");
-                    matchedDevice = device;
-                    break;
-                }
-            }
-            catch (Exception e) {
-                Console.WriteLine($"Exception {e.Message}");
-            }
+        catch (PeerRequestedDisconnectionException) {
+            SessionEnded?.Invoke(SessionEndReason.PeerRequested);
+            return true;
         }
-        Console.WriteLine("Exited querying phase");
-
-        if (matchedDevice != null) {
-            Console.WriteLine("Attempting to connect to the device");
-            try {
-                var success = await client.PairAsync(matchedDevice.DeviceAddress).ConfigureAwait(false);
-                Console.WriteLine($"Pairing: {success}");
-                await client.ConnectAsync(matchedDevice.DeviceAddress, serviceGuid).ConfigureAwait(false);
-                Console.WriteLine($"Bluetooth connected to {matchedDevice.DeviceAddress}");
-
-                if (AesSessionKey is null)
-                    throw new NullReferenceException("Aes session key must be set before connecting");
-
-                var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
-                if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false))
-                    return false;
-                Console.WriteLine("Created a connection, handshake successful");
-                var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, ChannelToken.BluetoothConnection, _sessionCtSource.Token);
-                _bluetoothConnection = (connection, task);
-            }
-            catch (Exception e) {
-                Console.WriteLine($"Exception {e}");
-            }
+        catch (AllConnectionsDeadException) {
+            SessionEnded?.Invoke(SessionEndReason.AllChannelsDisconnected);
+            return false;
         }
-
-        Console.WriteLine("Ended bluetooth discovery");
-        return BluetoothConnected;
     }
 
-    public async Task<bool> Receive() {
-
-        await foreach (var (token, message) in _networkSyncChannel.Reader.ReadAllAsync()) {
-            Console.WriteLine($"Received: {message}");
-            // Perform quick check on the connections and if they have a fault close them properly,
-            // they'll only complete if the networksyncchannel gets closed but worth checking
-            var tcpRecvTask = _tcpConnection?.receiveTask;
-            if (tcpRecvTask?.IsFaulted is true || tcpRecvTask?.IsCompleted is true) {
-                Console.WriteLine("Receive method is dropping TCP");
-                try {
-                    await tcpRecvTask.ConfigureAwait(false);
-                }
-                catch (Exception ex) {
-                    Console.WriteLine(ex);
-                }
-                _tcpConnection?.connection.Dispose();
-                _tcpConnection = null;
-            }
-            var btRecvTask = _tcpConnection?.receiveTask;
-            if (btRecvTask?.IsFaulted is true || btRecvTask?.IsCompleted is true) {
-                Console.WriteLine("Receive method is dropping BT");
-                try {
-                    await btRecvTask.ConfigureAwait(false);
-                }
-                catch (Exception ex) {
-                    Console.WriteLine(ex);
-                }
-                _bluetoothConnection?.connection.Dispose();
-                _bluetoothConnection = null;
-            }
-
-            if (!IsConnected) {
-                SessionEnded?.Invoke(SessionEndReason.AllChannelsDisconnected);
-                return false;
-            }
-
-            Console.WriteLine("Responding to a message");
-            switch (message) {
-                case ControlMsg ctrlMsg:
-                    await RespondToControlMessage(token, ctrlMsg);
-                    break;
-                case FileMsg dataMsg:
-                    await RespondToDataMessage(token, dataMsg);
-                    break;
-            }
-        }
-
-        return true;
-    }
-
+    /// <summary>
+    /// Stops and disposes this session manager.
+    /// </summary>
     public async Task StopSession() {
+        Debug.Assert(!_disposed, "Cannot stop a session manager twice, create a new session manager");
         Console.WriteLine("Stop session called");
         // Try to notify peer that a disconnection has been requested
-        await SendMessage(new DisconnectMsg(), CancellationToken.None);
+        await _connectionManager.SendMessage(new DisconnectMsg(), CancellationToken.None);
 
         await _sessionCtSource.CancelAsync();
-        if (_tcpConnection is var (tcpConn, _)) {
-            tcpConn.Dispose();
-            _tcpConnection = null;
-        }
-
-        if (_bluetoothConnection is var (btConn, _)) {
-            btConn.Dispose();
-            _bluetoothConnection = null;
-        }
-        _sessionCtSource = new CancellationTokenSource();
+        Dispose();
     }
 
     // There would be race conditions if multiple threads try to modify the same _fileTransferStates[fileId]
     // This should be fine as after it is SendInProgress, this thread is the only one modifying that fileId
     public async Task SendFileAsync(Stream file, string filename, CancellationToken ct) {
+        Debug.Assert(!_disposed, "Cannot send on disposed session, create a new session manager");
+
         var fileId = Guid.NewGuid();
         var offer = new FileOfferInfo(fileId, filename, file.Length);
-        await SendMessage(new FileOfferMsg(offer), ct).ConfigureAwait(false);
+        await _connectionManager.SendMessage(new FileOfferMsg(fileId, filename, file.Length), ct).ConfigureAwait(false);
         var tcs = new TaskCompletionSource<bool>();
         lock (_fileTransferStates) {
             _fileTransferStates.Add(fileId, new AwaitingDecision(offer, tcs));
@@ -287,8 +115,14 @@ public class SessionManager(IStorageService storageService) : IDisposable {
             if (n <= 0) break;
 
             fileState.Hash.AppendData(buffer, 0, n);
+            try {
+                await _connectionManager.SendMessage(new FileChunkMsg(fileId, chunkIndex++, buffer[0..n]), ct)
+                    .ConfigureAwait(false);
 
-            await SendMessage(new FileChunkMsg(fileId, chunkIndex++, buffer[0..n]), ct).ConfigureAwait(false);
+            }
+            catch (Exception e) {
+                Console.WriteLine($"Exception sending file data message {e}");
+            }
         }
 
         var hash = fileState.Hash.GetHashAndReset(); // 32 bytes
@@ -297,52 +131,25 @@ public class SessionManager(IStorageService storageService) : IDisposable {
         }
 
         Debug.Assert(hash.Length == 32, "Sha256 hash should be 32 bytes");
-        await SendMessage(new FileDoneMsg(fileId, hash), ct).ConfigureAwait(false);
+        await _connectionManager.SendMessage(new FileDoneMsg(fileId, hash), ct).ConfigureAwait(false);
     }
 
-    private async Task SendMessage(DropMeMsg msg, CancellationToken ct) {
-        Console.WriteLine($"Sending a message {msg}");
-        // Make it try to find a valid connection?
-        if (_connectionInUse is not null) {
-            await _connectionInUse.SendMessageAsync(msg, ct).ConfigureAwait(false);
-        }
-        else {
-            throw new Exception("Unable to resolve a valid connection");
-        }
-    }
-
-    private async Task RespondToControlMessage(ChannelToken token, ControlMsg message) {
+    private async Task RespondToDataMessage(FileMsg message) {
+        Console.WriteLine($"Responding to data message {message}");
         switch (message) {
-            case PingMsg:
-                var pongMsg = new PongMsg();
-                switch (token) {
-                    case ChannelToken.TcpConnection:
-                        await _tcpConnection!.Value.connection.SendMessageAsync(pongMsg, CancellationToken.None).ConfigureAwait(false);
-                        break;
-                    case ChannelToken.BluetoothConnection:
-                        await _bluetoothConnection!.Value.connection.SendMessageAsync(pongMsg, CancellationToken.None).ConfigureAwait(false);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException($"Somehow created an invalid channel token {token}");
-                }
-                break;
-            case PongMsg:
-                // No action needs taken
-                break;
-            case FileOfferMsg(var fileOffer):
-                Console.WriteLine($"File {fileOffer.FileId}  {fileOffer.Name} offered");
-                var accept = FileOfferDecision is null || await FileOfferDecision(fileOffer).ConfigureAwait(false);
+            case FileOfferMsg(var fileId, var fileName, var fileSize):
+                Console.WriteLine($"File {fileId}  {fileName} offered");
+                var accept = FileOfferDecision is null || await FileOfferDecision(new FileOfferInfo(fileId, fileName, fileSize)).ConfigureAwait(false);
                 if (accept) {
                     bool accepted;
                     lock (_fileTransferStates) {
                         var output =
-                            storageService.OpenDownloadFileWriteStream(
-                                $"recv_{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeName(fileOffer.Name)}");
+                            _storageService.OpenDownloadFileWriteStream(
+                                $"recv_{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeName(fileName)}");
                         if (output is var (stream, outputPath)) {
-                            var ableToAdd = _fileTransferStates.TryAdd(fileOffer.FileId,
-                                new ReceiveInProgress(stream, outputPath, fileOffer.Size, 0,
+                            var ableToAdd = _fileTransferStates.TryAdd(fileId,
+                                new ReceiveInProgress(stream, outputPath, fileSize, 0,
                                     IncrementalHash.CreateHash(HashAlgorithmName.SHA256), 0));
-                            Console.WriteLine($"Trying to update file recv state {ableToAdd}");
                             accepted = ableToAdd;
                         }
                         else {
@@ -351,14 +158,14 @@ public class SessionManager(IStorageService storageService) : IDisposable {
                     }
 
                     if (accepted) {
-                        await SendMessage(new FileAcceptMsg(fileOffer.FileId), _sessionCtSource.Token).ConfigureAwait(false);
+                        await _connectionManager.SendMessage(new FileAcceptMsg(fileId), _sessionCtSource.Token).ConfigureAwait(false);
                     }
                     else {
-                        await SendMessage(new FileRejectMsg(fileOffer.FileId, FileRejectReason.InternalError), _sessionCtSource.Token).ConfigureAwait(false);
+                        await _connectionManager.SendMessage(new FileRejectMsg(fileId, FileRejectReason.InternalError), _sessionCtSource.Token).ConfigureAwait(false);
                     }
                 }
                 else {
-                    await SendMessage(new FileRejectMsg(fileOffer.FileId, FileRejectReason.UserRejected), _sessionCtSource.Token).ConfigureAwait(false);
+                    await _connectionManager.SendMessage(new FileRejectMsg(fileId, FileRejectReason.UserRejected), _sessionCtSource.Token).ConfigureAwait(false);
                 }
                 break;
             case FileAcceptMsg(var fileId):
@@ -371,7 +178,6 @@ public class SessionManager(IStorageService storageService) : IDisposable {
                         decisionTs.DecisionTcs.TrySetResult(true);
                     }
                 }
-
                 break;
             case FileRejectMsg(var fileId, var reason):
                 lock (_fileTransferStates) {
@@ -386,65 +192,6 @@ public class SessionManager(IStorageService storageService) : IDisposable {
                     }
                 }
                 break;
-            case SwitchConnectionRequest:
-                if (TrySwitchConnection(token)) {
-                    await SendMessage(new SwitchConnectionAccept(), _sessionCtSource.Token).ConfigureAwait(false);
-                }
-                else {
-                    await SendMessage(new SwitchConnectionReject(), _sessionCtSource.Token).ConfigureAwait(false);
-                }
-                break;
-            case SwitchConnectionAccept:
-                // Know the connection shouldn't be null as we've just received a message on them
-                _connectionInUse = token switch {
-                    ChannelToken.TcpConnection => _tcpConnection!.Value.connection,
-                    ChannelToken.BluetoothConnection => _bluetoothConnection!.Value.connection,
-                    _ => throw new ArgumentOutOfRangeException($"Somehow matched on non existent enum varient {token}")
-                };
-                break;
-            case SwitchConnectionReject:
-                // No action needs taken
-                break;
-            case DisconnectMsg:
-                await _sessionCtSource.CancelAsync();
-                if (_tcpConnection is var (tcpConn, _)) {
-                    tcpConn.Dispose();
-                    _tcpConnection = null;
-                }
-
-                if (_bluetoothConnection is var (btConn, _)) {
-                    btConn.Dispose();
-                    _bluetoothConnection = null;
-                }
-                _sessionCtSource = new CancellationTokenSource();
-                SessionEnded?.Invoke(SessionEndReason.PeerRequested);
-                break;
-            default: throw new Exception("Unknown message");
-        }
-    }
-
-    private bool TrySwitchConnection(ChannelToken token) {
-        (IConnection, Task)? newConnection;
-        switch (token) {
-            case ChannelToken.TcpConnection:
-                newConnection = _tcpConnection;
-                break;
-            case ChannelToken.BluetoothConnection:
-                newConnection = _bluetoothConnection;
-                break;
-            default:
-                throw new ArgumentOutOfRangeException($"Somehow matched on non existent enum varient {token}");
-        }
-
-        if (newConnection?.Item1 is { IsConnected: true }) {
-            _connectionInUse = newConnection.Value.Item1;
-            return true;
-        }
-        return false;
-    }
-
-    private async Task RespondToDataMessage(ChannelToken token, FileMsg message) {
-        switch (message) {
             case FileChunkMsg(var fileId, var chunkIndex, var data):
                 FileTransferState? fileTs;
                 lock (_fileTransferStates) {
@@ -489,19 +236,19 @@ public class SessionManager(IStorageService storageService) : IDisposable {
             completedState.Hash.Dispose();
 
             if (completedState.WrittenBytes != completedState.ExpectedSizeBytes) {
-                await SendMessage(new FileRejectMsg(fileId, FileRejectReason.SizeMismatch), _sessionCtSource.Token).ConfigureAwait(false);
+                await _connectionManager.SendMessage(new FileRejectMsg(fileId, FileRejectReason.SizeMismatch), _sessionCtSource.Token).ConfigureAwait(false);
                 // DELETE FILE PROPERLY
                 return;
             }
 
             if (!CryptographicOperations.FixedTimeEquals(localHash, sha256.Span)) {
-                await SendMessage(new FileRejectMsg(fileId, FileRejectReason.HashMismatch), _sessionCtSource.Token).ConfigureAwait(false);
+                await _connectionManager.SendMessage(new FileRejectMsg(fileId, FileRejectReason.HashMismatch), _sessionCtSource.Token).ConfigureAwait(false);
                 //Delete file properly
                 return;
             }
 
             FileSaved?.Invoke(completedState.SavePath);
-            await SendMessage(new FileAckMsg(fileId, sha256), _sessionCtSource.Token).ConfigureAwait(false);
+            await _connectionManager.SendMessage(new FileAckMsg(fileId, sha256), _sessionCtSource.Token).ConfigureAwait(false);
         }
     }
 
@@ -510,8 +257,8 @@ public class SessionManager(IStorageService storageService) : IDisposable {
     }
 
     public void Dispose() {
-        _tcpConnection?.connection.Dispose();
-        _bluetoothConnection?.connection.Dispose();
+        _disposed = true;
+        _connectionManager.Dispose();
     }
 
     public enum SessionEndReason {

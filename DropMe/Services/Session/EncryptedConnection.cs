@@ -14,21 +14,31 @@ namespace DropMe.Services.Session;
 
 public interface INetworkStreamProvider {
     public NetworkStream NStream { get; }
+
+    public bool IsDisposed { get; }
 }
 
 public class TcpClientNsAdapter(TcpClient client) : INetworkStreamProvider, IDisposable {
     public NetworkStream NStream => client.GetStream();
+    public bool IsDisposed { get; private set; } = false;
 
     public void Dispose() {
-        client.Dispose();
+        if (!IsDisposed) {
+            IsDisposed = true;
+            client.Close();
+        }
     }
 }
 
 public class BluetoothClientNsAdapter(BluetoothClient client) : INetworkStreamProvider, IDisposable {
     public NetworkStream NStream => client.GetStream();
+    public bool IsDisposed { get; private set; } = false;
 
     public void Dispose() {
-        client.Close();
+        if (!IsDisposed) {
+            IsDisposed = true;
+            client.Close();
+        }
     }
 }
 
@@ -36,13 +46,12 @@ public interface IConnection : IDisposable {
     public bool IsConnected { get; }
     public string PeerName { get; }
 
-    public Task StartHandlingMessages(ChannelWriter<(ChannelToken, DropMeMsg)> channel, ChannelToken token,
-        CancellationToken ct);
+    public Task StartHandlingMessages(ChannelWriter<(IConnection, DropMeMsg)> channel, CancellationToken ct);
     public Task SendMessageAsync(DropMeMsg msg, CancellationToken ct);
 }
 
 public class EncryptedConnection<T>(T streamProvider, string peerName, byte[] aesKey) : IConnection where T : INetworkStreamProvider, IDisposable {
-    public bool IsConnected => streamProvider.NStream is { Socket.Connected: true };
+    public bool IsConnected => !streamProvider.IsDisposed && streamProvider.NStream is { Socket.Connected: true };
     public string PeerName => peerName;
     // It's fine for there to be a reader and a writer thread, but there could potentially be two writers
     // so need to lock on writes
@@ -136,14 +145,14 @@ public class EncryptedConnection<T>(T streamProvider, string peerName, byte[] ae
         }
     }
 
-    public async Task StartHandlingMessages(ChannelWriter<(ChannelToken, DropMeMsg)> channel, ChannelToken token, CancellationToken ct) {
-        Debug.Assert(_handshakePerformed, "Cannot start handling messages before handshake is performeds");
+    public async Task StartHandlingMessages(ChannelWriter<(IConnection, DropMeMsg)> channel, CancellationToken ct) {
+        Debug.Assert(_handshakePerformed, "Cannot start handling messages before handshake is performed");
         var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var kaLoop = Task.Run(() => KeepAliveLoop(ct), cts.Token);
         while (true) {
             try {
                 var message = await ReceiveMessageAsync(ct);
-                await channel.WriteAsync((token, message), ct).ConfigureAwait(false);
+                await channel.WriteAsync((this, message), ct).ConfigureAwait(false);
             }
             catch (InvalidDataException e) {
                 // Allow session to continue with the message dropped if the message is invalid
@@ -157,7 +166,9 @@ public class EncryptedConnection<T>(T streamProvider, string peerName, byte[] ae
                 return;
             }
             catch (Exception e) {
-                Console.WriteLine($"Connection read exception: {e.Message}");
+                Console.WriteLine("Error receiving message");
+                streamProvider.Dispose();
+                return;
             }
         }
     }
@@ -167,6 +178,8 @@ public class EncryptedConnection<T>(T streamProvider, string peerName, byte[] ae
         var combined = new byte[header.Length + body.Length];
         Buffer.BlockCopy(header, 0, combined, 0, header.Length);
         Buffer.BlockCopy(body, 0, combined, header.Length, body.Length);
+        if (!IsConnected)
+            throw new Exception("Not connected");
         await SendEncryptedDataAsync(combined, ct).ConfigureAwait(false);
     }
 
@@ -241,9 +254,15 @@ public class EncryptedConnection<T>(T streamProvider, string peerName, byte[] ae
     }
 
     private async Task KeepAliveLoop(CancellationToken ct) {
-        while (!ct.IsCancellationRequested) {
-            await SendMessageAsync(new PingMsg(), ct);
-            await Task.Delay(TimeSpan.FromSeconds(PingIntervalSeconds), ct).ConfigureAwait(false);
+        while (!ct.IsCancellationRequested && IsConnected) {
+            try {
+                await SendMessageAsync(new PingMsg(), ct);
+                await Task.Delay(TimeSpan.FromSeconds(PingIntervalSeconds), ct).ConfigureAwait(false);
+            }
+            catch (Exception e) {
+                Console.WriteLine($"Keep alive loop exception {e.Message}, closing connection");
+                streamProvider.Dispose();
+            }
         }
     }
 
