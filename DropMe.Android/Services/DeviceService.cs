@@ -3,14 +3,12 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using DropMe.Services;
+using InTheHand.Net;
+using InTheHand.Net.Bluetooth;
 
 namespace DropMe.Android.Services;
 
 public class DeviceService : IDeviceService {
-    public string GetDeviceString() {
-        return "Android";
-    }
-
     public string GetLocalLanIp() {
         foreach (var ni in NetworkInterface.GetAllNetworkInterfaces()) {
             if (ni.OperationalStatus != OperationalStatus.Up)
@@ -27,5 +25,13 @@ public class DeviceService : IDeviceService {
         }
 
         return "0.0.0.0";
+    }
+
+    public (BluetoothAddress? address, string name)? GetLocalBluetoothInfo() {
+        var radio = BluetoothRadio.Default;
+        // Bluetooth unavailable
+        if (radio == null || radio.Mode == RadioMode.PowerOff) return null;
+        var name = radio.Name;
+        return (null, name);
     }
 }

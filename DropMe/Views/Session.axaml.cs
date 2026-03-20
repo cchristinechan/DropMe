@@ -27,7 +27,7 @@ public partial class Session : UserControl {
 
     private async void BackButton_Click(object? sender, RoutedEventArgs e) {
         if (DataContext is MainViewModel vm) {
-            await vm.StopSessionAsync(resetToReady: false, homeMessage: "Session ended.");
+            await vm.StopSessionAsync(homeMessage: "Session ended.");
             await vm.PrepareMainPageAsync(homeMessage: "Session ended.", regenerateQr: true);
         }
 

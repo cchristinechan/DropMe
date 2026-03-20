@@ -1,20 +1,41 @@
-﻿namespace DropMe.Services.Session;
+﻿using System;
 
-public sealed record HelloMsg(string Sid, string DeviceName);
-public sealed record HelloAckMsg(bool Ok, string? Reason);
+namespace DropMe.Services.Session;
 
-public sealed record FileOfferMsg(string FileId, string Name, long Size, uint ChunkSize);
-public sealed record FileAcceptMsg(string FileId);
-public sealed record FileRejectMsg(string FileId, string Reason);
+public enum SessionMessageType : byte {
+    Ping = 3,
+    Pong = 4,
+    FileOffer = 10,
+    FileAccept = 11,
+    FileReject = 12,
+    FileChunk = 13,
+    FileDone = 14,
+    FileAck = 15,
+    SwitchConnectionRequest = 16,
+    SwitchConnectionAccept = 17,
+    SwitchConnectionReject = 18,
+    Disconnect = 19,
+}
 
-// For chunks we’ll send encrypted bytes + tag + per-file nonce base in the first chunk
-public sealed record FileChunkMsg(
-    string FileId,
-    uint Index,
-    uint PlainLen,
-    byte[] Nonce12,     // 12 bytes (base nonce with counter embedded)
-    byte[] Cipher,      // PlainLen bytes
-    byte[] Tag16        // 16 bytes
-);
+public enum FileRejectReason {
+    SizeMismatch,
+    HashMismatch,
+    UserRejected,
+    InternalError
+}
 
-public sealed record FileDoneMsg(string FileId);
+public abstract record DropMeMsg;
+public abstract record ControlMsg : DropMeMsg;
+public abstract record FileMsg(Guid FileId) : DropMeMsg;
+
+public sealed record PingMsg : ControlMsg;
+public sealed record PongMsg : ControlMsg;
+public sealed record SwitchConnectionRequest : ControlMsg;
+public sealed record DisconnectMsg : ControlMsg;
+
+public sealed record FileOfferMsg(Guid FileId, string Name, long Size) : FileMsg(FileId);
+public sealed record FileAcceptMsg(Guid FileId) : FileMsg(FileId);
+public sealed record FileRejectMsg(Guid FileId, FileRejectReason Reason) : FileMsg(FileId);
+public sealed record FileChunkMsg(Guid FileId, int ChunkIndex, ReadOnlyMemory<byte> Data) : FileMsg(FileId);
+public sealed record FileDoneMsg(Guid FileId, ReadOnlyMemory<byte> Sha256) : FileMsg(FileId);
+public sealed record FileAckMsg(Guid FileId, ReadOnlyMemory<byte> Sha256) : FileMsg(FileId);

@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFrameworks>net10.0-android;net8.0-windows10.0.19041.0;net8.0</TargetFrameworks>
+        <EnableWindowsTargeting>true</EnableWindowsTargeting>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -31,5 +32,9 @@
         <DependentUpon>MainView.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\libs\32feet\InTheHand.Net.Bluetooth\InTheHand.Net.Bluetooth.csproj"><SetTargetFramework>TargetFramework=$(TargetFramework)</SetTargetFramework></ProjectReference>
     </ItemGroup>
 </Project>
