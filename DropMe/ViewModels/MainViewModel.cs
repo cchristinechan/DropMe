@@ -276,33 +276,48 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
             var ip = _device.GetLocalLanIp();
             var port = ReserveAvailableTcpPort();
-            var btInfo = _device.GetLocalBluetoothInfo();
-            BtConnectionInfo? btConnInfo = null;
-            if (btInfo is var (address, name)) {
-                btConnInfo = new BtConnectionInfo(address?.ToString(), name);
-            }
-            var invite = new QrCodeData(
-                V: 2,
-                Sid: Guid.NewGuid(),
-                LanInfo: new LanConnectionInfo(ip, port),
-                BtInfo: btConnInfo,
-                AesKey: aesKey
-            );
 
-            _lastGeneratedQrCodeData = invite;
+            _ = Task.Run(async () => {
+                var btPermissions = await Task.Run(async () => {
+                    if (!_permissionsService.HasBluetoothPermissions) {
+                        await _permissionsService.RequestBluetoothPermission();
+                    }
 
-            SessionId = invite.Sid.ToString("N");
-            _localInviteSessionId = invite.Sid;
-            Console.WriteLine("Trying to gen text");
-            var text = QrCodeDataCodec.Encode(invite);
-            Console.WriteLine($"Qr code text: {text}");
-            var bmp = _qr.Generate(text, pixelsPerModule: 10);
+                    await _permissionsService.RequestBluetoothDiscoverablePermission(300);
+                    return _permissionsService is { HasBluetoothPermissions: true, HasBluetoothDiscoverablePermissions: true };
+                });
 
-            Dispatcher.UIThread.Post(() => {
-                QrImage = bmp;
+                BtConnectionInfo? btConnInfo = null;
+                if (btPermissions) {
+                    var btInfo = _device.GetLocalBluetoothInfo();
+                    if (btInfo is var (address, name)) {
+                        btConnInfo = new BtConnectionInfo(address?.ToString(), name);
+                    }
+                }
+
+                var invite = new QrCodeData(
+                    V: 2,
+                    Sid: Guid.NewGuid(),
+                    LanInfo: new LanConnectionInfo(ip, port),
+                    BtInfo: btConnInfo,
+                    AesKey: aesKey
+                );
+
+                _lastGeneratedQrCodeData = invite;
+
+                SessionId = invite.Sid.ToString("N");
+                _localInviteSessionId = invite.Sid;
+                Console.WriteLine("Trying to gen text");
+                var text = QrCodeDataCodec.Encode(invite);
+                Console.WriteLine($"Qr code text: {text}");
+                var bmp = _qr.Generate(text, pixelsPerModule: 10);
+
+                Dispatcher.UIThread.Post(() => {
+                    QrImage = bmp;
+                });
+
+                await StartHostingAsync(port, btConnInfo is not null, aesKey);
             });
-
-            _ = StartHostingAsync(port, btConnInfo is not null, aesKey);
         }
         catch (Exception ex) {
             Status = $"QR error: {ex.Message}";
@@ -322,63 +337,14 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         Debug.Assert(aesKey.Length == 32, "AES key must be 32 bytes");
         _sessionManager.AesSessionKey = aesKey;
         try {
-            if (!_permissionsService.HasBluetoothPermissions) {
-                await _permissionsService.RequestBluetoothPermission();
-            }
-            await _permissionsService.RequestBluetoothDiscoverablePermission(300);
-
-            // ONLY DO BLUETOOTH IF HAVE PERMISSION
-
-            Console.WriteLine("Listening for TCP connections");
-            var acceptTcpTask = Task.Run(async () => await _sessionManager
-                .TryAcceptTcpConnection(new IPEndPoint(IPAddress.Any, port), _sessionListenCts.Token).ConfigureAwait(false));
-
-            var connectionEstablished = false;
             if (btEnabled) {
-                Console.WriteLine("Listening for BT connections");
-                var acceptBluetoothTask = Task.Run(async () =>
-                    await _sessionManager.TryAcceptBluetoothConnection(_sessionListenCts.Token).ConfigureAwait(false));
-
-                while (!connectionEstablished) {
-                    var finishedTask = await Task.WhenAny(acceptTcpTask, acceptBluetoothTask).ConfigureAwait(false);
-
-                    if (finishedTask == acceptTcpTask) {
-                        Console.WriteLine("TCP Task ended");
-                        connectionEstablished = await acceptTcpTask;
-                        // If couldn't form a connection retry
-                        if (!connectionEstablished)
-                            acceptTcpTask = Task.Run(async () => await _sessionManager
-                                .TryAcceptTcpConnection(new IPEndPoint(IPAddress.Any, port), _sessionListenCts.Token)
-                                .ConfigureAwait(false));
-                    }
-                    else if (finishedTask == acceptBluetoothTask) {
-                        Console.WriteLine("BT Task ended");
-                        try {
-                            connectionEstablished = await acceptBluetoothTask;
-
-                        }
-                        catch (Exception e) {
-                            Console.WriteLine($"BT Exception {e}");
-                        }
-
-                        // If couldn't form a connection retry
-                        if (!connectionEstablished)
-                            acceptBluetoothTask = Task.Run(async () =>
-                                await _sessionManager.TryAcceptBluetoothConnection(_sessionListenCts.Token)
-                                    .ConfigureAwait(false));
-                    }
-                }
+                await _sessionManager.ListenTcpAndBt(new IPEndPoint(IPAddress.Any, port), _sessionListenCts.Token)
+                    .ConfigureAwait(false);
             }
             else {
-                while (!connectionEstablished) {
-                    connectionEstablished = await acceptTcpTask;
-                    if (!connectionEstablished)
-                        acceptTcpTask = Task.Run(async () => await _sessionManager
-                            .TryAcceptTcpConnection(new IPEndPoint(IPAddress.Any, port), _sessionListenCts.Token).ConfigureAwait(false));
-                }
+                await _sessionManager.ListenTcp(new IPEndPoint(IPAddress.Any, port), _sessionListenCts.Token)
+                    .ConfigureAwait(false);
             }
-
-            Console.WriteLine("Exited loop");
 
             Status = $"Connected to {_sessionManager.PeerName}";
             SessionStatus = "Connected";
@@ -386,7 +352,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
 
             OnPropertyChanged(nameof(IsConnected));
-            await _sessionManager.Receive();
+            await _sessionManager.StartReceiveLoop();
         }
         catch (Exception ex) {
             Status = $"Host error: {ex.Message}";
@@ -782,60 +748,28 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
             Status = "Connecting to peer…";
 
-            if (!_permissionsService.HasBluetoothPermissions) {
+            BluetoothAddress? btAddr = null;
+            string? btName = null;
+            // No point asking for bluetooth permissions if the server isn't offering bluetooth
+            if (qrCodeData.BtInfo is not null && !_permissionsService.HasBluetoothPermissions) {
                 await _permissionsService.RequestBluetoothPermission();
             }
 
+            // Only attempt to connect over bluetooth if we have permissions
+            if (qrCodeData.BtInfo is var (btAddrStr1, btNameStr1) && _permissionsService.HasBluetoothPermissions) {
+                btName = btNameStr1;
+                var _ = BluetoothAddress.TryParse(btAddrStr1, out btAddr); // Fine not checking output as null is valid
+            }
+
             _sessionManager.AesSessionKey = qrCodeData.AesKey;
-            // ONLY DO BLUETOOTH IF HAVE PERMISSION
-            Func<Task<bool>>? tryEstablishBtFunc = null;
 
-            if (qrCodeData.BtInfo is { } info) {
-                if (info.Address is not null && BluetoothAddress.TryParse(info.Address, out var btAddr)) {
-                    tryEstablishBtFunc = async () => await _sessionManager.TryEstablishBluetoothConnection(btAddr, info.Name, _sessionEstablishCts.Token);
-                }
-                else {
-                    tryEstablishBtFunc = async () =>
-                        await _sessionManager.TryEstablishBluetoothConnection(info.Name, _sessionEstablishCts.Token)
-                            .ConfigureAwait(false);
-                }
+            IPEndPoint? lanEp = null;
+            if (qrCodeData.LanInfo is var (lanAddrStr, lanPort)) {
+                var lanAddr = IPAddress.Parse(lanAddrStr);
+                lanEp = new IPEndPoint(lanAddr, lanPort);
             }
-            Console.WriteLine("Session manager trying to establish TCP and BT connections with the server");
-            var establishTcpTask = Task.Run(async () => await _sessionManager
-                .TryEstablishTcpConnection(endpoint, _sessionEstablishCts.Token).ConfigureAwait(false));
 
-            // If server indicated bluetooth is available try to connect to both else only tcp
-            var connectionEstablished = false;
-            if (tryEstablishBtFunc is not null) {
-                var establishBtTask = Task.Run(tryEstablishBtFunc);
-
-                while (!connectionEstablished) {
-                    var finishedTask = await Task.WhenAny(establishTcpTask, establishBtTask).ConfigureAwait(false);
-
-                    if (finishedTask == establishTcpTask) {
-                        connectionEstablished = await establishTcpTask;
-                        Console.WriteLine($"Established TCP: {connectionEstablished}");
-                        // If couldn't form a connection retry
-                        if (!connectionEstablished)
-                            establishTcpTask = Task.Run(async () => await _sessionManager
-                                .TryEstablishTcpConnection(endpoint, _sessionEstablishCts.Token).ConfigureAwait(false));
-                    }
-                    else if (finishedTask == establishBtTask) {
-                        connectionEstablished = await establishBtTask;
-                        Console.WriteLine("Established BT");
-                        // If couldn't form a connection retry
-                        if (!connectionEstablished)
-                            establishBtTask = Task.Run(tryEstablishBtFunc);
-                    }
-                }
-            }
-            else {
-                while (!connectionEstablished) {
-                    connectionEstablished = await establishTcpTask;
-                    establishTcpTask = Task.Run(async () => await _sessionManager
-                        .TryEstablishTcpConnection(endpoint, _sessionEstablishCts.Token).ConfigureAwait(false));
-                }
-            }
+            await _sessionManager.EstablishConnections(lanEp, btAddr, btName, _sessionEstablishCts.Token);
 
             Status = $"Connected to {_sessionManager.PeerName}";
             SessionStatus = "Connected";
@@ -843,7 +777,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
 
             OnPropertyChanged(nameof(IsConnected));
-            await _sessionManager.Receive();
+            await _sessionManager.StartReceiveLoop();
         }
         catch (Exception ex) {
             Status = $"Connection failed: {ex.Message}";
