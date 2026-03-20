@@ -229,7 +229,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             var ip = _device.GetLocalLanIp();
             var port = ReserveAvailableTcpPort();
             var btInfo = GetBluetoothInfoOrNull();
-            
+
 
             _ = Task.Run(async () => {
                 var btPermissions = await Task.Run(async () => {
