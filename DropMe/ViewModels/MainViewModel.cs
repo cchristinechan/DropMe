@@ -228,6 +228,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
             var ip = _device.GetLocalLanIp();
             var port = ReserveAvailableTcpPort();
+            var btInfo = GetBluetoothInfoOrNull();
+            
 
             _ = Task.Run(async () => {
                 var btPermissions = await Task.Run(async () => {
@@ -240,13 +242,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
                 });
 
                 BtConnectionInfo? btConnInfo = null;
-                if (btPermissions) {
-                    var btInfo = _device.GetLocalBluetoothInfo();
-                    if (btInfo is var (address, name)) {
-                        btConnInfo = new BtConnectionInfo(address?.ToString(), name);
-                    }
+                if (btInfo is var (address, name)) {
+                    btConnInfo = new BtConnectionInfo(address?.ToString(), name);
                 }
-
                 var invite = new QrCodeData(
                     V: 2,
                     Sid: Guid.NewGuid(),
@@ -273,6 +271,16 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         }
         catch (Exception ex) {
             Status = $"QR error: {ex.Message}";
+        }
+    }
+
+    private (BluetoothAddress? address, string name)? GetBluetoothInfoOrNull() {
+        try {
+            return _device.GetLocalBluetoothInfo();
+        }
+        catch (Exception ex) {
+            Console.WriteLine($"Skipping bluetooth in QR invite due probe failure: {ex.Message}");
+            return null;
         }
     }
 
