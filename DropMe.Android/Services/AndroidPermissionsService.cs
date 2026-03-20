@@ -9,6 +9,7 @@ using Android.OS;
 using AndroidX.Core.App;
 using AndroidX.Core.Content;
 using DropMe.Services;
+using InTheHand.Net.Bluetooth;
 
 namespace DropMe.Android.Services;
 // Correct this for different api levels
@@ -29,6 +30,8 @@ public class AndroidPermissionsService(Activity activity) : IPermissionsService 
             return false;
         }
     }
+
+    public bool HasBluetoothDiscoverablePermissions => BluetoothRadio.Default.Mode == RadioMode.Discoverable;
 
     public Task RequestCameraPermission() {
         _activity.RequestPermissions([Manifest.Permission.Camera], 0);
