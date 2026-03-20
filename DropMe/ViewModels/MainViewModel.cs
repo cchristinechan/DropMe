@@ -277,6 +277,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             var ip = _device.GetLocalLanIp();
             var port = ReserveAvailableTcpPort();
             var btInfo = GetBluetoothInfoOrNull();
+
             BtConnectionInfo? btConnInfo = null;
             if (btInfo is var (address, name)) {
                 btConnInfo = new BtConnectionInfo(address?.ToString(), name);
