@@ -11,7 +11,7 @@ public sealed record BtConnectionInfo(string? Address, string Name);
 public sealed record QrCodeData(
     int V,
     Guid Sid,
-    LanConnectionInfo LanInfo,
+    LanConnectionInfo? LanInfo,
     BtConnectionInfo? BtInfo,
     byte[] AesKey
 );

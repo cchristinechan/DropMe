@@ -24,10 +24,9 @@ public static class MessageFraming {
             FileAcceptMsg => SessionMessageType.FileAccept,
             FileRejectMsg => SessionMessageType.FileReject,
             SwitchConnectionRequest => SessionMessageType.SwitchConnectionRequest,
-            SwitchConnectionAccept => SessionMessageType.SwitchConnectionAccept,
-            SwitchConnectionReject => SessionMessageType.SwitchConnectionReject,
             FileChunkMsg => SessionMessageType.FileChunk,
             FileDoneMsg => SessionMessageType.FileDone,
+            FileAckMsg => SessionMessageType.FileAck,
             DisconnectMsg => SessionMessageType.Disconnect,
             _ => throw new ArgumentOutOfRangeException("Somehow created an invalid message type?")
         };
@@ -67,8 +66,6 @@ public static class MessageFraming {
             SessionMessageType.FileDone => JsonSerializer.Deserialize<FileDoneMsg>(span),
             SessionMessageType.FileAck => JsonSerializer.Deserialize<FileAcceptMsg>(span),
             SessionMessageType.SwitchConnectionRequest => JsonSerializer.Deserialize<SwitchConnectionRequest>(span),
-            SessionMessageType.SwitchConnectionAccept => JsonSerializer.Deserialize<SwitchConnectionAccept>(span),
-            SessionMessageType.SwitchConnectionReject => JsonSerializer.Deserialize<SwitchConnectionReject>(span),
             SessionMessageType.Disconnect => JsonSerializer.Deserialize<DisconnectMsg>(span),
             _ => throw new ArgumentOutOfRangeException("Somehow created an invalid message type?")
         };
