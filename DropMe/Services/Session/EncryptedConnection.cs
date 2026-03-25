@@ -38,6 +38,7 @@ public class BluetoothClientNsAdapter(BluetoothClient client) : INetworkStreamPr
     public bool IsDisposed { get; private set; } = false;
 
     public void Dispose() {
+        Console.WriteLine("Bluetooth ns adapter disposed");
         if (!IsDisposed) {
             IsDisposed = true;
             client.Close();
@@ -358,7 +359,7 @@ public class EncryptedConnection<T>(T streamProvider, string peerName, byte[] ae
     }
 
     private async Task OnConnectionDead() {
-        Console.WriteLine("Killing connection");
+        Console.WriteLine($"OnConnectionDead called:\n{new System.Diagnostics.StackTrace()}");
         await _disconnectedCts.CancelAsync();
         if (!streamProvider.IsDisposed)
             streamProvider.Dispose();
@@ -388,6 +389,7 @@ public class EncryptedConnection<T>(T streamProvider, string peerName, byte[] ae
     }
 
     public void Dispose() {
+        Console.WriteLine("Disposing connection");
         if (!streamProvider.IsDisposed)
             streamProvider.Dispose();
     }
