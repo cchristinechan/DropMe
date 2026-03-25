@@ -49,8 +49,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
     public bool IsConnected => _sessionManager.IsConnected;
     public bool IsTcpConnected => _sessionManager.TcpConnected;
-    public bool IsBtConnected  => _sessionManager.BtConnected;
-    
+    public bool IsBtConnected => _sessionManager.BtConnected;
+
     // // DEBUG
     // private bool _debugTcpOverride = false;
     // private bool _debugBtOverride = false;
@@ -68,12 +68,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     //     OnPropertyChanged(nameof(IsBtConnected));
     // }
     // //
-    
+
     public bool IsScanning => _scanCts is not null;
     public bool ShowGeneratedQr => !IsScanning;
     public string MainCardTitle => IsScanning ? "Camera Preview" : "Your QR Code";
     public string ScanButtonText => IsScanning ? "Stop scanning" : "Scan QR";
-    
+
     private bool _isDarkTheme;
     public bool IsDarkTheme {
         get => _isDarkTheme;

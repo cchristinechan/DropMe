@@ -59,7 +59,7 @@ public partial class TransferPage : UserControl {
         vm.GenerateQr();
 
     }
-    
+
     private void DebugGoToSession_Click(object? sender, RoutedEventArgs e) {
         var parent = this.Parent;
         while (parent is not null) {
