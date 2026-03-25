@@ -31,7 +31,7 @@ public class SessionManager : IDisposable {
     public string? PeerName => _connectionManager.PeerName;
     public event Action<string>? FileSaved;
     public event Action<Guid, string /*sha256 hex*/>? FileAcked;
-    public event Action<SessionEndReason>? SessionEnded;
+    public event Action<ConnectionEndReason>? SessionEnded;
     public List<TransferLogInfo> CompletedTransfers { get; } = [];
 
     public byte[]? AesSessionKey {
