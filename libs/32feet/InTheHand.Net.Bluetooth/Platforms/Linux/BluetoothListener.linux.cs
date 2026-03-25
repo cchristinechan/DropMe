@@ -31,7 +31,8 @@ namespace InTheHand.Net.Sockets {
 
         public void Stop() {
             if (Active) {
-                (_socketTcs.Task.GetAwaiter().GetResult()).Close();
+                if (!_socketTcs.Task.IsCompleted)
+                    (_socketTcs.Task.GetAwaiter().GetResult()).Close();
                 _socketTcs = new TaskCompletionSource<LinuxSocket>();
                 BluezProfile1Manager.Instance.OnServerConnected -= OnClientConnected;
                 Active = false;
