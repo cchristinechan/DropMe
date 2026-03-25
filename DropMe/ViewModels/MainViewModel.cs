@@ -185,7 +185,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         _permissionsService = permissionsService;
 
         _sessionManager = SessionManagerFactory();
-        
+
         _camera.FrameArrived += OnFrameArrived;
         Status = "Ready";
 
@@ -226,7 +226,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         };
         return sessionManager;
     }
-    
+
     public void GenerateQr() {
         try {
             var aesKey = new byte[32];
@@ -327,7 +327,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             _sessionManager.Dispose();
             _sessionManager = SessionManagerFactory();
         }
-        
+
     }
 
 
@@ -467,7 +467,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         }
 
     }
-    
+
     private async Task HandleQrDecodedAsync(QrCodeData qrCodeData) {
         try {
             if (qrCodeData == _lastGeneratedQrCodeData) {
@@ -517,7 +517,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
             OnPropertyChanged(nameof(IsConnected));
             await _sessionManager.StartReceiveLoop();
-            
+
             _sessionManager.Dispose();
             _sessionManager = SessionManagerFactory();
         }
@@ -533,7 +533,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             RejectPendingFileOffer();
 
             await _sessionManager.StopSession();
-            
+
             SessionId = null;
             SessionStatus = "Not connected";
             SessionMessage = null;
