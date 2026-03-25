@@ -271,24 +271,12 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
                 Console.WriteLine($"Client {client.RemoteMachineName} connected!");
                 SetRadioMode(radio, RadioMode.Connectable, "AcceptBluetoothConnection after connect");
 
-            if (AesSessionKey is null)
-                throw new NullReferenceException("Aes session key must be set before connecting");
-            client.GetStream().Socket.Blocking = true;
-            var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
-            connection.OnDisconnect += OnConnectionDisconnected;
-            if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false)) {
-                Console.WriteLine($"Client {connection.PeerName} tried to connect with a bad handshake");
-                client.Close();
-            }
-            else {
-                Console.WriteLine("Created a connection, handshake successful");
-                var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, sessionCt);
-                _bluetoothConnection = (connection, task);
-                Console.WriteLine("Accepted a BT connection!");
                 if (AesSessionKey is null)
                     throw new NullReferenceException("Aes session key must be set before connecting");
-
-                var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+                client.GetStream().Socket.Blocking = true;
+                var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client),
+                    client.RemoteMachineName, AesSessionKey);
+                connection.OnDisconnect += OnConnectionDisconnected;
                 if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false)) {
                     Console.WriteLine($"Client {connection.PeerName} tried to connect with a bad handshake");
                     client.Close();
@@ -301,7 +289,6 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
                 }
             }
         }
-        listener.Stop();
         finally {
             listener.Stop();
             SetRadioMode(radio, RadioMode.Discoverable, "AcceptBluetoothConnection cleanup");

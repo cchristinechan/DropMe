@@ -175,7 +175,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         private set { _status = value; OnPropertyChanged(); }
     }
 
-    private IBluetoothListener _bluetoothListener;
     public int SelectedCameraIndex {
         get => _selectedCameraIndex;
         set {
@@ -211,6 +210,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         _renderTimer.Tick += (_, _) => RenderPreview();
         _renderTimer.Start();
+        RefreshCameraList();
     }
 
     private SessionManager SessionManagerFactory() {
@@ -242,15 +242,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             });
         };
 
-        _camera.FrameArrived += OnFrameArrived;
-        Status = "Ready";
-
-        DownloadFolder = _storageService.GetDownloadDirectoryLabel();
-
-        _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
-        _renderTimer.Tick += (_, _) => RenderPreview();
-        _renderTimer.Start();
-        RefreshCameraList();
+        return sessionManager;
     }
 
     private void RefreshCameraList() {
@@ -265,7 +257,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         OnPropertyChanged(nameof(AvailableCameras));
         OnPropertyChanged(nameof(SelectedCameraIndex));
         OnPropertyChanged(nameof(CanToggleCamera));
-        return sessionManager;
     }
 
     public async Task ToggleCameraAsync() {

@@ -124,8 +124,6 @@ public class EncryptedConnection<T>(T streamProvider, string peerName, byte[] ae
             var clientChallenge = RandomNumberGenerator.GetBytes(HandshakeChallengeLengthBytes);
             //await streamProvider.NStream.WriteAsync(clientChallenge, ct).ConfigureAwait(false);
             await WriteAsync(clientChallenge, ct);
-            //foreach (var b in clientChallenge)
-            //    streamProvider.NStream.WriteByte(b);
             var serverResponse = await ReceiveEncryptedDataAsync(ct).ConfigureAwait(false);
             if (serverResponse.SequenceEqual(clientChallenge)) {
                 // Send server a message letting it know the connection is open
@@ -279,7 +277,6 @@ public class EncryptedConnection<T>(T streamProvider, string peerName, byte[] ae
         finally {
             _streamWriteSemaphore.Release();
         }
-        streamProvider.NStream.Flush();
     }
 
     private Task SendEncryptedDataAsync(byte[] data, CancellationToken ct) =>
@@ -349,6 +346,7 @@ public class EncryptedConnection<T>(T streamProvider, string peerName, byte[] ae
         while (!written) {
             try {
                 streamProvider.NStream.Write(data, 0, data.Length);
+                streamProvider.NStream.Flush();
                 written = true;
             }
             catch (SocketException e) {
