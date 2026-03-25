@@ -271,7 +271,6 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
 
             if (AesSessionKey is null)
                 throw new NullReferenceException("Aes session key must be set before connecting");
-            client.GetStream().Socket.Blocking = true;
             var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
             connection.OnDisconnect += OnConnectionDisconnected;
             if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false)) {
