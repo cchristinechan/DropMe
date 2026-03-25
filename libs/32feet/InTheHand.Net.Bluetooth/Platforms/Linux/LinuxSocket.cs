@@ -226,14 +226,19 @@ namespace InTheHand.Net.Sockets {
                 throw new ArgumentOutOfRangeException(nameof(size));
 
             var newBuffer = new byte[size];
-
-            var bytesReceived = NativeMethods.recv(_socket, newBuffer, size, (int)socketFlags);
-            if (bytesReceived > 0) {
-                newBuffer.CopyTo(buffer, offset);
+    
+            int bytesReceived;
+            try {
+                bytesReceived = RawReceive(newBuffer, size, socketFlags);
+                errorCode = SocketError.Success;
+            }
+            catch (SocketException ex) {
+                errorCode = (SocketError)ex.ErrorCode;
+                return 0;
             }
 
-            var socketError = Marshal.GetLastSystemError();
-            errorCode = (SocketError)socketError;
+            if (bytesReceived > 0)
+                newBuffer.CopyTo(buffer, offset);
 
             return bytesReceived;
         }
@@ -389,10 +394,10 @@ namespace InTheHand.Net.Sockets {
             [DllImport(libc, SetLastError = true)]
             internal static extern int connect(int s, [MarshalAs(UnmanagedType.LPArray)] byte[] name, int namelen);
 
-            [DllImport(libc)]
+            [DllImport(libc, SetLastError = true)]
             internal static extern int recv(int s, byte[] buf, int len, int flags);
 
-            [DllImport(libc)]
+            [DllImport(libc, SetLastError = true)]
             internal static extern int send(int s, byte[] buf, int len, int flags);
 
             [DllImport(libc)]
