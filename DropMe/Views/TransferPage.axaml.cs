@@ -60,4 +60,14 @@ public partial class TransferPage : UserControl {
 
     }
 
+    private void DebugGoToSession_Click(object? sender, RoutedEventArgs e) {
+        var parent = this.Parent;
+        while (parent is not null) {
+            if (parent is MainView mainView) {
+                mainView.ShowSession();
+                return;
+            }
+            parent = parent.Parent;
+        }
+    }
 }

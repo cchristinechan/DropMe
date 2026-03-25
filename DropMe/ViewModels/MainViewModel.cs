@@ -48,6 +48,27 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
 
     public bool IsConnected => _sessionManager.IsConnected;
+    public bool IsTcpConnected => _sessionManager.TcpConnected;
+    public bool IsBtConnected => _sessionManager.BtConnected;
+
+    // // DEBUG
+    // private bool _debugTcpOverride = false;
+    // private bool _debugBtOverride = false;
+    //
+    // public bool IsTcpConnected => _debugTcpOverride || _sessionManager.TcpConnected;
+    // public bool IsBtConnected  => _debugBtOverride  || _sessionManager.BtConnected;
+    //
+    // public void DebugToggleTcp() {
+    //     _debugTcpOverride = !_debugTcpOverride;
+    //     OnPropertyChanged(nameof(IsTcpConnected));
+    // }
+    //
+    // public void DebugToggleBt() {
+    //     _debugBtOverride = !_debugBtOverride;
+    //     OnPropertyChanged(nameof(IsBtConnected));
+    // }
+    // //
+
     public bool IsScanning => _scanCts is not null;
     public bool ShowGeneratedQr => !IsScanning;
     public string MainCardTitle => IsScanning ? "Camera Preview" : "Your QR Code";
@@ -312,6 +333,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
 
             OnPropertyChanged(nameof(IsConnected));
+            OnPropertyChanged(nameof(IsTcpConnected));
+            OnPropertyChanged(nameof(IsBtConnected));
             await _sessionManager.StartReceiveLoop();
         }
         catch (Exception ex) {
@@ -523,6 +546,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
 
             OnPropertyChanged(nameof(IsConnected));
+            OnPropertyChanged(nameof(IsTcpConnected));
+            OnPropertyChanged(nameof(IsBtConnected));
             await _sessionManager.StartReceiveLoop();
         }
         catch (Exception ex) {
@@ -546,6 +571,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
                 HomeSessionMessage = homeMessage;
 
             OnPropertyChanged(nameof(IsConnected));
+            OnPropertyChanged(nameof(IsTcpConnected));
+            OnPropertyChanged(nameof(IsBtConnected));
             SessionEnded?.Invoke();
         }
         catch (Exception ex) {

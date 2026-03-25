@@ -9,6 +9,26 @@
              x:Class="DropMe.Views.Session"
              x:DataType="vm:MainViewModel">
   <Grid Background="#C4E0F2">
+    <StackPanel Orientation="Horizontal"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="14,14,0,0"
+                Spacing="6"
+                ZIndex="10">
+        
+        <Image IsVisible="{Binding IsTcpConnected}"
+               Source="avares://DropMe/Assets/wifi_Icon.png"
+               Width="24"
+               Height="24"
+               Stretch="Uniform"/>
+
+        <Image IsVisible="{Binding IsBtConnected}"
+               Source="avares://DropMe/Assets/Bluetooth_Icon.png"
+               Width="30"
+               Height="30"
+               Stretch="Uniform"/>
+
+    </StackPanel>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
       <StackPanel MaxWidth="430" HorizontalAlignment="Center" Margin="0,40,0,40">
         <Border Padding="32"
@@ -114,6 +134,25 @@
                       FontWeight="SemiBold"
                       Content="End Session"
                       Click="BackButton_Click"/>
+              
+              <!-- ~1~ DEBUG @1@ -->
+              <!-- <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,10,0,0"> -->
+              <!--   <Button Height="40" -->
+              <!--           CornerRadius="26" -->
+              <!--           Background="#FFCC00" -->
+              <!--           Foreground="#333333" -->
+              <!--           FontWeight="SemiBold" -->
+              <!--           Content="[D] Toggle TCP" -->
+              <!--           Click="DebugToggleTcp_Click"/> -->
+              <!-- -->
+              <!--   <Button Height="40" -->
+              <!--           CornerRadius="26" -->
+              <!--           Background="#FFCC00" -->
+              <!--           Foreground="#333333" -->
+              <!--           FontWeight="SemiBold" -->
+              <!--           Content="[D] Toggle BT" -->
+              <!--           Click="DebugToggleBt_Click"/> -->
+              <!-- </StackPanel> -->
             </StackPanel>
 
             
