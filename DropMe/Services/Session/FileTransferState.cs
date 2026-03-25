@@ -19,4 +19,4 @@ public sealed record ReceiveInProgress(
     public int ExpectedChunkIndex { get; set; } = ExpectedChunkIndex;
 }
 public sealed record SendInProgress(Stream Source, IncrementalHash Hash, int NextChunk) : FileTransferState;
-public sealed record AwaitingAck(ReadOnlyMemory<byte> Hash) : FileTransferState;
+public sealed record AwaitingAck(string FilePath, long FileSizeBytes, ReadOnlyMemory<byte> Hash) : FileTransferState;

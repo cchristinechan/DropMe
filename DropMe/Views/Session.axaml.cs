@@ -53,4 +53,15 @@ public partial class Session : UserControl {
         if (DataContext is MainViewModel vm)
             vm.RejectPendingFileOffer();
     }
+
+    // // DEBUG
+    // private void DebugToggleTcp_Click(object? sender, RoutedEventArgs e) {
+    //     if (DataContext is MainViewModel vm)
+    //         vm.DebugToggleTcp();
+    // }
+    //
+    // private void DebugToggleBt_Click(object? sender, RoutedEventArgs e) {
+    //     if (DataContext is MainViewModel vm)
+    //         vm.DebugToggleBt();
+    // }
 }
