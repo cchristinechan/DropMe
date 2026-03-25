@@ -14,10 +14,13 @@ using Java.Util.Concurrent;
 namespace DropMe.Android.Services;
 
 public sealed class AndroidCameraService : ICameraService {
+    private const int TargetAnalysisWidth = 960;
+    private const int TargetAnalysisHeight = 540;
     private ProcessCameraProvider? _cameraProvider;
     private ImageAnalysis? _analysis;
     private CancellationTokenSource? _loopCts;
     private IExecutorService? _analyzerExecutor;
+    private byte[]? _frameBuffer;
 
     private bool _useFrontCamera;
 
@@ -65,14 +68,15 @@ public sealed class AndroidCameraService : ICameraService {
         var provider = await GetCameraProviderAsync(activity).ConfigureAwait(false);
         _cameraProvider = provider;
 
-        _analyzerExecutor = Executors.NewSingleThreadExecutor();
+        var analyzerExecutor = Executors.NewSingleThreadExecutor();
+        _analyzerExecutor = analyzerExecutor;
 
         _analysis = new ImageAnalysis.Builder()
             .SetBackpressureStrategy(ImageAnalysis.StrategyKeepOnlyLatest)
             .SetOutputImageFormat(ImageAnalysis.OutputImageFormatRgba8888)
             .Build();
 
-        _analysis.SetAnalyzer(_analyzerExecutor, new Analyzer(image => {
+        _analysis.SetAnalyzer(analyzerExecutor, new Analyzer(image => {
             if (_loopCts?.IsCancellationRequested == true) {
                 image.Close();
                 return;
@@ -87,17 +91,20 @@ public sealed class AndroidCameraService : ICameraService {
 
                 var plane = planes[0];
                 var buffer = plane.Buffer;
+                buffer.Rewind();
                 var size = buffer.Remaining();
 
-                var bytes = new byte[size];
-                buffer.Get(bytes);
+                if (_frameBuffer is null || _frameBuffer.Length != size)
+                    _frameBuffer = new byte[size];
+
+                buffer.Get(_frameBuffer, 0, size);
 
                 FrameArrived?.Invoke(new CameraFrame(
                     image.Width,
                     image.Height,
-                    bytes,
+                    _frameBuffer,
                     plane.RowStride,
-                    image.ImageInfo.RotationDegrees));
+                    NormalizeRotation(image.ImageInfo.RotationDegrees)));
             }
             finally {
                 image.Close();
@@ -116,6 +123,7 @@ public sealed class AndroidCameraService : ICameraService {
 
         _analyzerExecutor?.Shutdown();
         _analyzerExecutor = null;
+        _frameBuffer = null;
 
         var activity = MainActivity.CurrentActivity;
         if (activity is not null && _cameraProvider is not null) {
@@ -167,8 +175,16 @@ public sealed class AndroidCameraService : ICameraService {
         return tcs.Task;
     }
 
+    private static int NormalizeRotation(int rotationDegrees) {
+        var normalized = rotationDegrees % 360;
+        if (normalized < 0)
+            normalized += 360;
+
+        return normalized;
+    }
+
     private sealed class Analyzer(Action<IImageProxy> onFrame) : Java.Lang.Object, ImageAnalysis.IAnalyzer {
-        public Size? DefaultTargetResolution => null;
+        public Size? DefaultTargetResolution => new(TargetAnalysisWidth, TargetAnalysisHeight);
         public void Analyze(IImageProxy image) => onFrame(image);
     }
 }

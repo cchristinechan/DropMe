@@ -4,6 +4,8 @@ using ZXing.Common;
 namespace DropMe.Services;
 
 public sealed class QrDecoder {
+    private byte[]? _lumaBuffer;
+
     private readonly BarcodeReaderGeneric _reader = new() {
         AutoRotate = true,
         Options = new DecodingOptions {
@@ -15,9 +17,11 @@ public sealed class QrDecoder {
     public string? TryDecode(CameraFrame frame) {
         if (frame.Rgba is null || frame.Rgba.Length == 0) return null;
 
-        // Convert BGRA bytes -> grayscale (Y) buffer, respecting stride.
-        // (If your camera is still RGBA, this still works fine—just slightly different channel weighting.)
-        var y = new byte[frame.Width * frame.Height];
+        var pixelCount = frame.Width * frame.Height;
+        if (_lumaBuffer is null || _lumaBuffer.Length < pixelCount)
+            _lumaBuffer = new byte[pixelCount];
+
+        var y = _lumaBuffer;
 
         int dst = 0;
         int srcRowStart = 0;

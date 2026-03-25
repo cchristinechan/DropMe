@@ -30,12 +30,13 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     private readonly QrDecoder _decoder;
     private readonly IQrCodeService _qr;
     private byte[]? _latestFrameBytes;
+    private byte[]? _scanFrameBytes;
     private int _latestStride;
     private int _latestWidth;
     private int _latestHeight;
-    private int _latestRotation;
     private readonly object _frameLock = new();
-    private int _previewFrameCounter = 0;
+    private int _latestFrameVersion;
+    private int _renderedFrameVersion = -1;
     private DispatcherTimer? _renderTimer;
     private SessionManager _sessionManager;
     private CancellationTokenSource _sessionListenCts = new();
@@ -458,49 +459,57 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     }
 
     private void ClearCameraPreviewState() {
+        Preview?.Dispose();
         Preview = null;
         _lastDecode = DateTime.MinValue;
 
         lock (_frameLock) {
             _latestFrameBytes = null;
+            _scanFrameBytes = null;
             _latestStride = 0;
             _latestWidth = 0;
             _latestHeight = 0;
-            _latestRotation = 0;
+            _latestFrameVersion = 0;
+            _renderedFrameVersion = -1;
         }
     }
 
-    private DateTime _lastUiFrame = DateTime.MinValue;
     private DateTime _lastDecode = DateTime.MinValue;
 
     private void OnFrameArrived(CameraFrame frame) {
         lock (_frameLock) {
-            _latestWidth = frame.Width;
-            _latestHeight = frame.Height;
-            _latestStride = frame.Stride;
-            _latestRotation = frame.Rotation;
+            var rotation = NormalizeRotation(frame.Rotation);
+            var targetWidth = rotation is 90 or 270 ? frame.Height : frame.Width;
+            var targetHeight = rotation is 90 or 270 ? frame.Width : frame.Height;
+            var targetStride = targetWidth * 4;
+            var needed = targetStride * targetHeight;
 
-            int needed = frame.Stride * frame.Height;
             if (_latestFrameBytes == null || _latestFrameBytes.Length != needed)
                 _latestFrameBytes = new byte[needed];
 
-            Buffer.BlockCopy(frame.Rgba, 0, _latestFrameBytes, 0, needed);
+            CopyFrameToPreviewBuffer(frame, _latestFrameBytes, targetWidth, targetHeight, targetStride, rotation);
+
+            _latestWidth = targetWidth;
+            _latestHeight = targetHeight;
+            _latestStride = targetStride;
+            _latestFrameVersion++;
         }
     }
 
     private void RenderPreview() {
-        byte[]? bytes;
-        int w, h, stride, rotation;
+        int w, h, stride, frameVersion;
 
         lock (_frameLock) {
-            bytes = _latestFrameBytes;
             w = _latestWidth;
             h = _latestHeight;
             stride = _latestStride;
-            rotation = _latestRotation;
+            frameVersion = _latestFrameVersion;
         }
 
-        if (bytes is null || w <= 0 || h <= 0)
+        if (w <= 0 || h <= 0)
+            return;
+
+        if (frameVersion == _renderedFrameVersion && Preview is not null)
             return;
 
         var isAndroid = OperatingSystem.IsAndroid();
@@ -508,43 +517,43 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             ? PixelFormat.Rgba8888
             : PixelFormat.Bgra8888;
 
-        var bmp = new WriteableBitmap(
-            new PixelSize(w, h),
-            new Vector(96, 96),
-            pixelFormat,
-            AlphaFormat.Unpremul);
+        var bmp = EnsurePreviewBitmap(w, h, pixelFormat);
 
         var scanWindow = ComputeScanWindow(w, h);
         using (var fb = bmp.Lock()) {
-            int rows = Math.Min(h, fb.Size.Height);
-            int dstStride = fb.RowBytes;
+            lock (_frameLock) {
+                if (_latestFrameBytes is null)
+                    return;
 
-            if (stride == dstStride) {
-                Marshal.Copy(bytes, 0, fb.Address, rows * dstStride);
-            }
-            else {
-                int colsBytes = Math.Min(stride, dstStride);
-                for (int y = 0; y < rows; y++) {
-                    Marshal.Copy(bytes, y * stride, fb.Address + (y * dstStride), colsBytes);
+                w = _latestWidth;
+                h = _latestHeight;
+                stride = _latestStride;
+                frameVersion = _latestFrameVersion;
+
+                if (frameVersion == _renderedFrameVersion)
+                    return;
+
+                int rows = Math.Min(h, fb.Size.Height);
+                int dstStride = fb.RowBytes;
+
+                if (stride == dstStride) {
+                    Marshal.Copy(_latestFrameBytes, 0, fb.Address, rows * dstStride);
+                }
+                else {
+                    int colsBytes = Math.Min(stride, dstStride);
+                    for (int y = 0; y < rows; y++) {
+                        Marshal.Copy(_latestFrameBytes, y * stride, fb.Address + (y * dstStride), colsBytes);
+                    }
                 }
             }
-
-            RenderScanGuideOverlay(
-                fb.Address,
-                dstStride,
-                w,
-                h,
-                isAndroid,
-                (scanWindow.boxX, scanWindow.boxY, scanWindow.boxW, scanWindow.boxH),
-                (scanWindow.decodeX, scanWindow.decodeY, scanWindow.decodeW, scanWindow.decodeH));
         }
 
         Preview = bmp;
+        _renderedFrameVersion = frameVersion;
 
         var now = DateTime.UtcNow;
         if ((now - _lastDecode).TotalMilliseconds >= 100) {
             _lastDecode = now;
-            // Use the latest frame bytes (already captured)
             CameraFrame? snapshot = null;
             lock (_frameLock) {
                 if (_latestFrameBytes is not null) {
@@ -617,142 +626,84 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         var safeHeight = Math.Max(1, Math.Min(height, frameHeight - y));
 
         var bytesPerPixel = 4;
-        var cropped = new byte[safeWidth * safeHeight * bytesPerPixel];
+        var requiredBytes = safeWidth * safeHeight * bytesPerPixel;
+        if (_scanFrameBytes is null || _scanFrameBytes.Length != requiredBytes)
+            _scanFrameBytes = new byte[requiredBytes];
+
         var sourceOffsetBase = y * stride + x * bytesPerPixel;
         var destStride = safeWidth * bytesPerPixel;
 
         for (var row = 0; row < safeHeight; row++) {
             var sourceOffset = sourceOffsetBase + row * stride;
             var destOffset = row * destStride;
-            Buffer.BlockCopy(sourceBytes, sourceOffset, cropped, destOffset, safeWidth * bytesPerPixel);
+            Buffer.BlockCopy(sourceBytes, sourceOffset, _scanFrameBytes, destOffset, destStride);
         }
 
-        return new CameraFrame(safeWidth, safeHeight, cropped, destStride, 0);
+        return new CameraFrame(safeWidth, safeHeight, _scanFrameBytes, destStride, 0);
     }
 
-    private static void RenderScanGuideOverlay(
-        IntPtr framebufferAddress,
-        int rowBytes,
-        int frameWidth,
-        int frameHeight,
-        bool isAndroid,
-        (int x, int y, int width, int height) boxArea,
-        (int x, int y, int width, int height) decodeArea,
-        int overlayDarkenAlpha = 170) {
-        if (frameWidth <= 0 || frameHeight <= 0) return;
-
-        int r = 0;
-        int g = 1;
-        int b = 2;
-        int a = 3;
-
-        if (!isAndroid) {
-            b = 0;
-            g = 1;
-            r = 2;
-            a = 3;
-        }
-
-        for (var y = 0; y < frameHeight; y++) {
-            for (var x = 0; x < frameWidth; x++) {
-                var pixelOffset = y * rowBytes + (x * 4);
-                var inScanArea = x >= boxArea.x && x < boxArea.x + boxArea.width &&
-                                 y >= boxArea.y && y < boxArea.y + boxArea.height;
-
-                if (!inScanArea) {
-                    var red = Marshal.ReadByte(framebufferAddress, pixelOffset + r);
-                    var green = Marshal.ReadByte(framebufferAddress, pixelOffset + g);
-                    var blue = Marshal.ReadByte(framebufferAddress, pixelOffset + b);
-
-                    Marshal.WriteByte(framebufferAddress, pixelOffset + r, (byte)(red * 0.35));
-                    Marshal.WriteByte(framebufferAddress, pixelOffset + g, (byte)(green * 0.35));
-                    Marshal.WriteByte(framebufferAddress, pixelOffset + b, (byte)(blue * 0.35));
-                    Marshal.WriteByte(framebufferAddress, pixelOffset + a, (byte)overlayDarkenAlpha);
-                }
-            }
-        }
-
-        DrawScanBox(framebufferAddress, rowBytes, b, g, r, a, boxArea, frameWidth, frameHeight);
-    }
-
-    private static void DrawScanBox(
-        IntPtr framebufferAddress,
-        int rowBytes,
-        int b,
-        int g,
-        int r,
-        int a,
-        (int x, int y, int width, int height) scanArea,
-        int frameWidth,
-        int frameHeight,
-        int lineThickness = 3) {
-        var (x, y, width, height) = scanArea;
-        int clampedX = Math.Max(0, Math.Min(frameWidth - 1, x));
-        int clampedY = Math.Max(0, Math.Min(frameHeight - 1, y));
-        int clampedW = Math.Max(1, Math.Min(width, frameWidth - clampedX));
-        int clampedH = Math.Max(1, Math.Min(height, frameHeight - clampedY));
-
-        for (var i = 0; i < lineThickness; i++) {
-            var topY = clampedY + i;
-            var bottomY = clampedY + clampedH - 1 - i;
-            if (topY < frameHeight) {
-                for (var x0 = clampedX; x0 < clampedX + clampedW; x0++) {
-                    var off = topY * rowBytes + (x0 * 4);
-                    Marshal.WriteByte(framebufferAddress, off + r, 85);
-                    Marshal.WriteByte(framebufferAddress, off + g, 255);
-                    Marshal.WriteByte(framebufferAddress, off + b, 170);
-                    Marshal.WriteByte(framebufferAddress, off + a, 255);
-                }
-            }
-
-            if (bottomY >= 0 && bottomY < frameHeight) {
-                for (var x0 = clampedX; x0 < clampedX + clampedW; x0++) {
-                    var off = bottomY * rowBytes + (x0 * 4);
-                    Marshal.WriteByte(framebufferAddress, off + r, 85);
-                    Marshal.WriteByte(framebufferAddress, off + g, 255);
-                    Marshal.WriteByte(framebufferAddress, off + b, 170);
-                    Marshal.WriteByte(framebufferAddress, off + a, 255);
-                }
-            }
-
-            var leftX = clampedX + i;
-            var rightX = clampedX + clampedW - 1 - i;
-            if (leftX < frameWidth) {
-                for (var y0 = clampedY; y0 < clampedY + clampedH; y0++) {
-                    if (y0 < 0 || y0 >= frameHeight) continue;
-                    var off = y0 * rowBytes + (leftX * 4);
-                    Marshal.WriteByte(framebufferAddress, off + r, 85);
-                    Marshal.WriteByte(framebufferAddress, off + g, 255);
-                    Marshal.WriteByte(framebufferAddress, off + b, 170);
-                    Marshal.WriteByte(framebufferAddress, off + a, 255);
-                }
-            }
-
-            if (rightX >= 0 && rightX < frameWidth) {
-                for (var y0 = clampedY; y0 < clampedY + clampedH; y0++) {
-                    if (y0 < 0 || y0 >= frameHeight) continue;
-                    var off = y0 * rowBytes + (rightX * 4);
-                    Marshal.WriteByte(framebufferAddress, off + r, 85);
-                    Marshal.WriteByte(framebufferAddress, off + g, 255);
-                    Marshal.WriteByte(framebufferAddress, off + b, 170);
-                    Marshal.WriteByte(framebufferAddress, off + a, 255);
-                }
-            }
-        }
-    }
-
-
-
-
-    private void EnsurePreviewBitmap(int width, int height) {
+    private WriteableBitmap EnsurePreviewBitmap(int width, int height, PixelFormat pixelFormat) {
         if (Preview is not null && Preview.PixelSize.Width == width && Preview.PixelSize.Height == height)
-            return;
+            return Preview;
 
-        Preview = new WriteableBitmap(
+        Preview?.Dispose();
+        var bitmap = new WriteableBitmap(
             new PixelSize(width, height),
             new Vector(96, 96),
-            PixelFormat.Bgra8888,
+            pixelFormat,
             AlphaFormat.Unpremul);
+        Preview = bitmap;
+        return bitmap;
+    }
+
+    private static int NormalizeRotation(int rotationDegrees) {
+        var normalized = rotationDegrees % 360;
+        if (normalized < 0)
+            normalized += 360;
+
+        return normalized switch {
+            0 or 90 or 180 or 270 => normalized,
+            _ => 0
+        };
+    }
+
+    private static void CopyFrameToPreviewBuffer(
+        CameraFrame frame,
+        byte[] destination,
+        int targetWidth,
+        int targetHeight,
+        int targetStride,
+        int rotation) {
+        var source = frame.Rgba;
+        if (rotation == 0) {
+            var copyBytesPerRow = frame.Width * 4;
+            for (var row = 0; row < frame.Height; row++) {
+                Buffer.BlockCopy(source, row * frame.Stride, destination, row * targetStride, copyBytesPerRow);
+            }
+            return;
+        }
+
+        for (var sourceY = 0; sourceY < frame.Height; sourceY++) {
+            var sourceRow = sourceY * frame.Stride;
+            for (var sourceX = 0; sourceX < frame.Width; sourceX++) {
+                var sourceOffset = sourceRow + (sourceX * 4);
+                var (targetX, targetY) = rotation switch {
+                    90 => (frame.Height - 1 - sourceY, sourceX),
+                    180 => (frame.Width - 1 - sourceX, frame.Height - 1 - sourceY),
+                    270 => (sourceY, frame.Width - 1 - sourceX),
+                    _ => (sourceX, sourceY)
+                };
+
+                if ((uint)targetX >= (uint)targetWidth || (uint)targetY >= (uint)targetHeight)
+                    continue;
+
+                var targetOffset = (targetY * targetStride) + (targetX * 4);
+                destination[targetOffset] = source[sourceOffset];
+                destination[targetOffset + 1] = source[sourceOffset + 1];
+                destination[targetOffset + 2] = source[sourceOffset + 2];
+                destination[targetOffset + 3] = source[sourceOffset + 3];
+            }
+        }
     }
     private async Task HandleQrDecodedAsync(QrCodeData qrCodeData) {
         try {
