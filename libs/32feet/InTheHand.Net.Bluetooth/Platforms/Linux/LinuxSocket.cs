@@ -181,7 +181,18 @@ namespace InTheHand.Net.Sockets {
             if (size > buffer.Length)
                 throw new ArgumentOutOfRangeException(nameof(size));
 
-            var result = NativeMethods.recv(_socket, buffer, size, (int)socketFlags);
+            int result;
+            while (true) {
+                result = NativeMethods.recv(_socket, buffer, size, (int)socketFlags);
+        
+                if (result == -1 && Marshal.GetLastWin32Error() == 11) // EAGAIN
+                {
+                    var pollFd = new PollFd { fd = _socket, events = POLLIN };
+                    NativeMethods.poll(ref pollFd, 1, -1); // block until readable
+                    continue;
+                }
+                break;
+            }
 
             ThrowOnSocketError(result, true);
 
@@ -306,16 +317,28 @@ namespace InTheHand.Net.Sockets {
             if (buffer == null)
                 throw new ArgumentNullException(nameof(buffer));
 
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-
-            if (size + offset > buffer.Length)
+            if (size > buffer.Length)
                 throw new ArgumentOutOfRangeException(nameof(size));
 
-            var requiredBuffer = new byte[size];
-            Buffer.BlockCopy(buffer, offset, requiredBuffer, 0, size);
-
-            var result = NativeMethods.send(_socket, requiredBuffer, size, (int)socketFlags);
+            int result;
+            while (true) {
+                result = NativeMethods.send(_socket, buffer, size, (int)socketFlags);
+        
+                if (result == -1 && Marshal.GetLastWin32Error() == 11) // EAGAIN
+                {
+                    var pollFd = new PollFd { fd = _socket, events = POLLOUT };
+                    int pollResult = NativeMethods.poll(ref pollFd, 1, -1);
+            
+                    if (pollResult == -1)
+                        throw new SocketException(Marshal.GetLastWin32Error());
+                
+                    if ((pollFd.revents & (POLLERR | POLLHUP)) != 0)
+                        throw new SocketException();
+                
+                    continue;
+                }
+                break;
+            }
 
             ThrowOnSocketError(result, true);
 
@@ -338,6 +361,19 @@ namespace InTheHand.Net.Sockets {
         protected override void Dispose(bool disposing) {
             Close();
         }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct PollFd
+        {
+            public int fd;
+            public short events;
+            public short revents;
+        }
+
+        private const short POLLIN = 0x0001;
+        private const short POLLOUT = 0x0004;
+        private const short POLLERR = 0x0008;
+        private const short POLLHUP = 0x0010;
 
         private static class NativeMethods {
             private const string libc = "libc";
@@ -382,6 +418,9 @@ namespace InTheHand.Net.Sockets {
 
             [DllImport(libc)]
             internal static extern int setsockopt(int s, int level, int optname, byte[] optval, int optlen);
+            
+            [DllImport("libc", SetLastError = true)]
+            internal static extern int poll(ref PollFd fds, uint nfds, int timeout);
 #pragma warning restore IDE1006 // Naming Styles
 
         }
