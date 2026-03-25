@@ -13,11 +13,16 @@ using AndroidNet = Android.Net;
 namespace DropMe.Android.Services;
 
 public class AndroidStorageService : IStorageService {
-    const string CONFIG_FILE_NAME = "config.json";
-
-    private readonly string configFilePath =
-        Path.Combine(AndroidApplication.Context.FilesDir!.AbsolutePath, CONFIG_FILE_NAME);
     private AndroidNet.Uri? _downloadsFolder;
+    private readonly string _configFolder;
+    private readonly string _configFile;
+
+    public AndroidStorageService() {
+        var filesDir = AndroidApplication.Context.FilesDir?.Path ?? Path.GetTempPath();
+        _configFolder = Path.Combine(filesDir, "DropMe");
+        _configFile = Path.Combine(_configFolder, "config.json");
+    }
+
     public async Task PickDownloadsFolderAsync(Visual? visual) {
         var folders = await TopLevel.GetTopLevel(visual)?
             .StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions {
@@ -27,13 +32,15 @@ public class AndroidStorageService : IStorageService {
 
         if (folders.Count > 0) {
             _downloadsFolder = AndroidNet.Uri.Parse(folders[0].Path.ToString());
-            //AndroidApplication.Context.ContentResolver.TakePersistableUriPermission(_downloadsFolder,
-            //    ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
+            AndroidApplication.Context.ContentResolver.TakePersistableUriPermission(_downloadsFolder,
+                ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
         }
     }
 
     public (Stream, string)? OpenDownloadFileWriteStream(string fileName) {
+        Console.WriteLine("OPENING!");
         var context = AndroidApplication.Context;
+        Console.WriteLine("Got context");
         // Use internal files by default, maybe later change this to external
         var folder = _downloadsFolder is not null ? DocumentFile.FromTreeUri(context, _downloadsFolder) : DocumentFile.FromFile(context.FilesDir);
 
@@ -57,9 +64,29 @@ public class AndroidStorageService : IStorageService {
         return null;
     }
 
-    public Stream ReadConfig() => File.Open(configFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+    public Stream ReadConfig() {
+        while (true) {
+            try {
+                Directory.CreateDirectory(_configFolder);
+                return new FileStream(_configFile, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+            }
+            catch (DirectoryNotFoundException) {
+                // Retry after directory creation race.
+            }
+        }
+    }
 
-    public Stream WriteConfig() => File.Open(configFilePath, FileMode.Truncate, FileAccess.Write);
+    public Stream WriteConfig() {
+        while (true) {
+            try {
+                Directory.CreateDirectory(_configFolder);
+                return new FileStream(_configFile, FileMode.Create, FileAccess.Write);
+            }
+            catch (DirectoryNotFoundException) {
+                // Retry after directory creation race.
+            }
+        }
+    }
 
     private string NormalisePath(string str) {
         const string treeSegment = "/tree/";

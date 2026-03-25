@@ -49,6 +49,15 @@
                     Click="ToggleScan_Click"/>
             <Button Classes="OutlinedAction"
                     Height="46"
+                    Content="Flip Camera"
+                    IsVisible="{Binding IsScanning}"
+                    IsEnabled="{Binding CanToggleCamera}"
+                    Click="FlipCamera_Click"/>
+            <ComboBox ItemsSource="{Binding AvailableCameras}"
+                      SelectedIndex="{Binding SelectedCameraIndex}"
+                      IsVisible="{Binding IsScanning}"/>
+            <Button Classes="OutlinedAction"
+                    Height="46"
                     Content="Generate New QR"
                     IsVisible="{Binding ShowGeneratedQr}"
                     Click="GenerateQr_Click"/>
