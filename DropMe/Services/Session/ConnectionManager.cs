@@ -137,7 +137,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
         if (_connectionInUse is null) {
             await TryRecoverConnection(ct);
         }
-        
+
         while (IsConnected) {
             // Connection not null as this is checked before loop and semaphore is held, TryRecoverConnection will throw if it can't make it not null
             try {
@@ -175,11 +175,11 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
         else {
             Console.WriteLine("Could not recover connection");
             _networkSyncChannel.Writer.Complete();
-            
+
             ConnectionEnded?.Invoke(ConnectionEndReason.AllChannelsDisconnected);
         }
 
-        
+
     }
 
     public async IAsyncEnumerable<FileMsg> ReceiveMessages() {
@@ -312,7 +312,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             Console.WriteLine("Started handling messages");
             _tcpConnection = (connection, task);
             await _connectionInUseSemaphore.WaitAsync().ConfigureAwait(false);
-            
+
             return connection;
         }
     }
@@ -461,7 +461,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             }
         }
         catch (Exception) {
-            
+
         } // Ignore as this is a best effort recovery
         finally {
             //_connectionInUseSemaphore.Release();
