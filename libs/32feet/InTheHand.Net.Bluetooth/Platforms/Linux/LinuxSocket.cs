@@ -230,7 +230,6 @@ namespace InTheHand.Net.Sockets {
                 throw new ArgumentOutOfRangeException(nameof(size));
 
             var newBuffer = new byte[size];
-
             int bytesReceived;
             try {
                 bytesReceived = RawReceive(newBuffer, size, socketFlags);

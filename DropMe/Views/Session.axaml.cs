@@ -36,6 +36,16 @@ public partial class Session : UserControl {
             await vm.ChooseDownloadFolderAsync();
     }
 
+    private void AcceptIncomingFile_Click(object? sender, RoutedEventArgs e) {
+        if (DataContext is MainViewModel vm)
+            vm.AcceptPendingFileOffer();
+    }
+
+    private void RejectIncomingFile_Click(object? sender, RoutedEventArgs e) {
+        if (DataContext is MainViewModel vm)
+            vm.RejectPendingFileOffer();
+    }
+
     // // DEBUG
     // private void DebugToggleTcp_Click(object? sender, RoutedEventArgs e) {
     //     if (DataContext is MainViewModel vm)

@@ -36,10 +36,11 @@ public partial class TransferPage : UserControl {
                 await vm.PrepareMainPageAsync(homeMessage: vm.HomeSessionMessage, regenerateQr: true);
             RefreshModeSwitchVisual();
         };
-    }
 
-    private void InitializeComponent() {
-        AvaloniaXamlLoader.Load(this);
+        AttachedToVisualTree += async (_, _) => {
+            if (DataContext is MainViewModel vm2)
+                await vm2.PrepareMainPageAsync(homeMessage: vm2.HomeSessionMessage, regenerateQr: true);
+        };
     }
 
     private void InitializeNativePreviewHost() {
@@ -123,7 +124,6 @@ public partial class TransferPage : UserControl {
         if (DataContext is MainViewModel vm)
             await vm.ToggleCameraAsync();
     }
-}
 
 internal sealed class AndroidCameraPreviewHost : NativeControlHost {
 #if ANDROID
@@ -136,4 +136,17 @@ internal sealed class AndroidCameraPreviewHost : NativeControlHost {
         return new AndroidViewControlHandle(nativeView);
     }
 #endif
+}
+
+
+    private void DebugGoToSession_Click(object? sender, RoutedEventArgs e) {
+        var parent = this.Parent;
+        while (parent is not null) {
+            if (parent is MainView mainView) {
+                mainView.ShowSession();
+                return;
+            }
+            parent = parent.Parent;
+        }
+    }
 }
