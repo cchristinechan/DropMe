@@ -31,6 +31,7 @@ public class SessionManager : IDisposable {
     public string? PeerName => _connectionManager.PeerName;
     public event Action<string>? FileSaved;
     public event Action<Guid, string /*sha256 hex*/>? FileAcked;
+    public event Action<string>? PeerNameUpdated;
     public event Action<ConnectionEndReason>? SessionEnded;
     public List<TransferLogInfo> CompletedTransfers { get; } = [];
 
@@ -48,6 +49,7 @@ public class SessionManager : IDisposable {
         _storageService = storageService;
         _connectionManager = new ConnectionManager(_sessionCtSource.Token);
         _connectionManager.ConnectionEnded += OnSessionEnded;
+        _connectionManager.PeerNameUpdated += name => PeerNameUpdated?.Invoke(name);
     }
 
     public Task ListenTcp(IPEndPoint listenEp, CancellationToken ct) {
@@ -69,6 +71,13 @@ public class SessionManager : IDisposable {
             await RespondToDataMessage(msg);
         }
         Console.WriteLine("Exiting receive loop");
+    }
+
+    public Task AnnounceDeviceName(string name, CancellationToken ct) {
+        if (string.IsNullOrWhiteSpace(name))
+            return Task.CompletedTask;
+
+        return _connectionManager.SendMessage(new DeviceNameMsg(name), ct);
     }
 
     /// <summary>

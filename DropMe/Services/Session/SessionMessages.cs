@@ -5,6 +5,7 @@ namespace DropMe.Services.Session;
 public enum SessionMessageType : byte {
     Ping = 3,
     Pong = 4,
+    DeviceName = 5,
     FileOffer = 10,
     FileAccept = 11,
     FileReject = 12,
@@ -30,6 +31,7 @@ public abstract record FileMsg(Guid FileId) : DropMeMsg;
 
 public sealed record PingMsg : ControlMsg;
 public sealed record PongMsg : ControlMsg;
+public sealed record DeviceNameMsg(string Name) : ControlMsg;
 public sealed record SwitchConnectionRequest : ControlMsg;
 public sealed record DisconnectMsg : ControlMsg;
 

@@ -16,10 +16,11 @@ namespace DropMe.Services.Session;
 public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
     public bool TcpConnected => _tcpConnection?.connection is { IsConnected: true };
     public bool BluetoothConnected => _bluetoothConnection?.connection is { IsConnected: true };
-    public string? PeerName => _connectionInUse?.PeerName;
+    public string? PeerName => _announcedPeerName ?? _connectionInUse?.PeerName;
     public bool IsConnected => TcpConnected || BluetoothConnected;
     public byte[]? AesSessionKey { get; set; }
     public event Action<ConnectionEndReason>? ConnectionEnded;
+    public event Action<string>? PeerNameUpdated;
     private const string DropMeGuid = "bc8659c9-3aa7-4faf-ba42-c5feb93d1a3e";
     private (EncryptedConnection<TcpClientNsAdapter> connection, Task receiveTask)? _tcpConnection;
     private (EncryptedConnection<BluetoothClientNsAdapter> connection, Task receiveTask)? _bluetoothConnection;
@@ -27,6 +28,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
     private IConnection? _connectionInUse; // Points to one of the above connections
     private readonly Channel<(IConnection, DropMeMsg)> _networkSyncChannel = Channel.CreateUnbounded<(IConnection, DropMeMsg)>();
     private Task? _formSecondaryConnectionsTask;
+    private string? _announcedPeerName;
 
     public async Task TryAcceptTcpConnection(IPEndPoint listenEp, CancellationToken ct) {
         _connectionInUse = await AcceptTcpConnection(listenEp, ct).ConfigureAwait(false);
@@ -471,6 +473,12 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
                 break;
             case PongMsg:
                 // No action needs taken
+                break;
+            case DeviceNameMsg(var name):
+                if (!string.IsNullOrWhiteSpace(name)) {
+                    _announcedPeerName = name;
+                    PeerNameUpdated?.Invoke(name);
+                }
                 break;
             case SwitchConnectionRequest:
                 // No need to dispose old connection in use as it may not necessarily be dead, may be switching for speed reasons

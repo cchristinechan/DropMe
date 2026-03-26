@@ -135,6 +135,29 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         get => _downloadFolder;
         private set { _downloadFolder = value; OnPropertyChanged(); }
     }
+    private string _localDeviceName;
+    public string LocalDeviceName {
+        get => _localDeviceName;
+        private set {
+            if (_localDeviceName == value) return;
+            _localDeviceName = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SessionParticipantsText));
+        }
+    }
+
+    private string _remoteDeviceName = "Connected device";
+    public string RemoteDeviceName {
+        get => _remoteDeviceName;
+        private set {
+            if (_remoteDeviceName == value) return;
+            _remoteDeviceName = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SessionParticipantsText));
+        }
+    }
+
+    public string SessionParticipantsText => $"{LocalDeviceName}  ↔  {RemoteDeviceName}";
     public bool HasHomeSessionMessage => !string.IsNullOrWhiteSpace(HomeSessionMessage);
 
     public event Action? SessionConnected;
@@ -230,6 +253,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
         _camera.FrameArrived += OnFrameArrived;
         Status = "Ready";
+        _localDeviceName = ResolveLocalDeviceName();
 
         DownloadFolder = _storageService.GetDownloadDirectoryLabel();
 
@@ -256,6 +280,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             return FileOfferDecisionUi is null || await FileOfferDecisionUi(info);
         };
 
+        sessionManager.PeerNameUpdated += name =>
+            Dispatcher.UIThread.Post(() => RemoteDeviceName = ResolveRemoteDeviceName(name, null));
+
         sessionManager.SessionEnded += reason => {
             Dispatcher.UIThread.Post(async () => {
                 if (_isStoppingSession)
@@ -272,6 +299,27 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         };
 
         return sessionManager;
+    }
+
+    private string ResolveLocalDeviceName() {
+        var bluetoothName = GetBluetoothInfoOrNull()?.name;
+        if (!string.IsNullOrWhiteSpace(bluetoothName))
+            return bluetoothName;
+
+        if (!string.IsNullOrWhiteSpace(Environment.MachineName))
+            return Environment.MachineName;
+
+        return "This device";
+    }
+
+    private static string ResolveRemoteDeviceName(string? qrDeviceName, string? peerName) {
+        if (!string.IsNullOrWhiteSpace(qrDeviceName))
+            return qrDeviceName;
+
+        if (!string.IsNullOrWhiteSpace(peerName))
+            return peerName;
+
+        return "Connected device";
     }
 
     private void RefreshCameraList() {
@@ -380,6 +428,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     private async Task StartHostingAsync(int port, bool btEnabled, byte[] aesKey) {
         Debug.Assert(aesKey.Length == 32, "AES key must be 32 bytes");
         _sessionManager.AesSessionKey = aesKey;
+        LocalDeviceName = ResolveLocalDeviceName();
+        RemoteDeviceName = "Connecting device";
         try {
             if (btEnabled) {
                 await _sessionManager.ListenTcpAndBt(new IPEndPoint(IPAddress.Any, port), _sessionListenCts.Token)
@@ -393,6 +443,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             Status = $"Connected to {_sessionManager.PeerName}";
             SessionStatus = "Connected";
             HomeSessionMessage = null;
+            RemoteDeviceName = ResolveRemoteDeviceName(null, _sessionManager.PeerName);
+            await _sessionManager.AnnounceDeviceName(LocalDeviceName, CancellationToken.None);
             Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
 
             OnPropertyChanged(nameof(IsConnected));
@@ -786,6 +838,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             SessionId = qrCodeData.Sid.ToString();
 
             Status = "Connecting to peer…";
+            LocalDeviceName = ResolveLocalDeviceName();
+            RemoteDeviceName = ResolveRemoteDeviceName(qrCodeData.BtInfo?.Name, null);
 
             BluetoothAddress? btAddr = null;
             string? btName = null;
@@ -813,6 +867,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             Status = $"Connected to {_sessionManager.PeerName}";
             SessionStatus = "Connected";
             HomeSessionMessage = null;
+            RemoteDeviceName = ResolveRemoteDeviceName(qrCodeData.BtInfo?.Name, _sessionManager.PeerName);
+            await _sessionManager.AnnounceDeviceName(LocalDeviceName, CancellationToken.None);
             Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
 
             OnPropertyChanged(nameof(IsConnected));
@@ -841,6 +897,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             SessionId = null;
             SessionStatus = "Not connected";
             SessionMessage = null;
+            RemoteDeviceName = "Connected device";
             Status = "Ready";
             if (!string.IsNullOrWhiteSpace(homeMessage))
                 HomeSessionMessage = homeMessage;
