@@ -6,8 +6,14 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
-using DropMe.Controls;
 using DropMe.ViewModels;
+#if ANDROID
+using Android.App;
+using Avalonia.Android;
+using Avalonia.Platform;
+using DropMe.Services;
+using Microsoft.Extensions.DependencyInjection;
+#endif
 
 namespace DropMe.Views;
 
@@ -117,4 +123,17 @@ public partial class TransferPage : UserControl {
         if (DataContext is MainViewModel vm)
             await vm.ToggleCameraAsync();
     }
+}
+
+internal sealed class AndroidCameraPreviewHost : NativeControlHost {
+#if ANDROID
+    protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent) {
+        var context = (parent as AndroidViewControlHandle)?.View.Context ?? Application.Context;
+        var cameraService = App.Services?.GetRequiredService<ICameraService>()
+            ?? throw new InvalidOperationException("Camera service is not available.");
+
+        var nativeView = cameraService.GetNativePreviewView(context);
+        return new AndroidViewControlHandle(nativeView);
+    }
+#endif
 }
