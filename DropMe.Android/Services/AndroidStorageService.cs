@@ -13,44 +13,62 @@ using AndroidNet = Android.Net;
 namespace DropMe.Android.Services;
 
 public class AndroidStorageService : IStorageService {
+    private const string PreferencesName = "dropme_storage";
+    private const string DownloadsFolderUriKey = "downloads_folder_uri";
     private AndroidNet.Uri? _downloadsFolder;
     private readonly string _configFolder;
     private readonly string _configFile;
+    private readonly ISharedPreferences _preferences;
+    private readonly Context _context;
 
     public AndroidStorageService() {
-        var filesDir = AndroidApplication.Context.FilesDir?.Path ?? Path.GetTempPath();
+        _context = AndroidApplication.Context;
+        _preferences = _context.GetSharedPreferences(PreferencesName, FileCreationMode.Private)!;
+        var filesDir = _context.FilesDir?.Path ?? Path.GetTempPath();
         _configFolder = Path.Combine(filesDir, "DropMe");
         _configFile = Path.Combine(_configFolder, "config.json");
+        _downloadsFolder = RestorePersistedDownloadsFolder();
     }
 
     public async Task PickDownloadsFolderAsync(Visual? visual) {
-        var folders = await TopLevel.GetTopLevel(visual)?
-            .StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions {
-                Title = "Select download folder",
-                AllowMultiple = false
-            });
+        var topLevel = TopLevel.GetTopLevel(visual);
+        if (topLevel is null)
+            return;
+
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions {
+            Title = "Select download folder",
+            AllowMultiple = false
+        });
 
         if (folders.Count > 0) {
-            _downloadsFolder = AndroidNet.Uri.Parse(folders[0].Path.ToString());
-            AndroidApplication.Context.ContentResolver.TakePersistableUriPermission(_downloadsFolder,
-                ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
+            var selectedFolder = AndroidNet.Uri.Parse(folders[0].Path.ToString());
+            if (selectedFolder is null)
+                return;
+
+            PersistDownloadsFolder(selectedFolder);
+            _downloadsFolder = selectedFolder;
         }
     }
 
     public (Stream, string)? OpenDownloadFileWriteStream(string fileName) {
         Console.WriteLine("OPENING!");
-        var context = AndroidApplication.Context;
         Console.WriteLine("Got context");
         // Use internal files by default, maybe later change this to external
-        var folder = _downloadsFolder is not null ? DocumentFile.FromTreeUri(context, _downloadsFolder) : DocumentFile.FromFile(context.FilesDir);
+        var filesDir = _context.FilesDir;
+        var folder = _downloadsFolder is not null
+            ? DocumentFile.FromTreeUri(_context, _downloadsFolder)
+            : filesDir is not null
+                ? DocumentFile.FromFile(filesDir)
+                : null;
 
         var file = folder?.FindFile(fileName)
                    ?? folder?.CreateFile("application/octet-stream", fileName);
-        var stream = context.ContentResolver.OpenOutputStream(file.Uri);
-        if (stream is not null) {
-            return (stream, file.Uri!.ToString()!);
-        }
-        return null;
+        var fileUri = file?.Uri;
+        if (fileUri is null)
+            return null;
+
+        var stream = _context.ContentResolver.OpenOutputStream(fileUri);
+        return stream is not null ? (stream, fileUri.ToString()!) : null;
     }
 
     public string? GetDownloadDirectoryLabel() {
@@ -96,5 +114,65 @@ public class AndroidStorageService : IStorageService {
             return Uri.UnescapeDataString(decodedPart);
         }
         return str;
+    }
+
+    private AndroidNet.Uri? RestorePersistedDownloadsFolder() {
+        var storedUri = _preferences.GetString(DownloadsFolderUriKey, null);
+        if (string.IsNullOrWhiteSpace(storedUri))
+            return null;
+
+        try {
+            var uri = AndroidNet.Uri.Parse(storedUri);
+            if (uri is null || !HasPersistedAccess(uri))
+                return null;
+
+            var folder = DocumentFile.FromTreeUri(_context, uri);
+            return folder is not null ? uri : null;
+        }
+        catch (Exception ex) {
+            Console.WriteLine($"Failed to restore persisted downloads folder: {ex.Message}");
+            ClearPersistedDownloadsFolder();
+            return null;
+        }
+    }
+
+    private void PersistDownloadsFolder(AndroidNet.Uri uri) {
+        if (_downloadsFolder is not null && _downloadsFolder != uri) {
+            try {
+                _context.ContentResolver.ReleasePersistableUriPermission(
+                    _downloadsFolder,
+                    ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"Failed to release old downloads folder permission: {ex.Message}");
+            }
+        }
+
+        _context.ContentResolver.TakePersistableUriPermission(
+            uri,
+            ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
+
+        using var editor = _preferences.Edit();
+        editor.PutString(DownloadsFolderUriKey, uri.ToString());
+        editor.Apply();
+    }
+
+    private bool HasPersistedAccess(AndroidNet.Uri uri) {
+        foreach (var permission in _context.ContentResolver.PersistedUriPermissions) {
+            if (permission.Uri?.ToString() == uri.ToString() &&
+                permission.IsReadPermission &&
+                permission.IsWritePermission) {
+                return true;
+            }
+        }
+
+        ClearPersistedDownloadsFolder();
+        return false;
+    }
+
+    private void ClearPersistedDownloadsFolder() {
+        using var editor = _preferences.Edit();
+        editor.Remove(DownloadsFolderUriKey);
+        editor.Apply();
     }
 }
