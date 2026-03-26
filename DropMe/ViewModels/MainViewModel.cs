@@ -204,21 +204,35 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         _device = device;
         _storageService = storageService;
         _permissionsService = permissionsService;
-        _sessionManager = new SessionManager(_storageService);
+
+        _sessionManager = SessionManagerFactory();
+
+        _camera.FrameArrived += OnFrameArrived;
+        Status = "Ready";
+
+        DownloadFolder = _storageService.GetDownloadDirectoryLabel();
+
+        _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+        _renderTimer.Tick += (_, _) => RenderPreview();
+        _renderTimer.Start();
+    }
+
+    private SessionManager SessionManagerFactory() {
+        var sessionManager = new SessionManager(_storageService);
 
         // Give the session manager callbacks
-        _sessionManager.FileSaved += path =>
+        sessionManager.FileSaved += path =>
             Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
 
-        _sessionManager.FileAcked += (_, sha) =>
+        sessionManager.FileAcked += (_, sha) =>
             Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered : SHA256={sha}");
 
-        _sessionManager.FileOfferDecision = async offer => {
+        sessionManager.FileOfferDecision = async offer => {
             var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
             return FileOfferDecisionUi is null || await FileOfferDecisionUi(info);
         };
 
-        _sessionManager.SessionEnded += reason => {
+        sessionManager.SessionEnded += reason => {
             Dispatcher.UIThread.Post(async () => {
                 if (_isStoppingSession)
                     return;
@@ -231,15 +245,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
                 Status = $"Session ended: peer disconnected {reason.ToString()}.";
             });
         };
-
-        _camera.FrameArrived += OnFrameArrived;
-        Status = "Ready";
-
-        DownloadFolder = _storageService.GetDownloadDirectoryLabel();
-
-        _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
-        _renderTimer.Tick += (_, _) => RenderPreview();
-        _renderTimer.Start();
+        return sessionManager;
     }
 
     public void GenerateQr() {
@@ -340,6 +346,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         catch (Exception ex) {
             Status = $"Host error: {ex.Message}";
         }
+        finally {
+            _sessionManager.Dispose();
+            _sessionManager = SessionManagerFactory();
+        }
+
     }
 
 
@@ -480,28 +491,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
     }
 
-    private void EnsurePreviewBitmap(int width, int height) {
-        if (Preview is not null && Preview.PixelSize.Width == width && Preview.PixelSize.Height == height)
-            return;
-
-        Preview = new WriteableBitmap(
-            new PixelSize(width, height),
-            new Vector(96, 96),
-            PixelFormat.Bgra8888,
-            AlphaFormat.Unpremul);
-    }
     private async Task HandleQrDecodedAsync(QrCodeData qrCodeData) {
-        var endpoint = new IPEndPoint(IPAddress.Parse(qrCodeData.LanInfo.Address), qrCodeData.LanInfo.Port);
         try {
             if (qrCodeData == _lastGeneratedQrCodeData) {
                 Status = "Ignored your own QR code.";
-                Interlocked.Exchange(ref _qrHandled, 0);
-                return;
-            }
-
-            if (!AllowSameMachineConnectionsForTesting &&
-                string.Equals(endpoint.Address.ToString(), _device.GetLocalLanIp(), StringComparison.OrdinalIgnoreCase)) {
-                Status = "Blocked: this QR points to your own computer.";
                 Interlocked.Exchange(ref _qrHandled, 0);
                 return;
             }
@@ -527,7 +520,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             // Only attempt to connect over bluetooth if we have permissions
             if (qrCodeData.BtInfo is var (btAddrStr1, btNameStr1) && _permissionsService.HasBluetoothPermissions) {
                 btName = btNameStr1;
-                var _ = BluetoothAddress.TryParse(btAddrStr1, out btAddr); // Fine not checking output as null is valid
+                BluetoothAddress.TryParse(btAddrStr1, out btAddr); // Fine not checking output as null is valid
             }
 
             _sessionManager.AesSessionKey = qrCodeData.AesKey;
@@ -549,6 +542,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             OnPropertyChanged(nameof(IsTcpConnected));
             OnPropertyChanged(nameof(IsBtConnected));
             await _sessionManager.StartReceiveLoop();
+
+            _sessionManager.Dispose();
+            _sessionManager = SessionManagerFactory();
         }
         catch (Exception ex) {
             Status = $"Connection failed: {ex.Message}";
@@ -579,6 +575,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             Status = $"End session error: {ex.Message}";
         }
         finally {
+            _sessionManager = SessionManagerFactory();
             _isStoppingSession = false;
         }
     }
@@ -602,40 +599,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         OnPropertyChanged(nameof(ScanButtonText));
     }
 
-    public void SetThemeMode(bool isDarkTheme) {
-        if (IsDarkTheme == isDarkTheme)
-            return;
-
-        IsDarkTheme = isDarkTheme;
-    }
-
-    private void CopyBytesToPreview(byte[] rgba, int width, int height, int srcStride) {
-        if (Preview is null) return;
-
-        using (var fb = Preview.Lock()) {
-            int rows = Math.Min(height, fb.Size.Height);
-            int dstStride = fb.RowBytes;
-
-            if (srcStride == dstStride) {
-                Marshal.Copy(rgba, 0, fb.Address, rows * dstStride);
-            }
-            else {
-                int colsBytes = Math.Min(srcStride, dstStride);
-                for (int y = 0; y < rows; y++) {
-                    Marshal.Copy(
-                        rgba,
-                        y * srcStride,
-                        fb.Address + (y * dstStride),
-                        colsBytes);
-                }
-            }
-        }
-
-        //  FORCE AVALONIA TO REBIND THE IMAGE SOURCE
-        if (++_previewFrameCounter % 5 == 0) {
-            Preview = Preview;
-        }
-    }
     public async Task SendFileAsync() {
         try {
             var file = PickFileStreamUi is null

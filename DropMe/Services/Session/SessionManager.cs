@@ -31,7 +31,7 @@ public class SessionManager : IDisposable {
     public string? PeerName => _connectionManager.PeerName;
     public event Action<string>? FileSaved;
     public event Action<Guid, string /*sha256 hex*/>? FileAcked;
-    public event Action<SessionEndReason>? SessionEnded;
+    public event Action<ConnectionEndReason>? SessionEnded;
     public List<TransferLogInfo> CompletedTransfers { get; } = [];
 
     public byte[]? AesSessionKey {
@@ -47,6 +47,7 @@ public class SessionManager : IDisposable {
     public SessionManager(IStorageService storageService) {
         _storageService = storageService;
         _connectionManager = new ConnectionManager(_sessionCtSource.Token);
+        _connectionManager.ConnectionEnded += OnSessionEnded;
     }
 
     public Task ListenTcp(IPEndPoint listenEp, CancellationToken ct) {
@@ -62,34 +63,22 @@ public class SessionManager : IDisposable {
         return _connectionManager.EstablishConnections(lanServerEp, btAddr, btName, ct);
     }
 
-    public async Task<bool> StartReceiveLoop() {
+    public async Task StartReceiveLoop() {
         Debug.Assert(!_disposed, "Cannot receive on disposed session, create a new session manager");
-        try {
-            await foreach (var msg in _connectionManager.ReceiveMessages()) {
-                await RespondToDataMessage(msg);
-            }
-
-            SessionEnded?.Invoke(SessionEndReason.PeerRequested);
-            return true;
+        await foreach (var msg in _connectionManager.ReceiveMessages()) {
+            await RespondToDataMessage(msg);
         }
-        catch (PeerRequestedDisconnectionException) {
-            SessionEnded?.Invoke(SessionEndReason.PeerRequested);
-            return true;
-        }
-        catch (AllConnectionsDeadException) {
-            SessionEnded?.Invoke(SessionEndReason.AllChannelsDisconnected);
-            return false;
-        }
+        Console.WriteLine("Exiting receive loop");
     }
 
     /// <summary>
     /// Stops and disposes this session manager.
     /// </summary>
     public async Task StopSession() {
-        Debug.Assert(!_disposed, "Cannot stop a session manager twice, create a new session manager");
         Console.WriteLine("Stop session called");
         // Try to notify peer that a disconnection has been requested
-        await _connectionManager.SendMessage(new DisconnectMsg(), CancellationToken.None);
+        if (_connectionManager.IsConnected)
+            await _connectionManager.SendMessage(new DisconnectMsg(), CancellationToken.None);
 
         await _sessionCtSource.CancelAsync();
         Dispose();
@@ -119,7 +108,7 @@ public class SessionManager : IDisposable {
             _fileTransferStates[fileId] = fileState;
         }
 
-        const int chunkSize = 64 * 1024;
+        const int chunkSize = 8 * 1024;
         var buffer = new byte[chunkSize];
         var chunkIndex = 0;
 
@@ -276,13 +265,13 @@ public class SessionManager : IDisposable {
         return Path.GetInvalidFileNameChars().Aggregate(name, (current, c) => current.Replace(c, '_'));
     }
 
+    private void OnSessionEnded(ConnectionEndReason reason) {
+        Console.WriteLine("Session ended");
+        SessionEnded?.Invoke(reason);
+    }
+
     public void Dispose() {
         _disposed = true;
         _connectionManager.Dispose();
-    }
-
-    public enum SessionEndReason {
-        AllChannelsDisconnected,
-        PeerRequested
     }
 }

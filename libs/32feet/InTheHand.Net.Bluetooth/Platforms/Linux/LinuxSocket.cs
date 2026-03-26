@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using Tmds.DBus;
 
 namespace InTheHand.Net.Sockets {
     /// <summary>
@@ -20,6 +21,7 @@ namespace InTheHand.Net.Sockets {
     public class LinuxSocket : Socket {
         private int _socket = 0;
         private Socket _listener;
+        public CloseSafeHandle? _safeHandleRef;
 
         /// <summary>
         /// Creates a new instance of LinuxSocket.
@@ -123,8 +125,10 @@ namespace InTheHand.Net.Sockets {
         /// <inheritdoc/>
         public new void Close() {
             if (_socket != 0) {
-                var result = NativeMethods.close(_socket);
+                var fd = _socket;
                 _socket = 0;
+                _safeHandleRef = null; // release reference, but NativeMethods.close() owns actual close
+                var result = NativeMethods.close(fd);
                 base.Close();
                 ThrowOnSocketError(result, false);
             }
@@ -181,7 +185,18 @@ namespace InTheHand.Net.Sockets {
             if (size > buffer.Length)
                 throw new ArgumentOutOfRangeException(nameof(size));
 
-            var result = NativeMethods.recv(_socket, buffer, size, (int)socketFlags);
+            int result;
+            while (true) {
+                result = NativeMethods.recv(_socket, buffer, size, (int)socketFlags);
+        
+                if (result == -1 && Marshal.GetLastWin32Error() == 11) // EAGAIN
+                {
+                    var pollFd = new PollFd { fd = _socket, events = POLLIN };
+                    NativeMethods.poll(ref pollFd, 1, -1); // block until readable
+                    continue;
+                }
+                break;
+            }
 
             ThrowOnSocketError(result, true);
 
@@ -215,14 +230,19 @@ namespace InTheHand.Net.Sockets {
                 throw new ArgumentOutOfRangeException(nameof(size));
 
             var newBuffer = new byte[size];
-
-            var bytesReceived = NativeMethods.recv(_socket, newBuffer, size, (int)socketFlags);
-            if (bytesReceived > 0) {
-                newBuffer.CopyTo(buffer, offset);
+    
+            int bytesReceived;
+            try {
+                bytesReceived = RawReceive(newBuffer, size, socketFlags);
+                errorCode = SocketError.Success;
+            }
+            catch (SocketException ex) {
+                errorCode = (SocketError)ex.ErrorCode;
+                return 0;
             }
 
-            var socketError = Marshal.GetLastSystemError();
-            errorCode = (SocketError)socketError;
+            if (bytesReceived > 0)
+                newBuffer.CopyTo(buffer, offset);
 
             return bytesReceived;
         }
@@ -303,23 +323,55 @@ namespace InTheHand.Net.Sockets {
         private int RawSend(byte[] buffer, int offset, int size, SocketFlags socketFlags) {
             ThrowIfSocketClosed();
 
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (offset + size > buffer.Length) throw new ArgumentOutOfRangeException(nameof(size));
 
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
+            int totalSent = 0;
 
-            if (size + offset > buffer.Length)
-                throw new ArgumentOutOfRangeException(nameof(size));
+            while (totalSent < size) {
+                int remaining = size - totalSent;
+                
+                byte[] chunk = new byte[remaining];
+                Array.Copy(buffer, offset + totalSent, chunk, 0, remaining);
+                
+                int result = NativeMethods.send(_socket, chunk, remaining, (int)socketFlags | 0x4000);
 
-            var requiredBuffer = new byte[size];
-            Buffer.BlockCopy(buffer, offset, requiredBuffer, 0, size);
+                if (result > 0) {
+                    totalSent += result;
+                }
+                else if (result == -1) {
+                    int errorCode = Marshal.GetLastPInvokeError();
 
-            var result = NativeMethods.send(_socket, requiredBuffer, size, (int)socketFlags);
+                    // Handle socket busy
+                    if (errorCode == 11) {
+                        var pollFd = new PollFd { fd = _socket, events = POLLOUT };
+                        int pollResult = NativeMethods.poll(ref pollFd, 1, -1);
 
-            ThrowOnSocketError(result, true);
+                        if (pollResult == -1)
+                            throw new SocketException(Marshal.GetLastPInvokeError());
 
-            return result;
+                        if ((pollFd.revents & (POLLERR | POLLHUP)) != 0) {
+                            // Get the specific socket error to avoid the "Success" exception
+                            int sockErr;
+                            int optlen = Marshal.SizeOf(typeof(int));
+                            NativeMethods.getsockopt(_socket, 1, 4, out sockErr, ref optlen);
+                            throw new SocketException(sockErr != 0 ? sockErr : errorCode);
+                        }
+                        
+                        // Poll finished successfully, try the loop again
+                        continue; 
+                    }
+
+                    // A genuine error occurred
+                    throw new SocketException(errorCode);
+                }
+                else if (result == 0) {
+                    // The peer closed the connection
+                    break; 
+                }
+            }
+
+            return totalSent;
         }
 
         /// <inheritdoc/>
@@ -338,6 +390,21 @@ namespace InTheHand.Net.Sockets {
         protected override void Dispose(bool disposing) {
             Close();
         }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct PollFd
+        {
+            public int fd;
+            public short events;
+            public short revents;
+        }
+
+        private const short POLLIN = 0x0001;
+        private const short POLLOUT = 0x0004;
+        private const short POLLERR = 0x0008;
+        private const short POLLHUP = 0x0010;
+        private const int SOL_SOCKET = 1;
+        private const int SO_ERROR = 4;
 
         private static class NativeMethods {
             private const string libc = "libc";
@@ -353,10 +420,10 @@ namespace InTheHand.Net.Sockets {
             [DllImport(libc, SetLastError = true)]
             internal static extern int connect(int s, [MarshalAs(UnmanagedType.LPArray)] byte[] name, int namelen);
 
-            [DllImport(libc)]
+            [DllImport(libc, SetLastError = true)]
             internal static extern int recv(int s, byte[] buf, int len, int flags);
 
-            [DllImport(libc)]
+            [DllImport(libc, SetLastError = true)]
             internal static extern int send(int s, byte[] buf, int len, int flags);
 
             [DllImport(libc)]
@@ -382,6 +449,25 @@ namespace InTheHand.Net.Sockets {
 
             [DllImport(libc)]
             internal static extern int setsockopt(int s, int level, int optname, byte[] optval, int optlen);
+            
+            [DllImport("libc", SetLastError = true)]
+            internal static extern int poll(ref PollFd fds, uint nfds, int timeout);
+            
+            [DllImport("libc", SetLastError = true)]
+            internal static extern int getsockopt(
+                int s, 
+                int level, 
+                int optname, 
+                out int optval, 
+                ref int optlen);
+
+            [DllImport("libc", SetLastError = true)]
+            internal static extern int getsockopt(
+                int s, 
+                int level, 
+                int optname, 
+                [MarshalAs(UnmanagedType.LPArray)] byte[] optval, 
+                ref int optlen);
 #pragma warning restore IDE1006 // Naming Styles
 
         }

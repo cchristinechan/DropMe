@@ -13,11 +13,13 @@ using InTheHand.Net.Sockets;
 
 namespace DropMe.Services.Session;
 
-public class AllConnectionsDeadException : Exception;
-
-public class PeerRequestedDisconnectionException : Exception;
-
 public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
+    public bool TcpConnected => _tcpConnection?.connection is { IsConnected: true };
+    public bool BluetoothConnected => _bluetoothConnection?.connection is { IsConnected: true };
+    public string? PeerName => _connectionInUse?.PeerName;
+    public bool IsConnected => TcpConnected || BluetoothConnected;
+    public byte[]? AesSessionKey { get; set; }
+    public event Action<ConnectionEndReason>? ConnectionEnded;
     private const string DropMeGuid = "bc8659c9-3aa7-4faf-ba42-c5feb93d1a3e";
     private (EncryptedConnection<TcpClientNsAdapter> connection, Task receiveTask)? _tcpConnection;
     private (EncryptedConnection<BluetoothClientNsAdapter> connection, Task receiveTask)? _bluetoothConnection;
@@ -25,11 +27,6 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
     private IConnection? _connectionInUse; // Points to one of the above connections
     private readonly Channel<(IConnection, DropMeMsg)> _networkSyncChannel = Channel.CreateUnbounded<(IConnection, DropMeMsg)>();
     private Task? _formSecondaryConnectionsTask;
-    public bool TcpConnected => _tcpConnection?.connection is { IsConnected: true };
-    public bool BluetoothConnected => _bluetoothConnection?.connection is { IsConnected: true };
-    public string? PeerName => _connectionInUse?.PeerName;
-    public bool IsConnected => TcpConnected || BluetoothConnected;
-    public byte[]? AesSessionKey { get; set; }
 
     public async Task TryAcceptTcpConnection(IPEndPoint listenEp, CancellationToken ct) {
         _connectionInUse = await AcceptTcpConnection(listenEp, ct).ConfigureAwait(false);
@@ -134,7 +131,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
     /// <param name="msg"></param>
     /// <param name="ct"></param>
     public async Task SendMessage(DropMeMsg msg, CancellationToken ct) {
-        Console.WriteLine($"Sending message {msg}");
+        Console.WriteLine($"Connection manager forwarding message {msg}");
         await _connectionInUseSemaphore.WaitAsync(ct).ConfigureAwait(false);
 
         var firstAttempt = true;
@@ -146,7 +143,6 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             else {
                 try {
                     var ctsWithTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    //ctsWithTimeout.CancelAfter(5000);
                     if (!firstAttempt)
                         await _connectionInUse.SendMessageAsync(new SwitchConnectionRequest(), ctsWithTimeout.Token)
                             .ConfigureAwait(false);
@@ -167,15 +163,24 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
         _connectionInUseSemaphore.Release();
     }
 
-    private void TryRecoverConnection() {
-        Console.WriteLine("Trying to recover connection");
-        Debug.Assert(_connectionInUseSemaphore.CurrentCount != 0, "TryRecoverConnection should only be called while holding the connectionInUseSemaphore");
+    // Should be called with semaphore held
+    private bool TryRecoverConnection() {
         if (TcpConnected) {
+            Console.WriteLine("Fell back to TCP");
             _connectionInUse = _tcpConnection!.Value.connection;
         }
         else if (BluetoothConnected) {
+            Console.WriteLine("Fell back to BT");
             _connectionInUse = _bluetoothConnection!.Value.connection;
         }
+        if (!IsConnected) {
+            Console.WriteLine("Could not recover connection");
+            _networkSyncChannel.Writer.Complete();
+            ConnectionEnded?.Invoke(ConnectionEndReason.AllChannelsDisconnected);
+            return false;
+        }
+
+        return true;
     }
 
     public async IAsyncEnumerable<FileMsg> ReceiveMessages() {
@@ -208,7 +213,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             }
 
             if (!IsConnected) {
-                throw new AllConnectionsDeadException();
+                ConnectionEnded?.Invoke(ConnectionEndReason.AllChannelsDisconnected);
             }
 
             switch (message) {
@@ -236,6 +241,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
                 throw new NullReferenceException("Aes session key must be set before connecting");
 
             var connection = new EncryptedConnection<TcpClientNsAdapter>(new TcpClientNsAdapter(client), client.Client.RemoteEndPoint?.ToString() ?? "Unknown", AesSessionKey);
+            connection.OnDisconnect += OnConnectionDisconnected;
             if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false)) {
                 // Client did not perform correct handshake so close it and keep listening
                 client.Close();
@@ -252,7 +258,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
     }
 
     private async Task<IConnection> AcceptBluetoothConnection(CancellationToken ct) {
-        using var listener = new BluetoothListener(new Guid(DropMeGuid));
+        var listener = new BluetoothListener(new Guid(DropMeGuid));
         var radio = BluetoothRadio.Default;
         radio.Mode = RadioMode.Discoverable;
         listener.Start();
@@ -265,8 +271,8 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
 
             if (AesSessionKey is null)
                 throw new NullReferenceException("Aes session key must be set before connecting");
-
             var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+            connection.OnDisconnect += OnConnectionDisconnected;
             if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false)) {
                 Console.WriteLine($"Client {connection.PeerName} tried to connect with a bad handshake");
                 client.Close();
@@ -279,7 +285,6 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             }
         }
         listener.Stop();
-        radio.Mode = RadioMode.Discoverable;
         return _bluetoothConnection!.Value.connection;
     }
 
@@ -288,11 +293,10 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
         Console.WriteLine($"Trying to connect to {serverEp}");
         await client.ConnectAsync(serverEp, ct).ConfigureAwait(false);
         Console.WriteLine($"Connected to {serverEp}");
-        var stream = client.GetStream();
-        Console.WriteLine("Got it's stream");
         if (AesSessionKey is null)
             throw new NullReferenceException("Aes session key must be set before connecting");
         var connection = new EncryptedConnection<TcpClientNsAdapter>(new TcpClientNsAdapter(client), serverEp.Address.ToString(), AesSessionKey);
+        connection.OnDisconnect += OnConnectionDisconnected;
         if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false)) {
             Console.WriteLine("Server did not complete handshake properly");
             client.Close();
@@ -324,6 +328,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             throw new NullReferenceException("Aes session key must be set before connecting");
 
         var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+        connection.OnDisconnect += OnConnectionDisconnected;
         if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false)) {
             Console.WriteLine("Bluetooth server didn't perform handshake correctly");
             client.Close();
@@ -385,6 +390,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
                     throw new NullReferenceException("Aes session key must be set before connecting");
 
                 var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
+                connection.OnDisconnect += OnConnectionDisconnected;
                 if (!await connection.ClientConnectionHandshake(ct).ConfigureAwait(false)) {
                     // TRY NEXT DEVICE INSTEAD OF DYING
                     client.Close();
@@ -421,8 +427,35 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
                 _connectionInUseSemaphore.Release();
                 break;
             case DisconnectMsg:
-                throw new PeerRequestedDisconnectionException();
+                ConnectionEnded?.Invoke(ConnectionEndReason.PeerRequested);
+                _networkSyncChannel.Writer.Complete();
+                break;
             default: throw new Exception("Unknown message");
+        }
+    }
+
+    private async void OnConnectionDisconnected(IConnection conn, IEnumerable<DropMeMsg> undelivered) {
+        Console.WriteLine($"Connection manager noticed connection {conn} is dead");
+        if (conn is EncryptedConnection<TcpClientNsAdapter> && _tcpConnection is not null) {
+            _tcpConnection.Value.connection.Dispose();
+            _tcpConnection = null;
+        }
+        else if (conn is EncryptedConnection<BluetoothClientNsAdapter> && _bluetoothConnection is not null) {
+            _bluetoothConnection.Value.connection.Dispose();
+            _bluetoothConnection = null;
+        }
+
+        await _connectionInUseSemaphore.WaitAsync().ConfigureAwait(false);
+        try {
+            if (TryRecoverConnection()) {
+                foreach (var msg in undelivered) {
+                    Console.WriteLine($"Resending {msg}");
+                    await _connectionInUse!.SendMessageAsync(msg, CancellationToken.None).ConfigureAwait(false); // Not null as tryrecoverconnection would have thrown
+                }
+            }
+        }
+        finally {
+            _connectionInUseSemaphore.Release();
         }
     }
 
@@ -430,4 +463,9 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
         _tcpConnection?.connection.Dispose();
         _bluetoothConnection?.connection.Dispose();
     }
+}
+
+public enum ConnectionEndReason {
+    AllChannelsDisconnected,
+    PeerRequested
 }
