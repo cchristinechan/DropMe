@@ -37,6 +37,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     private readonly object _frameLock = new();
     private int _latestFrameVersion;
     private int _renderedFrameVersion = -1;
+    private int _decodeInFlight;
     private DispatcherTimer? _renderTimer;
     private SessionManager _sessionManager;
     private CancellationTokenSource _sessionListenCts = new();
@@ -56,6 +57,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     public bool IsConnected => _sessionManager.IsConnected;
     public bool IsScanning => _scanCts is not null;
     public bool ShowGeneratedQr => !IsScanning;
+    public bool UseNativeCameraPreview => OperatingSystem.IsAndroid();
+    public bool ShowNativeCameraPreview => IsScanning && UseNativeCameraPreview;
+    public bool ShowManagedCameraPreview => IsScanning && !UseNativeCameraPreview;
     public string MainCardTitle => IsScanning ? "Camera Preview" : "Your QR Code";
     public string ScanButtonText => IsScanning ? "Stop scanning" : "Scan QR";
     public IReadOnlyList<string> AvailableCameras => _availableCameras;
@@ -208,9 +212,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
         DownloadFolder = _storageService.GetDownloadDirectoryLabel();
 
-        _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
-        _renderTimer.Tick += (_, _) => RenderPreview();
-        _renderTimer.Start();
+        if (!UseNativeCameraPreview) {
+            _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            _renderTimer.Tick += (_, _) => RenderPreview();
+            _renderTimer.Start();
+        }
         RefreshCameraList();
     }
 
@@ -399,7 +405,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             await _permissionsService.RequestCameraPermission();
         }
         // HANDLE DENIAL
-        _renderTimer?.Start();
+        if (!UseNativeCameraPreview)
+            _renderTimer?.Start();
 
         if (_scanCts is not null) return;
 
@@ -410,6 +417,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         DecodedText = null;
         HomeSessionMessage = null;
         OnPropertyChanged(nameof(IsScanning));
+        OnPropertyChanged(nameof(ShowNativeCameraPreview));
+        OnPropertyChanged(nameof(ShowManagedCameraPreview));
         OnPropertyChanged(nameof(ShowGeneratedQr));
         OnPropertyChanged(nameof(MainCardTitle));
         OnPropertyChanged(nameof(ScanButtonText));
@@ -423,8 +432,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             _scanCts.Dispose();
             _scanCts = null;
             Status = $"Camera error: {ex.Message}";
-            _renderTimer?.Stop();
+            if (!UseNativeCameraPreview)
+                _renderTimer?.Stop();
             OnPropertyChanged(nameof(IsScanning));
+            OnPropertyChanged(nameof(ShowNativeCameraPreview));
+            OnPropertyChanged(nameof(ShowManagedCameraPreview));
             OnPropertyChanged(nameof(ShowGeneratedQr));
             OnPropertyChanged(nameof(MainCardTitle));
             OnPropertyChanged(nameof(ScanButtonText));
@@ -432,7 +444,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     }
 
     public async Task StopScanAsync() {
-        _renderTimer?.Stop();
+        if (!UseNativeCameraPreview)
+            _renderTimer?.Stop();
 
         if (_scanCts is null) return;
 
@@ -451,6 +464,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         }
         finally {
             OnPropertyChanged(nameof(IsScanning));
+            OnPropertyChanged(nameof(ShowNativeCameraPreview));
+            OnPropertyChanged(nameof(ShowManagedCameraPreview));
             OnPropertyChanged(nameof(ShowGeneratedQr));
             OnPropertyChanged(nameof(MainCardTitle));
             OnPropertyChanged(nameof(ScanButtonText));
@@ -477,6 +492,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     private DateTime _lastDecode = DateTime.MinValue;
 
     private void OnFrameArrived(CameraFrame frame) {
+        if (UseNativeCameraPreview) {
+            TryDecodeCameraFrame(frame);
+            return;
+        }
+
         lock (_frameLock) {
             var rotation = NormalizeRotation(frame.Rotation);
             var targetWidth = rotation is 90 or 270 ? frame.Height : frame.Width;
@@ -517,21 +537,25 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             ? PixelFormat.Rgba8888
             : PixelFormat.Bgra8888;
 
-        var bmp = EnsurePreviewBitmap(w, h, pixelFormat);
+        var bmp = CreatePreviewBitmap(w, h, pixelFormat);
 
         var scanWindow = ComputeScanWindow(w, h);
         using (var fb = bmp.Lock()) {
             lock (_frameLock) {
-                if (_latestFrameBytes is null)
+                if (_latestFrameBytes is null) {
+                    bmp.Dispose();
                     return;
+                }
 
                 w = _latestWidth;
                 h = _latestHeight;
                 stride = _latestStride;
                 frameVersion = _latestFrameVersion;
 
-                if (frameVersion == _renderedFrameVersion)
+                if (frameVersion == _renderedFrameVersion) {
+                    bmp.Dispose();
                     return;
+                }
 
                 int rows = Math.Min(h, fb.Size.Height);
                 int dstStride = fb.RowBytes;
@@ -548,7 +572,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             }
         }
 
+        var previousPreview = Preview;
         Preview = bmp;
+        previousPreview?.Dispose();
         _renderedFrameVersion = frameVersion;
 
         var now = DateTime.UtcNow;
@@ -586,6 +612,39 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
     }
 
+    private void TryDecodeCameraFrame(CameraFrame frame) {
+        var now = DateTime.UtcNow;
+        if ((now - _lastDecode).TotalMilliseconds < 150)
+            return;
+
+        if (Interlocked.CompareExchange(ref _decodeInFlight, 1, 0) != 0)
+            return;
+
+        try {
+            _lastDecode = now;
+            var decodedText = _decoder.TryDecode(frame);
+            if (string.IsNullOrWhiteSpace(decodedText))
+                return;
+
+            if (!QrCodeDataCodec.TryDecode(decodedText, out var qrCodeData)) {
+                Dispatcher.UIThread.Post(() => Status = "Invalid QR code data");
+                return;
+            }
+
+            Dispatcher.UIThread.Post(() => {
+                DecodedText = decodedText;
+                Status = "QR decoded";
+                if (Interlocked.Exchange(ref _qrHandled, 1) == 1)
+                    return;
+
+                _ = HandleQrDecodedAsync(qrCodeData!);
+            });
+        }
+        finally {
+            Interlocked.Exchange(ref _decodeInFlight, 0);
+        }
+    }
+
     private (int x, int y, int targetW, int targetH, int scanX, int scanY, int scanW, int scanH) ComputeScanArea(
         int frameWidth,
         int frameHeight,
@@ -611,7 +670,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     private (int boxX, int boxY, int boxW, int boxH, int decodeX, int decodeY, int decodeW, int decodeH) ComputeScanWindow(
         int frameWidth,
         int frameHeight) {
-        var area = ComputeScanArea(frameWidth, frameHeight, 62, 16);
+        var area = ComputeScanArea(frameWidth, frameHeight, 71, 16);
         return (area.x, area.y, area.targetW, area.targetH, area.scanX, area.scanY, area.scanW, area.scanH);
     }
 
@@ -642,19 +701,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         return new CameraFrame(safeWidth, safeHeight, _scanFrameBytes, destStride, 0);
     }
 
-    private WriteableBitmap EnsurePreviewBitmap(int width, int height, PixelFormat pixelFormat) {
-        if (Preview is not null && Preview.PixelSize.Width == width && Preview.PixelSize.Height == height)
-            return Preview;
-
-        Preview?.Dispose();
-        var bitmap = new WriteableBitmap(
+    private static WriteableBitmap CreatePreviewBitmap(int width, int height, PixelFormat pixelFormat) =>
+        new(
             new PixelSize(width, height),
             new Vector(96, 96),
             pixelFormat,
             AlphaFormat.Unpremul);
-        Preview = bitmap;
-        return bitmap;
-    }
 
     private static int NormalizeRotation(int rotationDegrees) {
         var normalized = rotationDegrees % 360;
@@ -804,6 +856,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             HomeSessionMessage = homeMessage;
 
         OnPropertyChanged(nameof(IsScanning));
+        OnPropertyChanged(nameof(ShowNativeCameraPreview));
+        OnPropertyChanged(nameof(ShowManagedCameraPreview));
         OnPropertyChanged(nameof(ShowGeneratedQr));
         OnPropertyChanged(nameof(MainCardTitle));
         OnPropertyChanged(nameof(ScanButtonText));

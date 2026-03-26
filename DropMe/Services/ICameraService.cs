@@ -2,6 +2,10 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+#if ANDROID
+using Android.Content;
+using Android.Views;
+#endif
 
 namespace DropMe.Services;
 
@@ -15,4 +19,8 @@ public interface ICameraService : IAsyncDisposable {
 
     Task<bool> SelectCameraAsync(int index, CancellationToken ct = default);
     Task<bool> ToggleCameraAsync(CancellationToken ct = default);
+
+#if ANDROID
+    View GetNativePreviewView(Context context);
+#endif
 }

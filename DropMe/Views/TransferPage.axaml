@@ -3,6 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="clr-namespace:DropMe.Controls"
     xmlns:vm="clr-namespace:DropMe.ViewModels"
     mc:Ignorable="d"
     d:DesignWidth="800"
@@ -23,7 +24,7 @@
         <StackPanel Spacing="12">
           <TextBlock Classes="SectionTitle" Text="{Binding MainCardTitle}"/>
           <Border Classes="SubCard" Padding="14">
-            <Grid Height="350">
+            <Grid Height="350" ClipToBounds="True">
               <Image Source="{Binding QrImage}"
                      IsVisible="{Binding ShowGeneratedQr}"
                      Stretch="Uniform"
@@ -31,9 +32,14 @@
                      VerticalAlignment="Center"/>
               <Grid IsVisible="{Binding IsScanning}">
                 <Image Source="{Binding Preview}"
-                       Stretch="Uniform"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"/>
+                       IsVisible="{Binding ShowManagedCameraPreview}"
+                       Stretch="UniformToFill"
+                       HorizontalAlignment="Stretch"
+                       VerticalAlignment="Stretch"/>
+                <ContentControl x:Name="NativePreviewHost"
+                                IsVisible="{Binding ShowNativeCameraPreview}"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch"/>
                 <Grid IsHitTestVisible="False"
                       HorizontalAlignment="Stretch"
                       VerticalAlignment="Stretch"
@@ -45,7 +51,6 @@
                   <Border Grid.Row="2" Grid.ColumnSpan="3" Background="#A6000000"/>
                   <Border Grid.Row="1"
                           Grid.Column="1"
-                          Margin="14"
                           CornerRadius="18"
                           BorderThickness="3"
                           BorderBrush="#55FFAA"

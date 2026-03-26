@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Android.Content;
+using Android.Views;
 using Android.Util;
 using AndroidX.Camera.Core;
 using AndroidX.Camera.Lifecycle;
+using AndroidX.Camera.View;
 using AndroidX.Core.Content;
 using AndroidX.Lifecycle;
 using DropMe.Services;
@@ -14,10 +16,12 @@ using Java.Util.Concurrent;
 namespace DropMe.Android.Services;
 
 public sealed class AndroidCameraService : ICameraService {
-    private const int TargetAnalysisWidth = 960;
-    private const int TargetAnalysisHeight = 540;
+    private const int TargetAnalysisWidth = 640;
+    private const int TargetAnalysisHeight = 480;
     private ProcessCameraProvider? _cameraProvider;
     private ImageAnalysis? _analysis;
+    private Preview? _preview;
+    private PreviewView? _previewView;
     private CancellationTokenSource? _loopCts;
     private IExecutorService? _analyzerExecutor;
     private byte[]? _frameBuffer;
@@ -75,6 +79,7 @@ public sealed class AndroidCameraService : ICameraService {
             .SetBackpressureStrategy(ImageAnalysis.StrategyKeepOnlyLatest)
             .SetOutputImageFormat(ImageAnalysis.OutputImageFormatRgba8888)
             .Build();
+        _preview = new Preview.Builder().Build();
 
         _analysis.SetAnalyzer(analyzerExecutor, new Analyzer(image => {
             if (_loopCts?.IsCancellationRequested == true) {
@@ -120,6 +125,7 @@ public sealed class AndroidCameraService : ICameraService {
 
         _analysis?.ClearAnalyzer();
         _analysis = null;
+        _preview = null;
 
         _analyzerExecutor?.Shutdown();
         _analyzerExecutor = null;
@@ -137,7 +143,7 @@ public sealed class AndroidCameraService : ICameraService {
     public async ValueTask DisposeAsync() => await StopAsync();
 
     private async Task BindCameraAsync(global::Android.App.Activity activity) {
-        if (_cameraProvider is null || _analysis is null)
+        if (_cameraProvider is null || _analysis is null || _preview is null)
             return;
 
         var selector = _useFrontCamera
@@ -145,8 +151,12 @@ public sealed class AndroidCameraService : ICameraService {
             : CameraSelector.DefaultBackCamera;
 
         await RunOnUiThreadAsync(activity, () => {
+            if (_previewView is not null) {
+                _preview.SetSurfaceProvider(_previewView.SurfaceProvider);
+            }
+
             _cameraProvider.UnbindAll();
-            _cameraProvider.BindToLifecycle((ILifecycleOwner)activity, selector, _analysis);
+            _cameraProvider.BindToLifecycle((ILifecycleOwner)activity, selector, _preview, _analysis);
         }).ConfigureAwait(false);
     }
 
@@ -181,6 +191,23 @@ public sealed class AndroidCameraService : ICameraService {
             normalized += 360;
 
         return normalized;
+    }
+
+    public View GetNativePreviewView(Context context) {
+        if (_previewView is null) {
+            _previewView = new PreviewView(context);
+            _previewView.SetImplementationMode(PreviewView.ImplementationMode.Performance);
+            _previewView.SetScaleType(PreviewView.ScaleType.FillCenter);
+        }
+        else if (_previewView.Parent is ViewGroup parent) {
+            parent.RemoveView(_previewView);
+        }
+
+        if (_preview is not null) {
+            _preview.SetSurfaceProvider(_previewView.SurfaceProvider);
+        }
+
+        return _previewView;
     }
 
     private sealed class Analyzer(Action<IImageProxy> onFrame) : Java.Lang.Object, ImageAnalysis.IAnalyzer {

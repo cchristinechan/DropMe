@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using OpenCvSharp;
 namespace DropMe.Desktop.Services;
 
 public sealed class DesktopCameraService : ICameraService {
+    private static readonly TimeSpan StartupFrameTimeout = TimeSpan.FromSeconds(2);
     private VideoCapture? _cap;
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
@@ -61,6 +63,13 @@ public sealed class DesktopCameraService : ICameraService {
         if (!_cap.IsOpened())
             throw new InvalidOperationException($"Could not open camera {SelectedCameraIndex}.");
 
+        if (!await WaitForFirstFrameAsync(_cap, ct).ConfigureAwait(false)) {
+            _cap.Release();
+            _cap.Dispose();
+            _cap = null;
+            throw new InvalidOperationException("Could not start the camera. It may already be in use.");
+        }
+
         _loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _loopTask = Task.Run(() => Loop(_loopCts.Token), _loopCts.Token);
     }
@@ -91,10 +100,17 @@ public sealed class DesktopCameraService : ICameraService {
 
     private void RefreshCameraList() {
         _cameraNames.Clear();
+        int consecutiveMisses = 0;
         for (int i = 0; i < 10; i++) {
             using var test = new VideoCapture(i);
             if (test.IsOpened()) {
                 _cameraNames.Add($"Camera {i}");
+                consecutiveMisses = 0;
+            }
+            else if (_cameraNames.Count > 0) {
+                consecutiveMisses++;
+                if (consecutiveMisses >= 2)
+                    break;
             }
         }
 
@@ -130,6 +146,20 @@ public sealed class DesktopCameraService : ICameraService {
         catch (Exception ex) {
             System.Diagnostics.Debug.WriteLine("Camera loop crashed: " + ex);
         }
+    }
+
+    private static async Task<bool> WaitForFirstFrameAsync(VideoCapture capture, CancellationToken ct) {
+        using var mat = new Mat();
+        var stopwatch = Stopwatch.StartNew();
+
+        while (!ct.IsCancellationRequested && stopwatch.Elapsed < StartupFrameTimeout) {
+            if (capture.Read(mat) && !mat.Empty())
+                return true;
+
+            await Task.Delay(50, ct).ConfigureAwait(false);
+        }
+
+        return false;
     }
 
     public async ValueTask DisposeAsync() => await StopAsync();
