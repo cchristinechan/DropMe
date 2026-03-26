@@ -10,6 +10,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -25,6 +27,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     // Keep true while testing two app instances on the same computer.
     // Set to false later to block same-machine loopback connections.
     private const bool AllowSameMachineConnectionsForTesting = true;
+    private const bool ShowDebugSessionDiagnostics = false;
 
     private readonly ICameraService _camera;
     private readonly QrDecoder _decoder;
@@ -47,6 +50,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     private readonly IDeviceService _device;
     private readonly IStorageService _storageService;
     private readonly IPermissionsService _permissionsService;
+    private readonly TransferHistoryService _transferHistoryService;
     private QrCodeData? _lastGeneratedQrCodeData;
     private Guid? _localInviteSessionId;
 
@@ -118,7 +122,19 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         }
     }
 
-    public bool HasSessionMessage => !string.IsNullOrWhiteSpace(SessionMessage);
+    private string? _transferSuccessMessage;
+    public string? TransferSuccessMessage {
+        get => _transferSuccessMessage;
+        private set {
+            _transferSuccessMessage = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasTransferSuccessMessage));
+        }
+    }
+
+    public bool HasSessionMessage => ShowDebugSessionDiagnostics && !string.IsNullOrWhiteSpace(SessionMessage);
+    public bool HasTransferSuccessMessage => !string.IsNullOrWhiteSpace(TransferSuccessMessage);
+    public bool ShowSessionDebugDiagnostics => ShowDebugSessionDiagnostics;
 
     private string? _homeSessionMessage;
     public string? HomeSessionMessage {
@@ -158,6 +174,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     }
 
     public string SessionParticipantsText => $"{LocalDeviceName}  ↔  {RemoteDeviceName}";
+    public ObservableCollection<TransferHistoryEntry> TransferHistoryEntries => _transferHistoryService.Entries;
+    public bool HasTransferHistory => TransferHistoryEntries.Count > 0;
+    public bool ShowEmptyTransferHistory => !HasTransferHistory;
     public bool HasHomeSessionMessage => !string.IsNullOrWhiteSpace(HomeSessionMessage);
 
     public event Action? SessionConnected;
@@ -195,6 +214,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     }
 
     private CancellationTokenSource? _scanCts;
+    private CancellationTokenSource? _transferSuccessMessageCts;
 
     private Bitmap? _qrImage;
     public Bitmap? QrImage {
@@ -241,19 +261,23 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         IQrCodeService qr,
         IDeviceService device,
         IStorageService storageService,
-        IPermissionsService permissionsService) {
+        IPermissionsService permissionsService,
+        TransferHistoryService transferHistoryService) {
         _camera = camera;
         _decoder = decoder;
         _qr = qr;
         _device = device;
         _storageService = storageService;
         _permissionsService = permissionsService;
+        _transferHistoryService = transferHistoryService;
 
         _sessionManager = SessionManagerFactory();
 
         _camera.FrameArrived += OnFrameArrived;
         Status = "Ready";
         _localDeviceName = ResolveLocalDeviceName();
+        _transferHistoryService.Load();
+        _transferHistoryService.Entries.CollectionChanged += OnTransferHistoryChanged;
 
         DownloadFolder = _storageService.GetDownloadDirectoryLabel();
 
@@ -270,15 +294,24 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
         // Give the session manager callbacks
         sessionManager.FileSaved += path =>
-            Dispatcher.UIThread.Post(() => SessionMessage = $"Received and saved: {path}");
+            Dispatcher.UIThread.Post(() => {
+                SessionMessage = $"Received and saved: {path}";
+                ShowTransferSuccess("File received successfully.");
+            });
 
         sessionManager.FileAcked += (_, sha) =>
-            Dispatcher.UIThread.Post(() => SessionMessage = $"Delivered : SHA256={sha}");
+            Dispatcher.UIThread.Post(() => {
+                SessionMessage = $"Delivered : SHA256={sha}";
+                ShowTransferSuccess("File sent successfully.");
+            });
 
         sessionManager.FileOfferDecision = async offer => {
             var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
             return FileOfferDecisionUi is null || await FileOfferDecisionUi(info);
         };
+
+        sessionManager.TransferCompleted += transfer =>
+            Dispatcher.UIThread.Post(() => AddTransferHistoryEntry(transfer));
 
         sessionManager.PeerNameUpdated += name =>
             Dispatcher.UIThread.Post(() => RemoteDeviceName = ResolveRemoteDeviceName(name, null));
@@ -289,16 +322,24 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
                     return;
 
                 await StopSessionAsync(
-                    homeMessage: $"Session disconnected {reason.ToString()}.",
+                    homeMessage: FormatSessionDisconnectedMessage(reason),
                     notifyPeer: false);
                 await PrepareMainPageAsync(
-                    homeMessage: $"Session disconnected {reason.ToString()}.",
+                    homeMessage: FormatSessionDisconnectedMessage(reason),
                     regenerateQr: true);
-                Status = $"Session ended: peer disconnected {reason.ToString()}.";
+                Status = ShowDebugSessionDiagnostics
+                    ? $"Session ended: peer disconnected {reason.ToString()}."
+                    : "Session disconnected.";
             });
         };
 
         return sessionManager;
+    }
+
+    private void OnTransferHistoryChanged(object? sender, NotifyCollectionChangedEventArgs e) {
+        OnPropertyChanged(nameof(TransferHistoryEntries));
+        OnPropertyChanged(nameof(HasTransferHistory));
+        OnPropertyChanged(nameof(ShowEmptyTransferHistory));
     }
 
     private string ResolveLocalDeviceName() {
@@ -320,6 +361,66 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             return peerName;
 
         return "Connected device";
+    }
+
+    private void AddTransferHistoryEntry(SessionManager.TransferLogInfo transfer) {
+        var fileName = GetDisplayFileName(transfer.FilePath);
+        var locationLabel = transfer.Direction == SessionManager.TransferDirection.Receive
+            ? DownloadFolder ?? GetDirectoryLabel(transfer.FilePath) ?? "Saved transfer"
+            : GetDirectoryLabel(transfer.FilePath) ?? "Sent from this device";
+        var openTarget = transfer.Direction == SessionManager.TransferDirection.Receive || LooksLikeOpenablePath(transfer.FilePath)
+            ? transfer.FilePath
+            : null;
+        var directionLabel = transfer.Direction == SessionManager.TransferDirection.Receive ? "Received" : "Sent";
+
+        _transferHistoryService.AddEntry(new TransferHistoryEntry(
+            transfer.FileId,
+            fileName,
+            locationLabel,
+            openTarget,
+            transfer.CompletedAt,
+            directionLabel,
+            transfer.FileSizeBytes,
+            transfer.Successful));
+    }
+
+    private static bool LooksLikeOpenablePath(string value) {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return value.StartsWith("content://", StringComparison.OrdinalIgnoreCase)
+               || value.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
+               || Path.IsPathRooted(value);
+    }
+
+    private static string GetDisplayFileName(string value) {
+        if (string.IsNullOrWhiteSpace(value))
+            return "Transferred file";
+
+        var fileName = Path.GetFileName(value);
+        if (!string.IsNullOrWhiteSpace(fileName))
+            return fileName;
+
+        var decoded = Uri.UnescapeDataString(value.TrimEnd('/'));
+        var lastSlash = decoded.LastIndexOf('/');
+        if (lastSlash >= 0 && lastSlash < decoded.Length - 1)
+            return decoded[(lastSlash + 1)..];
+
+        return decoded;
+    }
+
+    private static string? GetDirectoryLabel(string value) {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        if (value.StartsWith("content://", StringComparison.OrdinalIgnoreCase)) {
+            var decoded = Uri.UnescapeDataString(value);
+            var lastSlash = decoded.LastIndexOf('/');
+            return lastSlash > 0 ? decoded[..lastSlash] : decoded;
+        }
+
+        var directory = Path.GetDirectoryName(value);
+        return string.IsNullOrWhiteSpace(directory) ? null : directory;
     }
 
     private void RefreshCameraList() {
@@ -968,6 +1069,41 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         }
     }
 
+    public async Task OpenTransferLocationAsync(TransferHistoryEntry entry) {
+        if (!entry.CanOpenTarget || string.IsNullOrWhiteSpace(entry.OpenTarget))
+            return;
+
+        var opened = await _storageService.TryOpenTransferTargetAsync(entry.OpenTarget);
+        if (!opened)
+            Status = $"Could not open {entry.FileName}.";
+    }
+
+    private string FormatSessionDisconnectedMessage(ConnectionEndReason reason) =>
+        ShowDebugSessionDiagnostics
+            ? $"Session disconnected {reason.ToString()}."
+            : "Session disconnected.";
+
+    private void ShowTransferSuccess(string message) {
+        _transferSuccessMessageCts?.Cancel();
+        _transferSuccessMessageCts?.Dispose();
+
+        var cts = new CancellationTokenSource();
+        _transferSuccessMessageCts = cts;
+        TransferSuccessMessage = message;
+
+        _ = ClearTransferSuccessMessageAsync(cts.Token);
+    }
+
+    private async Task ClearTransferSuccessMessageAsync(CancellationToken cancellationToken) {
+        try {
+            await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
+            if (!cancellationToken.IsCancellationRequested)
+                TransferSuccessMessage = null;
+        }
+        catch (OperationCanceledException) {
+        }
+    }
+
     public Task<bool> RequestFileOfferDecisionAsync(FileOfferInfo info) {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var previous = Interlocked.Exchange(ref _pendingFileOfferTcs, tcs);
@@ -1015,6 +1151,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
     public void Dispose() {
+        _transferHistoryService.Entries.CollectionChanged -= OnTransferHistoryChanged;
+        _transferSuccessMessageCts?.Cancel();
+        _transferSuccessMessageCts?.Dispose();
         _sessionManager.Dispose();
     }
 }

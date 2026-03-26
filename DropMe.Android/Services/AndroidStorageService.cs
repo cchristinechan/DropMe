@@ -106,6 +106,35 @@ public class AndroidStorageService : IStorageService {
         }
     }
 
+    public Task<bool> TryOpenTransferTargetAsync(string target) {
+        try {
+            if (string.IsNullOrWhiteSpace(target))
+                return Task.FromResult(false);
+
+            AndroidNet.Uri? uri = null;
+            if (target.StartsWith("content://", StringComparison.OrdinalIgnoreCase) ||
+                target.StartsWith("file://", StringComparison.OrdinalIgnoreCase)) {
+                uri = AndroidNet.Uri.Parse(target);
+            }
+            else if (File.Exists(target)) {
+                uri = AndroidNet.Uri.FromFile(new Java.IO.File(target));
+            }
+
+            if (uri is null)
+                return Task.FromResult(false);
+
+            var intent = new Intent(Intent.ActionView);
+            intent.SetDataAndType(uri, "*/*");
+            intent.AddFlags(ActivityFlags.GrantReadUriPermission | ActivityFlags.NewTask);
+            _context.StartActivity(intent);
+            return Task.FromResult(true);
+        }
+        catch (Exception ex) {
+            Console.WriteLine($"Failed to open transfer target '{target}': {ex.Message}");
+            return Task.FromResult(false);
+        }
+    }
+
     private string NormalisePath(string str) {
         const string treeSegment = "/tree/";
         if (str.StartsWith("content://") && str.Contains(treeSegment)) {
