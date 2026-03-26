@@ -31,6 +31,8 @@ public class SessionManager : IDisposable {
     public string? PeerName => _connectionManager.PeerName;
     public event Action<string>? FileSaved;
     public event Action<Guid, string /*sha256 hex*/>? FileAcked;
+    public event Action<TransferLogInfo>? TransferCompleted;
+    public event Action<string>? PeerNameUpdated;
     public event Action<ConnectionEndReason>? SessionEnded;
     public List<TransferLogInfo> CompletedTransfers { get; } = [];
 
@@ -48,6 +50,7 @@ public class SessionManager : IDisposable {
         _storageService = storageService;
         _connectionManager = new ConnectionManager(_sessionCtSource.Token);
         _connectionManager.ConnectionEnded += OnSessionEnded;
+        _connectionManager.PeerNameUpdated += name => PeerNameUpdated?.Invoke(name);
     }
 
     public Task ListenTcp(IPEndPoint listenEp, CancellationToken ct) {
@@ -71,13 +74,20 @@ public class SessionManager : IDisposable {
         Console.WriteLine("Exiting receive loop");
     }
 
+    public Task AnnounceDeviceName(string name, CancellationToken ct) {
+        if (string.IsNullOrWhiteSpace(name))
+            return Task.CompletedTask;
+
+        return _connectionManager.SendMessage(new DeviceNameMsg(name), ct);
+    }
+
     /// <summary>
     /// Stops and disposes this session manager.
     /// </summary>
-    public async Task StopSession() {
+    public async Task StopSession(bool notifyPeer = true) {
         Console.WriteLine("Stop session called");
         // Try to notify peer that a disconnection has been requested
-        if (_connectionManager.IsConnected)
+        if (notifyPeer && _connectionManager.IsConnected)
             await _connectionManager.SendMessage(new DisconnectMsg(), CancellationToken.None);
 
         await _sessionCtSource.CancelAsync();
@@ -147,7 +157,7 @@ public class SessionManager : IDisposable {
                     lock (_fileTransferStates) {
                         var output =
                             _storageService.OpenDownloadFileWriteStream(
-                                $"recv_{DateTime.Now:yyyyMMdd_HHmmss}_{SanitizeName(fileName)}");
+                                SanitizeName(fileName));
                         if (output is var (stream, outputPath)) {
                             var ableToAdd = _fileTransferStates.TryAdd(fileId,
                                 new ReceiveInProgress(stream, outputPath, fileSize, 0,
@@ -217,7 +227,9 @@ public class SessionManager : IDisposable {
                     // Only remove if it is actually awaiting an ack
                     if (fileAckState is AwaitingAck awaitingAck) {
                         _fileTransferStates.Remove(fileId);
-                        CompletedTransfers.Add(new TransferLogInfo(fileId, awaitingAck.FilePath, TransferDirection.Send, DateTime.Now, awaitingAck.FileSizeBytes, true));
+                        var completedTransfer = new TransferLogInfo(fileId, awaitingAck.FilePath, TransferDirection.Send, DateTime.Now, awaitingAck.FileSizeBytes, true);
+                        CompletedTransfers.Add(completedTransfer);
+                        TransferCompleted?.Invoke(completedTransfer);
                         FileAcked?.Invoke(fileId, awaitingAck.Hash.ToString()!);
                     }
                 }
@@ -255,6 +267,7 @@ public class SessionManager : IDisposable {
 
             var savedInfo = new TransferLogInfo(fileId, completedState.SavePath, TransferDirection.Receive, DateTime.Now, completedState.ExpectedSizeBytes, successful);
             CompletedTransfers.Add(savedInfo);
+            TransferCompleted?.Invoke(savedInfo);
             Console.WriteLine($"Completed {CompletedTransfers[0]}");
             FileSaved?.Invoke(completedState.SavePath);
             await _connectionManager.SendMessage(new FileAckMsg(fileId, sha256), _sessionCtSource.Token).ConfigureAwait(false);

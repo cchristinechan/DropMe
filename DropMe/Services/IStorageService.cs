@@ -26,6 +26,12 @@ public interface IStorageService {
     /// <returns>A user friendly label of the downloads folder.</returns>
     public string? GetDownloadDirectoryLabel();
     /// <summary>
+    /// Attempts to open a previously stored transfer target in the platform shell.
+    /// </summary>
+    /// <param name="target">A local path or persisted content URI.</param>
+    /// <returns>True if the platform attempted to open it, otherwise false.</returns>
+    public Task<bool> TryOpenTransferTargetAsync(string target);
+    /// <summary>
     /// Opens a stream for reading to the backing storage of the config.
     /// </summary>
     /// <returns>A stream with read permissions for the backing storage of the config.</returns>

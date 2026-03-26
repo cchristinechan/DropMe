@@ -11,14 +11,6 @@ public partial class Session : UserControl {
 
     public Session() {
         InitializeComponent();
-        AttachedToVisualTree += (_, _) => {
-            if (DataContext is MainViewModel vm)
-                vm.FileOfferDecisionUi = vm.RequestFileOfferDecisionAsync;
-        };
-        DetachedFromVisualTree += (_, _) => {
-            if (DataContext is MainViewModel vm)
-                vm.FileOfferDecisionUi = null;
-        };
     }
 
     private void InitializeComponent() {

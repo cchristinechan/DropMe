@@ -9,27 +9,16 @@
     x:DataType="vm:MainViewModel">
 
   <UserControl.Styles>
-    <!-- Background -->
     <Style Selector="UserControl">
       <Setter Property="Background" Value="#CFE6F5"/>
     </Style>
 
-    <!-- Mobile-friendly typography -->
     <Style Selector="TextBlock.PageTitle">
       <Setter Property="FontSize" Value="54"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Foreground" Value="#0E2A4A"/>
       <Setter Property="HorizontalAlignment" Value="Center"/>
       <Setter Property="TextAlignment" Value="Center"/>
-    </Style>
-
-    <Style Selector="TextBlock.PageKicker">
-      <Setter Property="FontSize" Value="20"/>
-      <Setter Property="FontStyle" Value="Italic"/>
-      <Setter Property="Foreground" Value="#0E2A4A"/>
-      <Setter Property="HorizontalAlignment" Value="Center"/>
-      <Setter Property="TextAlignment" Value="Center"/>
-      <Setter Property="Opacity" Value="0.85"/>
     </Style>
 
     <Style Selector="TextBlock.SectionTitle">
@@ -56,7 +45,6 @@
       <Setter Property="CornerRadius" Value="2"/>
     </Style>
 
-    <!-- QR card: responsive (no fixed width/height) -->
     <Style Selector="Border.QrCard">
       <Setter Property="Background" Value="#F6FBFF"/>
       <Setter Property="CornerRadius" Value="22"/>
@@ -66,48 +54,76 @@
       <Setter Property="MaxWidth" Value="360"/>
     </Style>
 
-    <!-- Revolut-style segmented slider -->
-    <Style Selector="Border.SegmentHost">
+    <Style Selector="Border.ModeSwitchHost">
       <Setter Property="Background" Value="#F5FBFE"/>
       <Setter Property="CornerRadius" Value="999"/>
       <Setter Property="Padding" Value="4"/>
       <Setter Property="HorizontalAlignment" Value="Center"/>
     </Style>
 
-    <Style Selector="ToggleButton.Segment">
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="Foreground" Value="#D0D0D0"/>
-      <Setter Property="BorderThickness" Value="0"/>
+    <Style Selector="Border.ModeSwitchThumb">
+      <Setter Property="Background" Value="#5A5A5A"/>
       <Setter Property="CornerRadius" Value="999"/>
-      <Setter Property="Padding" Value="14,10"/>
-      <Setter Property="FontSize" Value="16"/>
-      <Setter Property="MinWidth" Value="140"/>
-      <Setter Property="HorizontalContentAlignment" Value="Center"/>
-      <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
-    <Style Selector="ToggleButton.Segment:checked">
-      <Setter Property="Background" Value="#5A5A5A"/>
+    <Style Selector="TextBlock.ModeSwitchLabel">
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="TextBlock.ModeSwitchLabelActive">
       <Setter Property="Foreground" Value="White"/>
     </Style>
 
-    <Style Selector="ToggleButton.Segment:pointerover">
-      <Setter Property="Background" Value="#2B2B2B"/>
+    <Style Selector="TextBlock.ModeSwitchLabelInactive">
+      <Setter Property="Foreground" Value="#4E6479"/>
     </Style>
 
-    <Style Selector="ToggleButton.Segment:checked:pointerover">
-      <Setter Property="Background" Value="#5A5A5A"/>
+    <Style Selector="Button.ModeSwitchHit">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="999"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Focusable" Value="False"/>
+    </Style>
+
+    <Style Selector="Button.ActionButton">
+      <Setter Property="Background" Value="#0E2A4A"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="14"/>
+      <Setter Property="Padding" Value="16,12"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+
+    <Style Selector="Button.IconOverlayButton">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="999"/>
+      <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <Style Selector="Button.IconOverlayButton:disabled">
+      <Setter Property="Foreground" Value="#8FA0AF"/>
+    </Style>
+
+    <Style Selector="ComboBox.CameraPicker">
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="Background" Value="#F5FBFE"/>
+      <Setter Property="Foreground" Value="#1B2B3A"/>
     </Style>
   </UserControl.Styles>
 
-  <!-- Scroll so nothing is cut off on small screens -->
   <ScrollViewer VerticalScrollBarVisibility="Auto"
                 HorizontalScrollBarVisibility="Disabled">
     <StackPanel Spacing="16" Margin="18,18,18,28">
-
-      <!-- Header -->
       <TextBlock Classes="PageTitle" Text="DropMe" Margin="0,10,0,0"/>
-      <!-- <TextBlock Classes="PageKicker" Text="in 2 steps"/> -->
 
       <Grid Margin="0,6,0,0" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
         <Border Classes="Divider" Grid.Column="0" Margin="0,0,12,0"/>
@@ -115,63 +131,94 @@
         <Border Classes="Divider" Grid.Column="2" Margin="12,0,0,0"/>
       </Grid>
 
-      <TextBlock Classes="BodyText" Text="Scan or Display QR code to enter a session"/>
-      <TextBlock Classes="BodyText" Text="Share the files"/>
+      <TextBlock Classes="BodyText" Text="Scan a QR code to join a transfer session, or display your own code to invite another device."/>
+      <TextBlock Classes="BodyText" Text="Once connected, share files directly over the active link."/>
 
       <Border Classes="Divider" Margin="0,6,0,0"/>
-      
 
-      <!-- Card -->
       <Border Classes="QrCard">
-        <!-- Use a square container so QR never stretches off-screen -->
         <Viewbox Stretch="Uniform">
-          <Grid Width="280" Height="280">
-            <Image Source="{Binding QrImage}"
-                   IsVisible="{Binding ShowGeneratedQr}"
-                   Stretch="Uniform"/>
+            <Grid Width="280" Height="280" ClipToBounds="True">
+              <Image Source="{Binding QrImage}"
+                     IsVisible="{Binding ShowGeneratedQr}"
+                     Stretch="Uniform"/>
 
-            <Image Source="{Binding Preview}"
-                   IsVisible="{Binding IsScanning}"
-                   Stretch="Uniform"/>
-          </Grid>
-        </Viewbox>
-      </Border>
-      
-      <!-- Slider centered -->
-      <Border Classes="SegmentHost" Margin="0,10,0,6">
-        <Grid ColumnDefinitions="Auto,Auto">
-          <ToggleButton Classes="Segment"
-                        Grid.Column="0"
-                        Content="Display"
-                        IsChecked="{Binding ShowGeneratedQr}"
-                        Click="DisplayMode_Click"/>
-
-          <ToggleButton Classes="Segment"
+              <Grid IsVisible="{Binding IsScanning}">
+              <Image Source="{Binding Preview}"
+                     IsVisible="{Binding ShowManagedCameraPreview}"
+                     Stretch="UniformToFill"
+                     HorizontalAlignment="Stretch"
+                     VerticalAlignment="Stretch"/>
+              <ContentControl x:Name="NativePreviewHost"
+                              IsVisible="{Binding ShowNativeCameraPreview}"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Stretch"/>
+                <Grid IsHitTestVisible="False"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      RowDefinitions="1*,5*,1*"
+                      ColumnDefinitions="1*,5*,1*">
+                <Border Grid.Row="0" Grid.ColumnSpan="3" Background="#A6000000"/>
+                <Border Grid.Row="1" Grid.Column="0" Background="#A6000000"/>
+                <Border Grid.Row="1" Grid.Column="2" Background="#A6000000"/>
+                <Border Grid.Row="2" Grid.ColumnSpan="3" Background="#A6000000"/>
+                <Border Grid.Row="1"
                         Grid.Column="1"
-                        Content="Scan"
-                        IsChecked="{Binding IsScanning}"
-                        Click="ScanMode_Click"/>
+                        BorderThickness="3"
+                        BorderBrush="#55FFAA"
+                        Background="Transparent"/>
+                </Grid>
+                <Button Classes="IconOverlayButton"
+                        IsEnabled="{Binding CanToggleCamera}"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="6"
+                        Width="40"
+                        Height="40"
+                        Padding="0"
+                        Click="FlipCamera_Click">
+                  <PathIcon Data="M12,5A7,7 0 0 1 18.7,10H16.5A5,5 0 0 0 8.2,7.8L10,9.6H5V4.6L6.8,6.4A7,7 0 0 1 12,5ZM19,19.4L17.2,17.6A7,7 0 0 1 5.3,14H7.5A5,5 0 0 0 15.8,16.2L14,14.4H19V19.4Z"/>
+                </Button>
+              </Grid>
+            </Grid>
+          </Viewbox>
+      </Border>
+
+      <Border Classes="ModeSwitchHost" Margin="0,10,0,6">
+        <Grid x:Name="ModeSwitchGrid" Width="320" Height="52" ColumnDefinitions="*,*">
+          <Border x:Name="ModeSwitchThumb"
+                  Classes="ModeSwitchThumb"
+                  Width="160"
+                  HorizontalAlignment="Left"
+                  VerticalAlignment="Stretch"
+                  RenderTransformOrigin="0,0">
+            <Border.RenderTransform>
+              <TranslateTransform X="0"/>
+            </Border.RenderTransform>
+          </Border>
+
+          <TextBlock x:Name="DisplayModeLabel"
+                     Grid.Column="0"
+                     Classes="ModeSwitchLabel"
+                     Text="Display"/>
+          <TextBlock x:Name="ScanModeLabel"
+                     Grid.Column="1"
+                     Classes="ModeSwitchLabel"
+                     Text="Scan"/>
+
+          <Button Grid.Column="0" Classes="ModeSwitchHit" Click="DisplayMode_Click"/>
+          <Button Grid.Column="1" Classes="ModeSwitchHit" Click="ScanMode_Click"/>
         </Grid>
       </Border>
 
-      <!-- Status message -->
       <TextBlock Text="{Binding HomeSessionMessage}"
                  FontSize="14"
                  Foreground="#9A2A2A"
                  TextWrapping="Wrap"
                  HorizontalAlignment="Center"
                  MaxWidth="360"
-                 Margin="0,6,0,0"/>
-      
-      <!-- ~1~ DEBUG: temp nav button @1@ -->
-      <!-- <Button Content="[DEBUG] Go to Session Page" -->
-      <!--         HorizontalAlignment="Center" -->
-      <!--         Padding="14,10" -->
-      <!--         Margin="0,10,0,0" -->
-      <!--         Background="#FF6B6B" -->
-      <!--         Foreground="White" -->
-      <!--         CornerRadius="8" -->
-      <!--         Click="DebugGoToSession_Click"/> -->
+                 Margin="0,6,0,0"
+                 IsVisible="{Binding HasHomeSessionMessage}"/>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

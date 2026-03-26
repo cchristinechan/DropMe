@@ -60,7 +60,7 @@
 
               <StackPanel Spacing="6" HorizontalAlignment="Center">
 
-                <TextBlock Text="iphone Sarah  ↔  desktop Sam"
+                <TextBlock Text="{Binding SessionParticipantsText}"
                            FontSize="15"
                            FontFamily="Georgia"
                            FontWeight="SemiBold"
@@ -156,6 +156,19 @@
             </StackPanel>
 
             
+            <Border Padding="14"
+                    CornerRadius="16"
+                    Background="#1836D399"
+                    BorderBrush="#4036D399"
+                    BorderThickness="1"
+                    IsVisible="{Binding HasTransferSuccessMessage}">
+              <TextBlock Text="{Binding TransferSuccessMessage}"
+                         TextWrapping="Wrap"
+                         HorizontalAlignment="Center"
+                         TextAlignment="Center"
+                         FontWeight="SemiBold"/>
+            </Border>
+
             <StackPanel Spacing="12"
                         IsVisible="{Binding HasSessionMessage}">
               <TextBlock Classes="SectionTitle" Text="Transfer Updates"/>
@@ -175,36 +188,5 @@
       </StackPanel>
     </ScrollViewer>
 
-    <Border IsVisible="{Binding HasPendingFileOffer}"
-            Background="{DynamicResource WaterOverlayBrush}">
-      <Border Classes="AppCard"
-              MaxWidth="360"
-              Margin="12"
-              HorizontalAlignment="Center"
-              VerticalAlignment="Center">
-        <StackPanel Spacing="10">
-          <TextBlock Classes="SectionTitle" Text="{Binding PendingFileOfferMessage}"/>
-          <TextBlock Text="{Binding PendingFileOfferName, StringFormat='File: {0}'}"
-                     TextWrapping="Wrap"/>
-          <TextBlock Classes="BodyMuted"
-                     Text="{Binding PendingFileOfferSizeText, StringFormat='Size: {0}'}"
-                     TextWrapping="Wrap"/>
-
-          <StackPanel Orientation="Horizontal"
-                      Spacing="10"
-                      HorizontalAlignment="Right"
-                      Margin="0,6,0,0">
-            <Button Classes="OutlinedAction"
-                    Width="110"
-                    Content="Reject"
-                    Click="RejectIncomingFile_Click"/>
-            <Button Classes="FilledAction"
-                    Width="110"
-                    Content="Accept"
-                    Click="AcceptIncomingFile_Click"/>
-          </StackPanel>
-        </StackPanel>
-      </Border>
-    </Border>
   </Grid>
 </UserControl>

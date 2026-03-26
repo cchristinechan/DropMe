@@ -188,7 +188,7 @@ namespace InTheHand.Net.Sockets {
             int result;
             while (true) {
                 result = NativeMethods.recv(_socket, buffer, size, (int)socketFlags);
-        
+
                 if (result == -1 && Marshal.GetLastWin32Error() == 11) // EAGAIN
                 {
                     var pollFd = new PollFd { fd = _socket, events = POLLIN };
@@ -230,7 +230,6 @@ namespace InTheHand.Net.Sockets {
                 throw new ArgumentOutOfRangeException(nameof(size));
 
             var newBuffer = new byte[size];
-    
             int bytesReceived;
             try {
                 bytesReceived = RawReceive(newBuffer, size, socketFlags);
@@ -330,10 +329,9 @@ namespace InTheHand.Net.Sockets {
 
             while (totalSent < size) {
                 int remaining = size - totalSent;
-                
                 byte[] chunk = new byte[remaining];
                 Array.Copy(buffer, offset + totalSent, chunk, 0, remaining);
-                
+
                 int result = NativeMethods.send(_socket, chunk, remaining, (int)socketFlags | 0x4000);
 
                 if (result > 0) {
@@ -357,9 +355,9 @@ namespace InTheHand.Net.Sockets {
                             NativeMethods.getsockopt(_socket, 1, 4, out sockErr, ref optlen);
                             throw new SocketException(sockErr != 0 ? sockErr : errorCode);
                         }
-                        
+
                         // Poll finished successfully, try the loop again
-                        continue; 
+                        continue;
                     }
 
                     // A genuine error occurred
@@ -367,7 +365,7 @@ namespace InTheHand.Net.Sockets {
                 }
                 else if (result == 0) {
                     // The peer closed the connection
-                    break; 
+                    break;
                 }
             }
 
@@ -390,10 +388,9 @@ namespace InTheHand.Net.Sockets {
         protected override void Dispose(bool disposing) {
             Close();
         }
-        
+
         [StructLayout(LayoutKind.Sequential)]
-        internal struct PollFd
-        {
+        internal struct PollFd {
             public int fd;
             public short events;
             public short revents;
@@ -449,24 +446,24 @@ namespace InTheHand.Net.Sockets {
 
             [DllImport(libc)]
             internal static extern int setsockopt(int s, int level, int optname, byte[] optval, int optlen);
-            
+
             [DllImport("libc", SetLastError = true)]
             internal static extern int poll(ref PollFd fds, uint nfds, int timeout);
-            
+
             [DllImport("libc", SetLastError = true)]
             internal static extern int getsockopt(
-                int s, 
-                int level, 
-                int optname, 
-                out int optval, 
+                int s,
+                int level,
+                int optname,
+                out int optval,
                 ref int optlen);
 
             [DllImport("libc", SetLastError = true)]
             internal static extern int getsockopt(
-                int s, 
-                int level, 
-                int optname, 
-                [MarshalAs(UnmanagedType.LPArray)] byte[] optval, 
+                int s,
+                int level,
+                int optname,
+                [MarshalAs(UnmanagedType.LPArray)] byte[] optval,
                 ref int optlen);
 #pragma warning restore IDE1006 // Naming Styles
 

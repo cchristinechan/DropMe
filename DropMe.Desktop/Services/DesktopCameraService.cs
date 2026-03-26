@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,36 +10,121 @@ using OpenCvSharp;
 namespace DropMe.Desktop.Services;
 
 public sealed class DesktopCameraService : ICameraService {
+    private static readonly TimeSpan StartupFrameTimeout = TimeSpan.FromSeconds(2);
     private VideoCapture? _cap;
     private CancellationTokenSource? _loopCts;
+    private Task? _loopTask;
+    private readonly List<string> _cameraNames = new();
 
     public event Action<CameraFrame>? FrameArrived;
 
-    public Task StartAsync(CancellationToken ct = default) {
-        _cap = new VideoCapture(0);
+    public int SelectedCameraIndex { get; private set; } = 0;
 
-        if (!_cap.IsOpened())
-            throw new InvalidOperationException("Could not open camera 0.");
-
-        _loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        _ = Task.Run(() => Loop(_loopCts.Token), _loopCts.Token);
-        return Task.CompletedTask;
+    public IReadOnlyList<string> GetAvailableCameras() {
+        RefreshCameraList();
+        return _cameraNames;
     }
 
-    public Task StopAsync(CancellationToken ct = default) {
+    public async Task<bool> SelectCameraAsync(int index, CancellationToken ct = default) {
+        RefreshCameraList();
+        if (index < 0 || index >= _cameraNames.Count)
+            return false;
+
+        if (SelectedCameraIndex == index)
+            return true;
+
+        var wasRunning = _cap is not null;
+        if (wasRunning)
+            await StopAsync(ct).ConfigureAwait(false);
+
+        SelectedCameraIndex = index;
+
+        if (wasRunning)
+            await StartAsync(ct).ConfigureAwait(false);
+
+        return true;
+    }
+
+    public async Task<bool> ToggleCameraAsync(CancellationToken ct = default) {
+        RefreshCameraList();
+        if (_cameraNames.Count <= 1)
+            return false;
+
+        var next = (SelectedCameraIndex + 1) % _cameraNames.Count;
+        return await SelectCameraAsync(next, ct).ConfigureAwait(false);
+    }
+
+    public async Task StartAsync(CancellationToken ct = default) {
+        if (_cap is not null)
+            await StopAsync(ct).ConfigureAwait(false);
+
+        _cap = new VideoCapture(SelectedCameraIndex);
+
+        if (!_cap.IsOpened())
+            throw new InvalidOperationException($"Could not open camera {SelectedCameraIndex}.");
+
+        if (!await WaitForFirstFrameAsync(_cap, ct).ConfigureAwait(false)) {
+            _cap.Release();
+            _cap.Dispose();
+            _cap = null;
+            throw new InvalidOperationException("Could not start the camera. It may already be in use.");
+        }
+
+        _loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _loopTask = Task.Run(() => Loop(_loopCts.Token), _loopCts.Token);
+    }
+
+    public async Task StopAsync(CancellationToken ct = default) {
+        var loopTask = _loopTask;
+        _loopTask = null;
+
         _loopCts?.Cancel();
         _loopCts = null;
+
+        if (loopTask is not null) {
+            try {
+                await loopTask.WaitAsync(ct);
+            }
+            catch (OperationCanceledException) {
+                // Expected when camera scanning is cancelled.
+            }
+            catch (Exception) {
+                // Background loop exceptions are intentionally ignored after shutdown.
+            }
+        }
 
         _cap?.Release();
         _cap?.Dispose();
         _cap = null;
-
-        return Task.CompletedTask;
     }
+
+    private void RefreshCameraList() {
+        _cameraNames.Clear();
+        int consecutiveMisses = 0;
+        for (int i = 0; i < 10; i++) {
+            using var test = new VideoCapture(i);
+            if (test.IsOpened()) {
+                _cameraNames.Add($"Camera {i}");
+                consecutiveMisses = 0;
+            }
+            else if (_cameraNames.Count > 0) {
+                consecutiveMisses++;
+                if (consecutiveMisses >= 2)
+                    break;
+            }
+        }
+
+        if (_cameraNames.Count == 0) {
+            _cameraNames.Add("Camera 0");
+        }
+
+        if (SelectedCameraIndex >= _cameraNames.Count)
+            SelectedCameraIndex = 0;
+    }
+
     private void Loop(CancellationToken ct) {
         try {
             using var mat = new Mat();
-            int n = 0;
 
             while (!ct.IsCancellationRequested && _cap is not null) {
                 if (!_cap.Read(mat) || mat.Empty())
@@ -46,7 +133,6 @@ public sealed class DesktopCameraService : ICameraService {
                 using var rgba = new Mat();
                 Cv2.CvtColor(mat, rgba, ColorConversionCodes.BGR2BGRA);
 
-
                 int width = rgba.Width;
                 int height = rgba.Height;
                 int stride = (int)rgba.Step();
@@ -54,12 +140,7 @@ public sealed class DesktopCameraService : ICameraService {
                 var bytes = new byte[stride * height];
                 Marshal.Copy(rgba.Data, bytes, 0, bytes.Length);
 
-                FrameArrived?.Invoke(new CameraFrame(width, height, bytes, stride));
-
-                if ((++n % 30) == 0)
-                    System.Diagnostics.Debug.WriteLine($"Camera frames: {n} ({width}x{height})");
-
-                Thread.Sleep(1);
+                FrameArrived?.Invoke(new CameraFrame(width, height, bytes, stride, 0));
             }
         }
         catch (Exception ex) {
@@ -67,6 +148,19 @@ public sealed class DesktopCameraService : ICameraService {
         }
     }
 
+    private static async Task<bool> WaitForFirstFrameAsync(VideoCapture capture, CancellationToken ct) {
+        using var mat = new Mat();
+        var stopwatch = Stopwatch.StartNew();
+
+        while (!ct.IsCancellationRequested && stopwatch.Elapsed < StartupFrameTimeout) {
+            if (capture.Read(mat) && !mat.Empty())
+                return true;
+
+            await Task.Delay(50, ct).ConfigureAwait(false);
+        }
+
+        return false;
+    }
 
     public async ValueTask DisposeAsync() => await StopAsync();
 }

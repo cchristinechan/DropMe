@@ -20,6 +20,7 @@ public static class MessageFraming {
         var type = msg switch {
             PingMsg => SessionMessageType.Ping,
             PongMsg => SessionMessageType.Pong,
+            DeviceNameMsg => SessionMessageType.DeviceName,
             FileOfferMsg => SessionMessageType.FileOffer,
             FileAcceptMsg => SessionMessageType.FileAccept,
             FileRejectMsg => SessionMessageType.FileReject,
@@ -64,6 +65,7 @@ public static class MessageFraming {
         return (type switch {
             SessionMessageType.Ping => JsonSerializer.Deserialize<PingMsg>(span),
             SessionMessageType.Pong => JsonSerializer.Deserialize<PongMsg>(span),
+            SessionMessageType.DeviceName => JsonSerializer.Deserialize<DeviceNameMsg>(span),
             SessionMessageType.FileOffer => JsonSerializer.Deserialize<FileOfferMsg>(span),
             SessionMessageType.FileAccept => JsonSerializer.Deserialize<FileAcceptMsg>(span),
             SessionMessageType.FileReject => JsonSerializer.Deserialize<FileRejectMsg>(span),

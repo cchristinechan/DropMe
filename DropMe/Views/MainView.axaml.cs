@@ -1,11 +1,7 @@
-using Avalonia.Interactivity;
-using System;
-using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
-using DropMe.ViewModels;
 using System;
 using System.IO;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -14,7 +10,15 @@ using DropMe.ViewModels;
 namespace DropMe.Views;
 
 public partial class MainView : UserControl {
+    private enum MainPageKind {
+        Transfer,
+        Session,
+        History
+    }
+
     private MainViewModel? _vm;
+    private MainPageKind _currentPage = MainPageKind.Transfer;
+    private MainPageKind _previousPageBeforeHistory = MainPageKind.Transfer;
 
     public MainView() {
         InitializeComponent();
@@ -25,6 +29,7 @@ public partial class MainView : UserControl {
                 _vm.SessionEnded -= OnSessionEnded;
                 _vm.PickFileStreamUi = null;
                 _vm.PickDownloadFolderUi = null;
+                _vm.FileOfferDecisionUi = null;
             }
 
             _vm = DataContext as MainViewModel;
@@ -33,13 +38,10 @@ public partial class MainView : UserControl {
                 _vm.SessionEnded += OnSessionEnded;
                 _vm.PickFileStreamUi = PickFileStreamAsync;
                 _vm.PickDownloadFolderUi = PickDownloadFolderAsync;
+                _vm.FileOfferDecisionUi = _vm.RequestFileOfferDecisionAsync;
             }
 
-            var mainContent = this.FindControl<ContentControl>("MainContent")
-                              ?? throw new InvalidOperationException("MainContent not found.");
-            mainContent.Content = new TransferPage {
-                DataContext = DataContext
-            };
+            ShowTransferPage();
         };
     }
 
@@ -53,33 +55,80 @@ public partial class MainView : UserControl {
     }
 
     private void OnSessionEnded() {
-        Dispatcher.UIThread.Post(() => {
-            var mainContent = this.FindControl<ContentControl>("MainContent")
-                              ?? throw new InvalidOperationException("MainContent not found.");
-            mainContent.Content = new TransferPage {
-                DataContext = DataContext
-            };
-        });
+        Dispatcher.UIThread.Post(ShowTransferPage);
     }
 
     public void ShowSession() {
+        var session = CreateSessionPage();
+        SetMainContent(session, MainPageKind.Session);
+    }
+
+    private void ShowTransferPage() {
+        SetMainContent(new TransferPage {
+            DataContext = DataContext
+        }, MainPageKind.Transfer);
+    }
+
+    private void ShowHistoryPage() {
+        if (_currentPage != MainPageKind.History)
+            _previousPageBeforeHistory = _currentPage;
+
+        var historyPage = new TransferHistoryPage {
+            DataContext = DataContext
+        };
+        historyPage.BackRequested += (_, _) => {
+            if (_previousPageBeforeHistory == MainPageKind.Session) {
+                ShowSession();
+            }
+            else {
+                ShowTransferPage();
+            }
+        };
+
+        SetMainContent(historyPage, MainPageKind.History);
+    }
+
+    private Session CreateSessionPage() {
         var session = new Session {
             DataContext = DataContext
         };
+        session.BackRequested += (_, _) => {
+            ShowTransferPage();
+        };
+        return session;
+    }
 
+    private void SetMainContent(Control page, MainPageKind pageKind) {
         var mainContent = this.FindControl<ContentControl>("MainContent")
                           ?? throw new InvalidOperationException("MainContent not found.");
-        mainContent.Content = session;
+        mainContent.Content = page;
+        _currentPage = pageKind;
+        UpdateShellChrome();
+    }
 
-        session.BackRequested += (_, _) => {
-            mainContent.Content = new TransferPage {
-                DataContext = DataContext
-            };
-        };
+    private void UpdateShellChrome() {
+        if (this.FindControl<Button>("HistoryButton") is { } historyButton)
+            historyButton.IsVisible = _currentPage is not MainPageKind.History;
+    }
+
+    private void HistoryButton_Click(object? sender, RoutedEventArgs e) {
+        ShowHistoryPage();
+    }
+
+    private void AcceptIncomingFile_Click(object? sender, RoutedEventArgs e) {
+        _vm?.AcceptPendingFileOffer();
+    }
+
+    private void RejectIncomingFile_Click(object? sender, RoutedEventArgs e) {
+        _vm?.RejectPendingFileOffer();
     }
 
     private async System.Threading.Tasks.Task<(string, Stream)?> PickFileStreamAsync() {
-        var files = await TopLevel.GetTopLevel(this)?.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+            return null;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
             Title = "Select file to send",
             AllowMultiple = false
         });
@@ -94,6 +143,7 @@ public partial class MainView : UserControl {
     }
 
     private async System.Threading.Tasks.Task PickDownloadFolderAsync() {
-        await _vm.DoPickDownloadsFolder(this);
+        if (_vm is not null)
+            await _vm.DoPickDownloadsFolder(this);
     }
 }

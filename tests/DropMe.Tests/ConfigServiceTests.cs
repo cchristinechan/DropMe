@@ -228,6 +228,10 @@ public class ConfigServiceTestsStorageMock : IStorageService {
         throw new NotImplementedException();
     }
 
+    public Task<bool> TryOpenTransferTargetAsync(string target) {
+        throw new NotImplementedException();
+    }
+
     public Stream ReadConfig() => ReadStream;
 
     public Stream WriteConfig() => WriteStream;
