@@ -11,14 +11,6 @@ public partial class Session : UserControl {
 
     public Session() {
         InitializeComponent();
-        AttachedToVisualTree += (_, _) => {
-            if (DataContext is MainViewModel vm)
-                vm.FileOfferDecisionUi = vm.RequestFileOfferDecisionAsync;
-        };
-        DetachedFromVisualTree += (_, _) => {
-            if (DataContext is MainViewModel vm)
-                vm.FileOfferDecisionUi = null;
-        };
     }
 
     private void InitializeComponent() {
@@ -42,16 +34,6 @@ public partial class Session : UserControl {
     private async void ChooseDownloadFolder_Click(object? sender, RoutedEventArgs e) {
         if (DataContext is MainViewModel vm)
             await vm.ChooseDownloadFolderAsync();
-    }
-
-    private void AcceptIncomingFile_Click(object? sender, RoutedEventArgs e) {
-        if (DataContext is MainViewModel vm)
-            vm.AcceptPendingFileOffer();
-    }
-
-    private void RejectIncomingFile_Click(object? sender, RoutedEventArgs e) {
-        if (DataContext is MainViewModel vm)
-            vm.RejectPendingFileOffer();
     }
 
     // // DEBUG
