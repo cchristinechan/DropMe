@@ -125,18 +125,18 @@ public partial class TransferPage : UserControl {
             await vm.ToggleCameraAsync();
     }
 
-internal sealed class AndroidCameraPreviewHost : NativeControlHost {
+    internal sealed class AndroidCameraPreviewHost : NativeControlHost {
 #if ANDROID
-    protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent) {
-        var context = (parent as AndroidViewControlHandle)?.View.Context ?? Application.Context;
-        var cameraService = App.Services?.GetRequiredService<ICameraService>()
-            ?? throw new InvalidOperationException("Camera service is not available.");
+        protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent) {
+            var context = (parent as AndroidViewControlHandle)?.View.Context ?? Application.Context;
+            var cameraService = App.Services?.GetRequiredService<ICameraService>()
+                ?? throw new InvalidOperationException("Camera service is not available.");
 
-        var nativeView = cameraService.GetNativePreviewView(context);
-        return new AndroidViewControlHandle(nativeView);
-    }
+            var nativeView = cameraService.GetNativePreviewView(context);
+            return new AndroidViewControlHandle(nativeView);
+        }
 #endif
-}
+    }
 
 
     private void DebugGoToSession_Click(object? sender, RoutedEventArgs e) {
