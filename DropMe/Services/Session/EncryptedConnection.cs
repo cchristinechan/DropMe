@@ -6,11 +6,9 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Avalonia.Controls.Notifications;
 using InTheHand.Net.Sockets;
 
 namespace DropMe.Services.Session;
