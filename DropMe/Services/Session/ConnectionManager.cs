@@ -134,29 +134,23 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
         Console.WriteLine($"Connection manager forwarding message {msg}");
         await _connectionInUseSemaphore.WaitAsync(ct).ConfigureAwait(false);
 
-        var firstAttempt = true;
+        if (_connectionInUse is null) {
+            await TryRecoverConnection(ct);
+        }
+        
         while (IsConnected) {
-            if (_connectionInUse is null) {
-                firstAttempt = false;
-                TryRecoverConnection();
+            // Connection not null as this is checked before loop and semaphore is held, TryRecoverConnection will throw if it can't make it not null
+            try {
+                var ctsWithTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                await _connectionInUse!.SendMessageAsync(msg, ctsWithTimeout.Token).ConfigureAwait(false);
+                Console.WriteLine($"Message {msg} sent");
+                break;
             }
-            else {
-                try {
-                    var ctsWithTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    if (!firstAttempt)
-                        await _connectionInUse.SendMessageAsync(new SwitchConnectionRequest(), ctsWithTimeout.Token)
-                            .ConfigureAwait(false);
-                    await _connectionInUse.SendMessageAsync(msg, ctsWithTimeout.Token).ConfigureAwait(false);
-                    Console.WriteLine($"Message {msg} sent");
-                    break;
-                }
-                catch (Exception e) {
-                    Console.WriteLine($"Failed to send message {msg} {e.Message}");
-                    firstAttempt = false;
-                    _connectionInUse.Dispose();
-                    _connectionInUse = null;
-                    TryRecoverConnection();
-                }
+            catch (Exception e) {
+                Console.WriteLine($"Failed to send message {msg} {e.Message}");
+                _connectionInUse!.Dispose();
+                _connectionInUse = null;
+                await TryRecoverConnection(ct);
             }
         }
 
@@ -164,7 +158,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
     }
 
     // Should be called with semaphore held
-    private bool TryRecoverConnection() {
+    private async Task TryRecoverConnection(CancellationToken ct) {
         if (TcpConnected) {
             Console.WriteLine("Fell back to TCP");
             _connectionInUse = _tcpConnection!.Value.connection;
@@ -173,14 +167,19 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             Console.WriteLine("Fell back to BT");
             _connectionInUse = _bluetoothConnection!.Value.connection;
         }
-        if (!IsConnected) {
+        if (IsConnected) {
+            // Notify peer of the change
+            await _connectionInUse!.SendMessageAsync(new SwitchConnectionRequest(), ct)
+                .ConfigureAwait(false);
+        }
+        else {
             Console.WriteLine("Could not recover connection");
             _networkSyncChannel.Writer.Complete();
+            
             ConnectionEnded?.Invoke(ConnectionEndReason.AllChannelsDisconnected);
-            return false;
         }
 
-        return true;
+        
     }
 
     public async IAsyncEnumerable<FileMsg> ReceiveMessages() {
@@ -258,33 +257,38 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
     }
 
     private async Task<IConnection> AcceptBluetoothConnection(CancellationToken ct) {
-        var listener = new BluetoothListener(new Guid(DropMeGuid));
-        var radio = BluetoothRadio.Default;
-        radio.Mode = RadioMode.Discoverable;
-        listener.Start();
-        Console.WriteLine("Bluetooth server started, waiting for connections...");
+        using var listener = new BluetoothListener(new Guid(DropMeGuid));
+        try {
+            var radio = BluetoothRadio.Default;
+            radio.Mode = RadioMode.Discoverable;
+            listener.Start();
+            Console.WriteLine("Bluetooth server started, waiting for connections...");
 
-        while (!BluetoothConnected) {
-            var client = await listener.AcceptBluetoothClientAsync();
-            Console.WriteLine($"Client {client.RemoteMachineName} connected!");
-            radio.Mode = RadioMode.Connectable;
+            while (!BluetoothConnected) {
+                var client = await listener.AcceptBluetoothClientAsync();
+                Console.WriteLine($"Client {client.RemoteMachineName} connected!");
+                radio.Mode = RadioMode.Connectable;
 
-            if (AesSessionKey is null)
-                throw new NullReferenceException("Aes session key must be set before connecting");
-            var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client), client.RemoteMachineName, AesSessionKey);
-            connection.OnDisconnect += OnConnectionDisconnected;
-            if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false)) {
-                Console.WriteLine($"Client {connection.PeerName} tried to connect with a bad handshake");
-                client.Close();
-            }
-            else {
-                Console.WriteLine("Created a connection, handshake successful");
-                var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, sessionCt);
-                _bluetoothConnection = (connection, task);
-                Console.WriteLine("Accepted a BT connection!");
+                if (AesSessionKey is null)
+                    throw new NullReferenceException("Aes session key must be set before connecting");
+                var connection = new EncryptedConnection<BluetoothClientNsAdapter>(new BluetoothClientNsAdapter(client),
+                    client.RemoteMachineName, AesSessionKey);
+                connection.OnDisconnect += OnConnectionDisconnected;
+                if (!await connection.ServerConnectionHandshake(ct).ConfigureAwait(false)) {
+                    Console.WriteLine($"Client {connection.PeerName} tried to connect with a bad handshake");
+                    client.Close();
+                }
+                else {
+                    Console.WriteLine("Created a connection, handshake successful");
+                    var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, sessionCt);
+                    _bluetoothConnection = (connection, task);
+                    Console.WriteLine("Accepted a BT connection!");
+                }
             }
         }
-        listener.Stop();
+        finally {
+            listener.Stop();
+        }
         return _bluetoothConnection!.Value.connection;
     }
 
@@ -307,6 +311,8 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, sessionCt);
             Console.WriteLine("Started handling messages");
             _tcpConnection = (connection, task);
+            await _connectionInUseSemaphore.WaitAsync().ConfigureAwait(false);
+            
             return connection;
         }
     }
@@ -445,17 +451,20 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             _bluetoothConnection = null;
         }
 
-        await _connectionInUseSemaphore.WaitAsync().ConfigureAwait(false);
+        //await _connectionInUseSemaphore.WaitAsync().ConfigureAwait(false);
         try {
-            if (TryRecoverConnection()) {
-                foreach (var msg in undelivered) {
-                    Console.WriteLine($"Resending {msg}");
-                    await _connectionInUse!.SendMessageAsync(msg, CancellationToken.None).ConfigureAwait(false); // Not null as tryrecoverconnection would have thrown
-                }
+            await TryRecoverConnection(CancellationToken.None).ConfigureAwait(false);
+            foreach (var msg in undelivered) {
+                Console.WriteLine($"Resending {msg}");
+                await _connectionInUse!.SendMessageAsync(msg, CancellationToken.None)
+                    .ConfigureAwait(false); // Not null as tryrecoverconnection would have thrown
             }
         }
+        catch (Exception) {
+            
+        } // Ignore as this is a best effort recovery
         finally {
-            _connectionInUseSemaphore.Release();
+            //_connectionInUseSemaphore.Release();
         }
     }
 
