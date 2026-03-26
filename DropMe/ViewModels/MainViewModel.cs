@@ -55,6 +55,27 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     private int _selectedCameraIndex;
 
     public bool IsConnected => _sessionManager.IsConnected;
+    public bool IsTcpConnected => _sessionManager.TcpConnected;
+    public bool IsBtConnected => _sessionManager.BtConnected;
+
+    // // DEBUG
+    // private bool _debugTcpOverride = false;
+    // private bool _debugBtOverride = false;
+    //
+    // public bool IsTcpConnected => _debugTcpOverride || _sessionManager.TcpConnected;
+    // public bool IsBtConnected  => _debugBtOverride  || _sessionManager.BtConnected;
+    //
+    // public void DebugToggleTcp() {
+    //     _debugTcpOverride = !_debugTcpOverride;
+    //     OnPropertyChanged(nameof(IsTcpConnected));
+    // }
+    //
+    // public void DebugToggleBt() {
+    //     _debugBtOverride = !_debugBtOverride;
+    //     OnPropertyChanged(nameof(IsBtConnected));
+    // }
+    // //
+
     public bool IsScanning => _scanCts is not null;
     public bool ShowGeneratedQr => !IsScanning;
     public bool UseNativeCameraPreview => OperatingSystem.IsAndroid();
@@ -241,7 +262,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
                     return;
 
                 await StopSessionAsync(
-                    homeMessage: $"Session disconnected {reason.ToString()}.");
+                    homeMessage: $"Session disconnected {reason.ToString()}.",
+                    notifyPeer: false);
                 await PrepareMainPageAsync(
                     homeMessage: $"Session disconnected {reason.ToString()}.",
                     regenerateQr: true);
@@ -288,19 +310,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
 
             var ip = _device.GetLocalLanIp();
             var port = ReserveAvailableTcpPort();
-            var btInfo = GetBluetoothInfoOrNull();
-
-            BtConnectionInfo? btConnInfo = null;
-            if (btInfo is var (address, name)) {
-                btConnInfo = new BtConnectionInfo(address?.ToString(), name);
-            }
-            var invite = new QrCodeData(
-                V: 2,
-                Sid: Guid.NewGuid(),
-                LanInfo: new LanConnectionInfo(ip, port),
-                BtInfo: btConnInfo,
-                AesKey: aesKey
-            );
 
             _ = Task.Run(async () => {
                 var btPermissions = await Task.Run(async () => {
@@ -387,6 +396,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
 
             OnPropertyChanged(nameof(IsConnected));
+            OnPropertyChanged(nameof(IsTcpConnected));
+            OnPropertyChanged(nameof(IsBtConnected));
             await _sessionManager.StartReceiveLoop();
         }
         catch (Exception ex) {
@@ -805,6 +816,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             Dispatcher.UIThread.Post(() => SessionConnected?.Invoke());
 
             OnPropertyChanged(nameof(IsConnected));
+            OnPropertyChanged(nameof(IsTcpConnected));
+            OnPropertyChanged(nameof(IsBtConnected));
             await _sessionManager.StartReceiveLoop();
 
             _sessionManager.Dispose();
@@ -816,12 +829,14 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         }
     }
 
-    public async Task StopSessionAsync(string? homeMessage = null) {
+    public async Task StopSessionAsync(string? homeMessage = null, bool notifyPeer = true) {
         try {
             _isStoppingSession = true;
             RejectPendingFileOffer();
+            _sessionListenCts.Cancel();
+            _sessionEstablishCts.Cancel();
 
-            await _sessionManager.StopSession();
+            await _sessionManager.StopSession(notifyPeer);
 
             SessionId = null;
             SessionStatus = "Not connected";
@@ -831,12 +846,18 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
                 HomeSessionMessage = homeMessage;
 
             OnPropertyChanged(nameof(IsConnected));
+            OnPropertyChanged(nameof(IsTcpConnected));
+            OnPropertyChanged(nameof(IsBtConnected));
             SessionEnded?.Invoke();
         }
         catch (Exception ex) {
             Status = $"End session error: {ex.Message}";
         }
         finally {
+            _sessionListenCts.Dispose();
+            _sessionEstablishCts.Dispose();
+            _sessionListenCts = new CancellationTokenSource();
+            _sessionEstablishCts = new CancellationTokenSource();
             _sessionManager = SessionManagerFactory();
             _isStoppingSession = false;
         }

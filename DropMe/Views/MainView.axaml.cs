@@ -1,11 +1,7 @@
-using Avalonia.Interactivity;
-using System;
-using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
-using DropMe.ViewModels;
 using System;
 using System.IO;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -79,7 +75,11 @@ public partial class MainView : UserControl {
     }
 
     private async System.Threading.Tasks.Task<(string, Stream)?> PickFileStreamAsync() {
-        var files = await TopLevel.GetTopLevel(this)?.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+            return null;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
             Title = "Select file to send",
             AllowMultiple = false
         });
@@ -94,6 +94,7 @@ public partial class MainView : UserControl {
     }
 
     private async System.Threading.Tasks.Task PickDownloadFolderAsync() {
-        await _vm.DoPickDownloadsFolder(this);
+        if (_vm is not null)
+            await _vm.DoPickDownloadsFolder(this);
     }
 }

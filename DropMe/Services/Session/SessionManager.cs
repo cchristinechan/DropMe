@@ -12,6 +12,18 @@ using InTheHand.Net;
 namespace DropMe.Services.Session;
 
 public class SessionManager : IDisposable {
+    public enum TransferDirection {
+        Send, Receive
+    }
+
+    public sealed record TransferLogInfo(
+        Guid FileId,
+        string FilePath,
+        TransferDirection Direction,
+        DateTime CompletedAt,
+        long FileSizeBytes,
+        bool Successful);
+
     public Func<FileOfferInfo, Task<bool>>? FileOfferDecision { get; set; }
     public bool TcpConnected => _connectionManager.TcpConnected;
     public bool BtConnected => _connectionManager.BluetoothConnected;
@@ -20,6 +32,7 @@ public class SessionManager : IDisposable {
     public event Action<string>? FileSaved;
     public event Action<Guid, string /*sha256 hex*/>? FileAcked;
     public event Action<ConnectionEndReason>? SessionEnded;
+    public List<TransferLogInfo> CompletedTransfers { get; } = [];
 
     public byte[]? AesSessionKey {
         set => _connectionManager.AesSessionKey = value;
@@ -61,10 +74,10 @@ public class SessionManager : IDisposable {
     /// <summary>
     /// Stops and disposes this session manager.
     /// </summary>
-    public async Task StopSession() {
+    public async Task StopSession(bool notifyPeer = true) {
         Console.WriteLine("Stop session called");
         // Try to notify peer that a disconnection has been requested
-        if (_connectionManager.IsConnected)
+        if (notifyPeer && _connectionManager.IsConnected)
             await _connectionManager.SendMessage(new DisconnectMsg(), CancellationToken.None);
 
         await _sessionCtSource.CancelAsync();
@@ -75,10 +88,10 @@ public class SessionManager : IDisposable {
     // This should be fine as after it is SendInProgress, this thread is the only one modifying that fileId
     public async Task SendFileAsync(Stream file, string filename, CancellationToken ct) {
         Debug.Assert(!_disposed, "Cannot send on disposed session, create a new session manager");
-
+        var fileLength = file.Length;
         var fileId = Guid.NewGuid();
-        var offer = new FileOfferInfo(fileId, filename, file.Length);
-        await _connectionManager.SendMessage(new FileOfferMsg(fileId, filename, file.Length), ct).ConfigureAwait(false);
+        var offer = new FileOfferInfo(fileId, filename, fileLength);
+        await _connectionManager.SendMessage(new FileOfferMsg(fileId, filename, fileLength), ct).ConfigureAwait(false);
         var tcs = new TaskCompletionSource<bool>();
         lock (_fileTransferStates) {
             _fileTransferStates.Add(fileId, new AwaitingDecision(offer, tcs));
@@ -116,7 +129,7 @@ public class SessionManager : IDisposable {
 
         var hash = fileState.Hash.GetHashAndReset(); // 32 bytes
         lock (_fileTransferStates) {
-            _fileTransferStates[fileId] = new AwaitingAck(hash);
+            _fileTransferStates[fileId] = new AwaitingAck(filename, fileLength, hash);
         }
 
         Debug.Assert(hash.Length == 32, "Sha256 hash should be 32 bytes");
@@ -204,6 +217,7 @@ public class SessionManager : IDisposable {
                     // Only remove if it is actually awaiting an ack
                     if (fileAckState is AwaitingAck awaitingAck) {
                         _fileTransferStates.Remove(fileId);
+                        CompletedTransfers.Add(new TransferLogInfo(fileId, awaitingAck.FilePath, TransferDirection.Send, DateTime.Now, awaitingAck.FileSizeBytes, true));
                         FileAcked?.Invoke(fileId, awaitingAck.Hash.ToString()!);
                     }
                 }
@@ -224,18 +238,24 @@ public class SessionManager : IDisposable {
             var localHash = completedState.Hash.GetHashAndReset();
             completedState.Hash.Dispose();
 
+            var successful = true;
             if (completedState.WrittenBytes != completedState.ExpectedSizeBytes) {
                 await _connectionManager.SendMessage(new FileRejectMsg(fileId, FileRejectReason.SizeMismatch), _sessionCtSource.Token).ConfigureAwait(false);
+                successful = false;
                 // DELETE FILE PROPERLY
                 return;
             }
 
             if (!CryptographicOperations.FixedTimeEquals(localHash, sha256.Span)) {
                 await _connectionManager.SendMessage(new FileRejectMsg(fileId, FileRejectReason.HashMismatch), _sessionCtSource.Token).ConfigureAwait(false);
+                successful = false;
                 //Delete file properly
                 return;
             }
 
+            var savedInfo = new TransferLogInfo(fileId, completedState.SavePath, TransferDirection.Receive, DateTime.Now, completedState.ExpectedSizeBytes, successful);
+            CompletedTransfers.Add(savedInfo);
+            Console.WriteLine($"Completed {CompletedTransfers[0]}");
             FileSaved?.Invoke(completedState.SavePath);
             await _connectionManager.SendMessage(new FileAckMsg(fileId, sha256), _sessionCtSource.Token).ConfigureAwait(false);
         }

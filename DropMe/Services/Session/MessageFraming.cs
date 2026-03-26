@@ -69,7 +69,7 @@ public static class MessageFraming {
             SessionMessageType.FileReject => JsonSerializer.Deserialize<FileRejectMsg>(span),
             SessionMessageType.FileChunk => JsonSerializer.Deserialize<FileChunkMsg>(span),
             SessionMessageType.FileDone => JsonSerializer.Deserialize<FileDoneMsg>(span),
-            SessionMessageType.FileAck => JsonSerializer.Deserialize<FileAcceptMsg>(span),
+            SessionMessageType.FileAck => JsonSerializer.Deserialize<FileAckMsg>(span),
             SessionMessageType.SwitchConnectionRequest => JsonSerializer.Deserialize<SwitchConnectionRequest>(span),
             SessionMessageType.Disconnect => JsonSerializer.Deserialize<DisconnectMsg>(span),
             _ => throw new ArgumentOutOfRangeException("Somehow created an invalid message type?")

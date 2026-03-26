@@ -92,9 +92,13 @@ public class Profile1(string serviceName, Guid serviceGuid) : IProfile1 {
 
         Console.WriteLine($"New Connection from device: {device}");
         try {
-            var handle = fd.DangerousGetHandle();
+            var success = false;
+            fd.DangerousAddRef(ref success);
+            if (!success)
+                throw new InvalidOperationException("Failed to acquire fd reference");
 
-            var socket = new LinuxSocket(handle.ToInt32());
+            var socket = new LinuxSocket(fd.DangerousGetHandle().ToInt32());
+            socket._safeHandleRef = fd;
 
             if (_clientConnectedCallbacks.TryGetValue(macAddress, out var callback)) {
                 callback(macAddress, socket);
