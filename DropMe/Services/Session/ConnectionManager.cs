@@ -311,7 +311,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, sessionCt);
             Console.WriteLine("Started handling messages");
             _tcpConnection = (connection, task);
-            await _connectionInUseSemaphore.WaitAsync().ConfigureAwait(false);
+            //await _connectionInUseSemaphore.WaitAsync().ConfigureAwait(false);
 
             return connection;
         }
