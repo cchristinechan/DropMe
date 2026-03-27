@@ -44,7 +44,7 @@ public static class MessageFraming {
         // Need get type or it for some reason won't resolve the actual type of msg and always serialise it as {}
         var serialised = JsonSerializer.SerializeToUtf8Bytes(msg, msg.GetType());
 
-        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan()[8..(8 + 4)], (uint)serialised.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan()[12..(12 + 4)], (uint)serialised.Length);
 
         return (header, serialised);
     }
