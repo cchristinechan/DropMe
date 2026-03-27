@@ -4,11 +4,9 @@ using System;
 
 namespace DropMe.Tests;
 
-public class ZxingQrCodeServiceTests
-{
+public class ZxingQrCodeServiceTests {
     [Test]
-    public void Generate_ShouldThrow_WhenTextIsEmpty()
-    {
+    public void Generate_ShouldThrow_WhenTextIsEmpty() {
         var service = new ZxingQrCodeService();
 
         Assert.Throws<ArgumentException>(() => service.Generate(""));

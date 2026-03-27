@@ -8,11 +8,9 @@ using DropMe.Services.Session;
 
 namespace DropMe.Tests;
 
-public class FileTransferStateTests
-{
+public class FileTransferStateTests {
     [Test]
-    public void AwaitingDecision_ShouldStoreProperties()
-    {
+    public void AwaitingDecision_ShouldStoreProperties() {
         var offer = new FileOfferInfo(Guid.NewGuid(), "report.pdf", 1024);
         var tcs = new TaskCompletionSource<bool>();
 
@@ -24,8 +22,7 @@ public class FileTransferStateTests
     }
 
     [Test]
-    public void ReceiveInProgress_ShouldStoreInitialValues()
-    {
+    public void ReceiveInProgress_ShouldStoreInitialValues() {
         using var stream = new MemoryStream();
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 
@@ -48,8 +45,7 @@ public class FileTransferStateTests
     }
 
     [Test]
-    public void ReceiveInProgress_ShouldAllowUpdatingMutableProperties()
-    {
+    public void ReceiveInProgress_ShouldAllowUpdatingMutableProperties() {
         using var stream = new MemoryStream();
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 
@@ -70,8 +66,7 @@ public class FileTransferStateTests
     }
 
     [Test]
-    public void SendInProgress_ShouldStoreProperties()
-    {
+    public void SendInProgress_ShouldStoreProperties() {
         using var stream = new MemoryStream(new byte[] { 1, 2, 3, 4 });
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 
@@ -84,8 +79,7 @@ public class FileTransferStateTests
     }
 
     [Test]
-    public void AwaitingAck_ShouldStoreProperties()
-    {
+    public void AwaitingAck_ShouldStoreProperties() {
         var hash = new byte[] { 10, 20, 30, 40 };
 
         var state = new AwaitingAck(

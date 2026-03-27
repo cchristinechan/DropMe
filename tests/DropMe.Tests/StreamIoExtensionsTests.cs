@@ -7,11 +7,9 @@ using DropMe.Services;
 
 namespace DropMe.Tests;
 
-public class StreamIoExtensionsTests
-{
+public class StreamIoExtensionsTests {
     [Test]
-    public async Task ReadExactlyAsync_ShouldFillBuffer_WhenEnoughBytesAvailable()
-    {
+    public async Task ReadExactlyAsync_ShouldFillBuffer_WhenEnoughBytesAvailable() {
         var source = new byte[] { 10, 20, 30, 40, 50 };
         using var stream = new MemoryStream(source);
         var buffer = new byte[3];
@@ -22,8 +20,7 @@ public class StreamIoExtensionsTests
     }
 
     [Test]
-    public void ReadExactlyAsync_ShouldThrow_WhenStreamEndsEarly()
-    {
+    public void ReadExactlyAsync_ShouldThrow_WhenStreamEndsEarly() {
         var source = new byte[] { 1, 2 };
         using var stream = new MemoryStream(source);
         var buffer = new byte[4];
@@ -33,8 +30,7 @@ public class StreamIoExtensionsTests
     }
 
     [Test]
-    public async Task WriteAndReadUInt32LEAsync_ShouldPreserveValue()
-    {
+    public async Task WriteAndReadUInt32LEAsync_ShouldPreserveValue() {
         const uint original = 0x12345678;
         using var stream = new MemoryStream();
 
@@ -47,8 +43,7 @@ public class StreamIoExtensionsTests
     }
 
     [Test]
-    public async Task WriteAndReadUInt16LEAsync_ShouldPreserveValue()
-    {
+    public async Task WriteAndReadUInt16LEAsync_ShouldPreserveValue() {
         const ushort original = 0x1234;
         using var stream = new MemoryStream();
 
@@ -61,8 +56,7 @@ public class StreamIoExtensionsTests
     }
 
     [Test]
-    public async Task WriteAndReadInt64LEAsync_ShouldPreserveValue()
-    {
+    public async Task WriteAndReadInt64LEAsync_ShouldPreserveValue() {
         const long original = 0x0102030405060708L;
         using var stream = new MemoryStream();
 
@@ -75,8 +69,7 @@ public class StreamIoExtensionsTests
     }
 
     [Test]
-    public void WriteUInt32LE_AndReadUInt32LE_ShouldPreserveValue()
-    {
+    public void WriteUInt32LE_AndReadUInt32LE_ShouldPreserveValue() {
         const uint original = 0x89ABCDEF;
         var buffer = new byte[4];
 
@@ -87,8 +80,7 @@ public class StreamIoExtensionsTests
     }
 
     [Test]
-    public void Utf8_ShouldReturnUtf8Bytes()
-    {
+    public void Utf8_ShouldReturnUtf8Bytes() {
         var text = "Hello世界";
         var bytes = StreamIoExtensions.Utf8(text);
 

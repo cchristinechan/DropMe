@@ -4,10 +4,8 @@ using DropMe.Services.Session;
 
 namespace DropMe.Tests;
 
-public class QrCodeDataCodecTests
-{
-    private QrCodeData CreateSampleData()
-    {
+public class QrCodeDataCodecTests {
+    private QrCodeData CreateSampleData() {
         return new QrCodeData(
             1,
             Guid.NewGuid(),
@@ -18,8 +16,7 @@ public class QrCodeDataCodecTests
     }
 
     [Test]
-    public void EncodeThenDecode_ShouldPreserveData()
-    {
+    public void EncodeThenDecode_ShouldPreserveData() {
         var original = CreateSampleData();
 
         var json = QrCodeDataCodec.Encode(original);
@@ -36,10 +33,9 @@ public class QrCodeDataCodecTests
         Assert.That(decoded.BtInfo, Is.Null);
         Assert.That(decoded.AesKey, Is.EqualTo(original.AesKey));
     }
-    
+
     [Test]
-    public void EncodeThenDecode_ShouldWork()
-    {
+    public void EncodeThenDecode_ShouldWork() {
         var original = CreateSampleData();
 
         var json = QrCodeDataCodec.Encode(original);
@@ -50,8 +46,7 @@ public class QrCodeDataCodecTests
     }
 
     [Test]
-    public void TryDecode_ShouldFail_OnInvalidJson()
-    {
+    public void TryDecode_ShouldFail_OnInvalidJson() {
         var success = QrCodeDataCodec.TryDecode("invalid", out var decoded);
 
         Assert.That(success, Is.False);

@@ -4,11 +4,9 @@ using DropMe.Services.Session;
 
 namespace DropMe.Tests;
 
-public class QrCodeDataTests
-{
+public class QrCodeDataTests {
     [Test]
-    public void LanConnectionInfo_ShouldStoreProperties()
-    {
+    public void LanConnectionInfo_ShouldStoreProperties() {
         var lan = new LanConnectionInfo("192.168.1.10", 8080);
 
         Assert.That(lan.Address, Is.EqualTo("192.168.1.10"));
@@ -16,8 +14,7 @@ public class QrCodeDataTests
     }
 
     [Test]
-    public void BtConnectionInfo_ShouldStoreProperties()
-    {
+    public void BtConnectionInfo_ShouldStoreProperties() {
         var bt = new BtConnectionInfo("AA:BB:CC:DD", "DropMe-Phone");
 
         Assert.That(bt.Address, Is.EqualTo("AA:BB:CC:DD"));
@@ -25,8 +22,7 @@ public class QrCodeDataTests
     }
 
     [Test]
-    public void QrCodeData_ShouldStoreAllProperties()
-    {
+    public void QrCodeData_ShouldStoreAllProperties() {
         var sid = Guid.NewGuid();
         var lan = new LanConnectionInfo("127.0.0.1", 9000);
         var bt = new BtConnectionInfo("11:22:33:44", "MyDevice");
@@ -48,8 +44,7 @@ public class QrCodeDataTests
     }
 
     [Test]
-    public void QrCodeData_ShouldAllowNullOptionalFields()
-    {
+    public void QrCodeData_ShouldAllowNullOptionalFields() {
         var sid = Guid.NewGuid();
         var aesKey = new byte[] { 9, 8, 7, 6 };
 
@@ -69,8 +64,7 @@ public class QrCodeDataTests
     }
 
     [Test]
-    public void LanConnectionInfo_WithSameValues_ShouldBeEqual()
-    {
+    public void LanConnectionInfo_WithSameValues_ShouldBeEqual() {
         var lan1 = new LanConnectionInfo("192.168.0.5", 1234);
         var lan2 = new LanConnectionInfo("192.168.0.5", 1234);
 
@@ -78,8 +72,7 @@ public class QrCodeDataTests
     }
 
     [Test]
-    public void BtConnectionInfo_WithSameValues_ShouldBeEqual()
-    {
+    public void BtConnectionInfo_WithSameValues_ShouldBeEqual() {
         var bt1 = new BtConnectionInfo("AA:BB:CC", "DeviceA");
         var bt2 = new BtConnectionInfo("AA:BB:CC", "DeviceA");
 

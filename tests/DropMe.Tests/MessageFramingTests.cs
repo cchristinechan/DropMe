@@ -5,10 +5,8 @@ using DropMe.Services.Session;
 
 namespace DropMe.Tests;
 
-public class MessageFramingTests
-{
-    private static byte[] Combine(byte[] header, byte[] body)
-    {
+public class MessageFramingTests {
+    private static byte[] Combine(byte[] header, byte[] body) {
         var data = new byte[header.Length + body.Length];
         Array.Copy(header, 0, data, 0, header.Length);
         Array.Copy(body, 0, data, header.Length, body.Length);
@@ -16,8 +14,7 @@ public class MessageFramingTests
     }
 
     [Test]
-    public void FrameAndParse_PingMessage_ShouldWork()
-    {
+    public void FrameAndParse_PingMessage_ShouldWork() {
         var msg = new PingMsg();
         uint acknowledges = 123u;
 
@@ -31,8 +28,7 @@ public class MessageFramingTests
     }
 
     [Test]
-    public void ParseMessage_ShouldThrow_WhenMagicIsInvalid()
-    {
+    public void ParseMessage_ShouldThrow_WhenMagicIsInvalid() {
         var msg = new PingMsg();
         var (header, body) = MessageFraming.FrameMessage(msg, 1u);
         var data = Combine(header, body);
@@ -44,8 +40,7 @@ public class MessageFramingTests
     }
 
     [Test]
-    public void ParseMessage_ShouldThrow_WhenVersionIsInvalid()
-    {
+    public void ParseMessage_ShouldThrow_WhenVersionIsInvalid() {
         var msg = new PingMsg();
         var (header, body) = MessageFraming.FrameMessage(msg, 1u);
         var data = Combine(header, body);
@@ -57,8 +52,7 @@ public class MessageFramingTests
     }
 
     [Test]
-    public void FrameAndParse_ShouldPreserveAcknowledges()
-    {
+    public void FrameAndParse_ShouldPreserveAcknowledges() {
         var msg = new PingMsg();
         uint acknowledges = 0x12345678;
 

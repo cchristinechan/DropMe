@@ -4,19 +4,16 @@ using DropMe.Services.Session;
 
 namespace DropMe.Tests;
 
-public class SessionMessageTests
-{
+public class SessionMessageTests {
     [Test]
-    public void DeviceNameMsg_ShouldStoreName()
-    {
+    public void DeviceNameMsg_ShouldStoreName() {
         var msg = new DeviceNameMsg("Alice");
 
         Assert.That(msg.Name, Is.EqualTo("Alice"));
     }
 
     [Test]
-    public void FileOfferMsg_ShouldStoreProperties()
-    {
+    public void FileOfferMsg_ShouldStoreProperties() {
         var fileId = Guid.NewGuid();
         var msg = new FileOfferMsg(fileId, "report.pdf", 1024);
 
@@ -26,8 +23,7 @@ public class SessionMessageTests
     }
 
     [Test]
-    public void FileAcceptMsg_ShouldStoreFileId()
-    {
+    public void FileAcceptMsg_ShouldStoreFileId() {
         var fileId = Guid.NewGuid();
         var msg = new FileAcceptMsg(fileId);
 
@@ -36,8 +32,7 @@ public class SessionMessageTests
     }
 
     [Test]
-    public void FileRejectMsg_ShouldStoreReason()
-    {
+    public void FileRejectMsg_ShouldStoreReason() {
         var fileId = Guid.NewGuid();
         var msg = new FileRejectMsg(fileId, FileRejectReason.HashMismatch);
 
@@ -46,8 +41,7 @@ public class SessionMessageTests
     }
 
     [Test]
-    public void PingMsg_ShouldBeControlMessage()
-    {
+    public void PingMsg_ShouldBeControlMessage() {
         var msg = new PingMsg();
 
         Assert.That(msg, Is.InstanceOf<ControlMsg>());
@@ -55,8 +49,7 @@ public class SessionMessageTests
     }
 
     [Test]
-    public void FileOfferMsg_ShouldBeFileMessage()
-    {
+    public void FileOfferMsg_ShouldBeFileMessage() {
         var msg = new FileOfferMsg(Guid.NewGuid(), "file.txt", 10);
 
         Assert.That(msg, Is.InstanceOf<FileMsg>());
@@ -64,8 +57,7 @@ public class SessionMessageTests
     }
 
     [Test]
-    public void DeviceNameMsg_WithSameName_ShouldBeEqual()
-    {
+    public void DeviceNameMsg_WithSameName_ShouldBeEqual() {
         var msg1 = new DeviceNameMsg("Alice");
         var msg2 = new DeviceNameMsg("Alice");
 
@@ -73,8 +65,7 @@ public class SessionMessageTests
     }
 
     [Test]
-    public void FileChunkMsg_ShouldStoreChunkData()
-    {
+    public void FileChunkMsg_ShouldStoreChunkData() {
         var fileId = Guid.NewGuid();
         var bytes = new byte[] { 1, 2, 3, 4 };
         var msg = new FileChunkMsg(fileId, 7, bytes);
@@ -83,10 +74,9 @@ public class SessionMessageTests
         Assert.That(msg.ChunkIndex, Is.EqualTo(7));
         Assert.That(msg.Data.ToArray(), Is.EqualTo(bytes));
     }
-    
+
     [Test]
-    public void FileDoneMsg_ShouldStoreSha256()
-    {
+    public void FileDoneMsg_ShouldStoreSha256() {
         var fileId = Guid.NewGuid();
         var hash = new byte[] { 10, 20, 30, 40 };
 
@@ -95,10 +85,9 @@ public class SessionMessageTests
         Assert.That(msg.FileId, Is.EqualTo(fileId));
         Assert.That(msg.Sha256.ToArray(), Is.EqualTo(hash));
     }
-    
+
     [Test]
-    public void FileAckMsg_ShouldStoreSha256()
-    {
+    public void FileAckMsg_ShouldStoreSha256() {
         var fileId = Guid.NewGuid();
         var hash = new byte[] { 5, 6, 7, 8 };
 
@@ -107,10 +96,9 @@ public class SessionMessageTests
         Assert.That(msg.FileId, Is.EqualTo(fileId));
         Assert.That(msg.Sha256.ToArray(), Is.EqualTo(hash));
     }
-    
+
     [Test]
-    public void DisconnectMsg_ShouldBeControlMessage()
-    {
+    public void DisconnectMsg_ShouldBeControlMessage() {
         var msg = new DisconnectMsg();
 
         Assert.That(msg, Is.InstanceOf<ControlMsg>());
