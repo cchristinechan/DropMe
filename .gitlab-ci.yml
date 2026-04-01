@@ -93,12 +93,14 @@ deploy_to_github:
     - docker
   rules:
     - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+  variables:
+    GIT_SSH_COMMAND: "ssh -i $GH_DEPLOY_KEY"
   before_script:
     - chmod 400 $GH_DEPLOY_KEY
   script:
     - git remote add github git@github.com:cchristinechan/DropMe.git
     - git fetch --unshallow
-    - git push github HEAD:main -i $GH_DEPLOY_KEY
+    - git push github HEAD:main
  
 pkgbuild_install:
   stage: install
