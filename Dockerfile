@@ -7,7 +7,7 @@ ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 ENV PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$JAVA_HOME/bin
 
 RUN apt-get update && \
-    apt-get install -y wget unzip openjdk-21-jdk && \
+    apt-get install -y wget unzip openjdk-21-jdk openssh-client && \
     rm -rf /var/lib/apt/lists/*
 
 # Setup Android Command Line Tools
