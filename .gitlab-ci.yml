@@ -2,6 +2,7 @@ stages:
   - build
   - test
   - formatting
+  - deploy
   - install
 
 image: $CI_REGISTRY_IMAGE:latest
@@ -85,7 +86,20 @@ core_test_formatting:
     - dotnet workload restore
   script:
     - dotnet format --verify-no-changes
-  
+
+deploy_to_github:
+  stage: deploy
+  tags:
+    - docker
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+  before_script:
+    - chmod 400 $GH_DEPLOY_KEY
+  script:
+    - git remote add github git@github.com:cchristinechan/DropMe.git
+    - git fetch --unshallow
+    - git push github HEAD:main -i $GH_DEPLOY_KEY
+ 
 pkgbuild_install:
   stage: install
   image: archlinux:base-devel
