@@ -5,7 +5,7 @@ stages:
   - formatting
   - install
 
-image: $CI_REGISTRY_IMAGE:latest
+image: $CI_REGISTRY_IMAGE:v2
 
 core_build:
   stage: build
@@ -94,7 +94,7 @@ deploy_to_github:
   rules:
     - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
   variables:
-    GIT_SSH_COMMAND: "/usr/bin/ssh -i $GH_DEPLOY_KEY"
+    GIT_SSH_COMMAND: "ssh -i $GH_DEPLOY_KEY"
   before_script:
     - chmod 400 $GH_DEPLOY_KEY
   script:
