@@ -4,47 +4,99 @@
 
 The solution is split into 4 projects:
 
-- DropMe
-    - This project contains all of the cross platform code and service interfaces.
-    - Code should go in here whenever possible, including cross platform implementations of services that can be eclipsed by platform specific versions.
-- DropMe.Desktop
-    - Contains all of the desktop (Windows, MacOS, Linux) specific code.
-    - This should be able to build for any of these platforms.
-- DropMe.Android
-    - Contains all of the Android specific code.
-    - Can utilise Android specific Java libraries through c# bindings.
-- DropMe.iOS
-    - TODO.
+- **DropMe**
+  - Contains all cross-platform code and service interfaces.
+  - Code should go here whenever possible, including cross-platform implementations of services that may be overridden by platform-specific versions.
 
-The docker image built by the Dockerfile should be able to build for any of these platforms except for iOS.
+- **DropMe.Desktop**
+  - Contains all desktop-specific code (Windows, macOS, Linux).
+  - Should be able to build for any of these platforms.
+
+- **DropMe.Android**
+  - Contains all Android-specific code.
+  - Can utilise Android-specific Java libraries through C# bindings.
+
+- **DropMe.iOS**
+  - TODO.
+
+The Docker image built by the `Dockerfile` should be able to build for all platforms except iOS.
+
+---
 
 ## Building
 
-- Go to the folder containing the project you want to build (e.g. `cd DropMe.Desktop`)
-- Run `dotnet workload restore` followed by `dotnet build`
+1. Navigate to the folder of the project you want to build:
+   ```bash
+   cd DropMe.Desktop
+   ```
 
-In this case the project will be built to `DropMe.Desktop/Debug/net10.0`. Run it with `dotnet DropMe.Desktop.dll`.
+2. Restore workloads:
+   ```bash
+   dotnet workload restore
+   ```
 
-### Quick run
+3. Build the project:
+   ```bash
+   dotnet build
+   ```
 
-You can quickly build and run a project by running `dotnet run`.
+The project will be built to:
+```
+DropMe.Desktop/bin/Debug/net10.0/
+```
+
+Run it with:
+```bash
+dotnet DropMe.Desktop.dll
+```
+
+---
+
+### Quick Run
+
+You can build and run a project in one step:
+
+```bash
+dotnet run
+```
+
+---
 
 ### Android
 
-To install the app to an android device over adb:
+To install the app on an Android device using ADB:
 
-- Connect to the device over adb
-- Run `adb install com.CompanyName.DropMe-Signed.apk`
-- Accept any prompts on the device
+1. Connect to the device via ADB  
+2. Run:
+   ```bash
+   adb install com.CompanyName.DropMe-Signed.apk
+   ```
+3. Accept any prompts on the device  
 
-This will then be installed like a regular app.
+The app will be installed like a regular application.
+
+---
 
 ## Testing
 
-Currently unit testing is only implemented for the DropMe project.
-It is using the nunit library and can be tested from the DropMe folder by running `dotnet test`.
+Unit testing is currently only implemented for the **DropMe** project.
+
+- Framework: NUnit  
+
+Run tests from the `DropMe` folder:
+
+```bash
+dotnet test
+```
+
+---
 
 ## Installation
 
-Automatic installation is currently only supported for Archlinux.
-Copy the PKGBUILD into an empty folder and run `makepkg -si`.
+Automatic installation is currently only supported for Arch Linux.
+
+1. Copy the `PKGBUILD` file into an empty folder  
+2. Run:
+   ```bash
+   makepkg -si
+   ```
