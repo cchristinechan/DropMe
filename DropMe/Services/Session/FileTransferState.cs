@@ -14,7 +14,8 @@ public sealed record ReceiveInProgress(
     long ExpectedSizeBytes,
     long WrittenBytes,
     IncrementalHash Hash,
-    int ExpectedChunkIndex) : FileTransferState {
+    int ExpectedChunkIndex,
+    bool Directory) : FileTransferState {
     public long WrittenBytes { get; set; } = WrittenBytes;
     public int ExpectedChunkIndex { get; set; } = ExpectedChunkIndex;
 }

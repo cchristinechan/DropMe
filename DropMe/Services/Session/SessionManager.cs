@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Formats.Tar;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
@@ -94,6 +96,93 @@ public class SessionManager : IDisposable {
         Dispose();
     }
 
+    private static long CalculateTarSize(string sourceDirectory) {
+        long total = 0;
+
+        foreach (var filePath in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories)) {
+            var fileSize = new FileInfo(filePath).Length;
+
+            total += 512;                              // header block
+            total += ((fileSize + 511) / 512) * 512;             // data blocks (padded to 512)
+        }
+
+        total += 1024;
+
+        return total;
+    }
+
+    private static async Task CreateTarAsync(string sourceDir, Stream outputStream, CancellationToken ct) {
+        await using var tarWriter = new TarWriter(outputStream, TarEntryFormat.Pax, leaveOpen: false);
+
+        foreach (var filePath in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories)) {
+            ct.ThrowIfCancellationRequested();
+
+            // Build a relative path to use as the entry name inside the archive
+            var entryName = Path.GetRelativePath(sourceDir, filePath)
+                .Replace(Path.DirectorySeparatorChar, '/'); // TAR uses forward slashes
+
+            await tarWriter.WriteEntryAsync(filePath, entryName, ct);
+        }
+    }
+
+    public async Task SendDirectoryAsync(string path, CancellationToken ct) {
+        Debug.Assert(!_disposed, "Cannot send on disposed session, create a new session manager");
+        var length = CalculateTarSize(path);
+        var fileId = Guid.NewGuid();
+        var name = Path.GetFileName(path);
+        var offer = new FileOfferInfo(fileId, name, length);
+        await _connectionManager.SendMessage(new FileOfferMsg(fileId, name, length, true), ct).ConfigureAwait(false);
+
+        var tcs = new TaskCompletionSource<bool>();
+        lock (_fileTransferStates) {
+            _fileTransferStates.Add(fileId, new AwaitingDecision(offer, tcs));
+        }
+        Console.WriteLine("Awaiting acceptance");
+        var fileAccepted = await tcs.Task;
+        Console.WriteLine("Directory accepted");
+
+        if (!fileAccepted)
+            throw new InvalidOperationException("Peer rejected the directory.");
+
+        var file = new System.IO.Pipelines.Pipe();
+        await using var fileReader = file.Reader.AsStream();
+        var tarTask = Task.Run(async () => await CreateTarAsync(path, file.Writer.AsStream(), ct), ct);
+
+        var fileState = new SendInProgress(fileReader, IncrementalHash.CreateHash(HashAlgorithmName.SHA256), 0);
+        lock (_fileTransferStates) {
+            _fileTransferStates[fileId] = fileState;
+        }
+
+        const int chunkSize = 8 * 1024;
+        var buffer = new byte[chunkSize];
+        var chunkIndex = 0;
+
+        while (true) {
+            var n = await fileReader.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false);
+            if (n <= 0) break;
+
+            fileState.Hash.AppendData(buffer, 0, n);
+            try {
+                await _connectionManager.SendMessage(new FileChunkMsg(fileId, chunkIndex++, buffer[0..n]), ct)
+                    .ConfigureAwait(false);
+
+            }
+            catch (Exception e) {
+                Console.WriteLine($"Exception sending file data message {e}");
+            }
+        }
+
+        await tarTask;
+
+        var hash = fileState.Hash.GetHashAndReset(); // 32 bytes
+        lock (_fileTransferStates) {
+            _fileTransferStates[fileId] = new AwaitingAck(name, length, hash);
+        }
+
+        Debug.Assert(hash.Length == 32, "Sha256 hash should be 32 bytes");
+        await _connectionManager.SendMessage(new FileDoneMsg(fileId, hash), ct).ConfigureAwait(false);
+    }
+
     // There would be race conditions if multiple threads try to modify the same _fileTransferStates[fileId]
     // This should be fine as after it is SendInProgress, this thread is the only one modifying that fileId
     public async Task SendFileAsync(Stream file, string filename, CancellationToken ct) {
@@ -101,7 +190,7 @@ public class SessionManager : IDisposable {
         var fileLength = file.Length;
         var fileId = Guid.NewGuid();
         var offer = new FileOfferInfo(fileId, filename, fileLength);
-        await _connectionManager.SendMessage(new FileOfferMsg(fileId, filename, fileLength), ct).ConfigureAwait(false);
+        await _connectionManager.SendMessage(new FileOfferMsg(fileId, filename, fileLength, false), ct).ConfigureAwait(false);
         var tcs = new TaskCompletionSource<bool>();
         lock (_fileTransferStates) {
             _fileTransferStates.Add(fileId, new AwaitingDecision(offer, tcs));
@@ -149,8 +238,8 @@ public class SessionManager : IDisposable {
     private async Task RespondToDataMessage(FileMsg message) {
         Console.WriteLine($"Responding to data message {message}");
         switch (message) {
-            case FileOfferMsg(var fileId, var fileName, var fileSize):
-                Console.WriteLine($"File {fileId}  {fileName} offered");
+            case FileOfferMsg(var fileId, var fileName, var fileSize, var directory):
+                Console.WriteLine($"File {fileId}  {fileName} offered, directory: {directory}");
                 var accept = FileOfferDecision is null || await FileOfferDecision(new FileOfferInfo(fileId, fileName, fileSize)).ConfigureAwait(false);
                 if (accept) {
                     bool accepted;
@@ -161,7 +250,7 @@ public class SessionManager : IDisposable {
                         if (output is var (stream, outputPath)) {
                             var ableToAdd = _fileTransferStates.TryAdd(fileId,
                                 new ReceiveInProgress(stream, outputPath, fileSize, 0,
-                                    IncrementalHash.CreateHash(HashAlgorithmName.SHA256), 0));
+                                    IncrementalHash.CreateHash(HashAlgorithmName.SHA256), 0, directory));
                             accepted = ableToAdd;
                         }
                         else {
