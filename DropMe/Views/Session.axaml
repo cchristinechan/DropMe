@@ -128,6 +128,16 @@
 
               <Button Height="40"
                       CornerRadius="26"
+                      Background="#E6E6E6"
+                      Foreground="#04274A"
+                      FontFamily="Georgia"
+                      FontWeight="SemiBold"
+                      Content="Send Folder"
+                      IsVisible="{Binding CanSendFolders}"
+                      Click="SendFolder_Click"/>
+
+              <Button Height="40"
+                      CornerRadius="26"
                       Background="#F2C8C8"
                       Foreground="#B00020"
                       FontFamily="Georgia"

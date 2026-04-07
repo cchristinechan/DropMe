@@ -11,6 +11,7 @@ public sealed record AwaitingDecision(FileOfferInfo FileOffer, TaskCompletionSou
 public sealed record ReceiveInProgress(
     Stream SaveStream,
     string SavePath,
+    string OfferedName,
     long ExpectedSizeBytes,
     long WrittenBytes,
     IncrementalHash Hash,

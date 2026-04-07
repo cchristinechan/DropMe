@@ -129,8 +129,8 @@ public class SessionManager : IDisposable {
         Debug.Assert(!_disposed, "Cannot send on disposed session, create a new session manager");
         var length = CalculateTarSize(path);
         var fileId = Guid.NewGuid();
-        var name = Path.GetFileName(path);
-        var offer = new FileOfferInfo(fileId, name, length);
+        var name = GetDirectoryTransferName(path);
+        var offer = new FileOfferInfo(fileId, name, length, true);
         await _connectionManager.SendMessage(new FileOfferMsg(fileId, name, length, true), ct).ConfigureAwait(false);
 
         var tcs = new TaskCompletionSource<bool>();
@@ -189,7 +189,7 @@ public class SessionManager : IDisposable {
         Debug.Assert(!_disposed, "Cannot send on disposed session, create a new session manager");
         var fileLength = file.Length;
         var fileId = Guid.NewGuid();
-        var offer = new FileOfferInfo(fileId, filename, fileLength);
+        var offer = new FileOfferInfo(fileId, filename, fileLength, false);
         await _connectionManager.SendMessage(new FileOfferMsg(fileId, filename, fileLength, false), ct).ConfigureAwait(false);
         var tcs = new TaskCompletionSource<bool>();
         lock (_fileTransferStates) {
@@ -240,16 +240,16 @@ public class SessionManager : IDisposable {
         switch (message) {
             case FileOfferMsg(var fileId, var fileName, var fileSize, var directory):
                 Console.WriteLine($"File {fileId}  {fileName} offered, directory: {directory}");
-                var accept = FileOfferDecision is null || await FileOfferDecision(new FileOfferInfo(fileId, fileName, fileSize)).ConfigureAwait(false);
+                var accept = FileOfferDecision is null || await FileOfferDecision(new FileOfferInfo(fileId, fileName, fileSize, directory)).ConfigureAwait(false);
                 if (accept) {
                     bool accepted;
                     lock (_fileTransferStates) {
-                        var output =
-                            _storageService.OpenDownloadFileWriteStream(
-                                SanitizeName(fileName));
+                        var output = directory
+                            ? CreateTempArchiveWriteStream(fileName)
+                            : _storageService.OpenDownloadFileWriteStream(SanitizeName(fileName));
                         if (output is var (stream, outputPath)) {
                             var ableToAdd = _fileTransferStates.TryAdd(fileId,
-                                new ReceiveInProgress(stream, outputPath, fileSize, 0,
+                                new ReceiveInProgress(stream, outputPath, fileName, fileSize, 0,
                                     IncrementalHash.CreateHash(HashAlgorithmName.SHA256), 0, directory));
                             accepted = ableToAdd;
                         }
@@ -354,13 +354,43 @@ public class SessionManager : IDisposable {
                 return;
             }
 
-            var savedInfo = new TransferLogInfo(fileId, completedState.SavePath, TransferDirection.Receive, DateTime.Now, completedState.ExpectedSizeBytes, successful);
+            var savedPath = completedState.SavePath;
+            if (completedState.Directory) {
+                var extractedPath = await _storageService
+                    .ExtractDownloadedDirectoryAsync(completedState.SavePath, completedState.OfferedName, _sessionCtSource.Token)
+                    .ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(extractedPath)) {
+                    await _connectionManager.SendMessage(new FileRejectMsg(fileId, FileRejectReason.InternalError), _sessionCtSource.Token).ConfigureAwait(false);
+                    successful = false;
+                    return;
+                }
+
+                savedPath = extractedPath;
+            }
+
+            var savedInfo = new TransferLogInfo(fileId, savedPath, TransferDirection.Receive, DateTime.Now, completedState.ExpectedSizeBytes, successful);
             CompletedTransfers.Add(savedInfo);
             TransferCompleted?.Invoke(savedInfo);
             Console.WriteLine($"Completed {CompletedTransfers[0]}");
-            FileSaved?.Invoke(completedState.SavePath);
+            FileSaved?.Invoke(savedPath);
             await _connectionManager.SendMessage(new FileAckMsg(fileId, sha256), _sessionCtSource.Token).ConfigureAwait(false);
         }
+    }
+
+    private static (Stream, string)? CreateTempArchiveWriteStream(string offeredName) {
+        var safeName = SanitizeName(GetDirectoryTransferName(offeredName));
+        var tempDirectory = Path.Combine(Path.GetTempPath(), "DropMe");
+        Directory.CreateDirectory(tempDirectory);
+
+        var tempPath = Path.Combine(tempDirectory, $"{Guid.NewGuid():N}_{safeName}.tar");
+        var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        return (stream, tempPath);
+    }
+
+    private static string GetDirectoryTransferName(string pathOrName) {
+        var trimmed = pathOrName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var name = Path.GetFileName(trimmed);
+        return string.IsNullOrWhiteSpace(name) ? "Folder" : name;
     }
 
     private static string SanitizeName(string name) {

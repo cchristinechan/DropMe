@@ -1,6 +1,8 @@
 using System;
 using AndroidX.DocumentFile.Provider;
+using System.Formats.Tar;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Android.Content;
 using Avalonia;
@@ -135,6 +137,41 @@ public class AndroidStorageService : IStorageService {
         }
     }
 
+    public async Task<string?> ExtractDownloadedDirectoryAsync(string archivePath, string directoryName, CancellationToken cancellationToken) {
+        try {
+            var safeName = SanitizeLeafName(directoryName);
+            if (_downloadsFolder is not null) {
+                var root = DocumentFile.FromTreeUri(_context, _downloadsFolder);
+                if (root is null)
+                    return null;
+
+                var targetDirectory = CreateUniqueDirectory(root, safeName);
+                if (targetDirectory is null)
+                    return null;
+
+                await using var archiveStream = File.OpenRead(archivePath);
+                await ExtractTarToDocumentDirectoryAsync(archiveStream, targetDirectory, cancellationToken);
+                return targetDirectory.Uri?.ToString();
+            }
+
+            var basePath = _context.FilesDir?.Path ?? Path.GetTempPath();
+            Directory.CreateDirectory(basePath);
+            var destinationPath = CreateUniqueDirectoryPath(basePath, safeName);
+            Directory.CreateDirectory(destinationPath);
+            await TarArchiveExtractor.ExtractToDirectoryAsync(archivePath, destinationPath, cancellationToken);
+            return destinationPath;
+        }
+        finally {
+            try {
+                if (File.Exists(archivePath))
+                    File.Delete(archivePath);
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"Failed to clean up temp archive '{archivePath}': {ex.Message}");
+            }
+        }
+    }
+
     private string NormalisePath(string str) {
         const string treeSegment = "/tree/";
         if (str.StartsWith("content://") && str.Contains(treeSegment)) {
@@ -203,5 +240,105 @@ public class AndroidStorageService : IStorageService {
         using var editor = _preferences.Edit();
         editor.Remove(DownloadsFolderUriKey);
         editor.Apply();
+    }
+
+    private async Task ExtractTarToDocumentDirectoryAsync(Stream archiveStream, DocumentFile rootDirectory, CancellationToken cancellationToken) {
+        using var tarReader = new TarReader(archiveStream, leaveOpen: true);
+        while (tarReader.GetNextEntry(copyData: false) is { } entry) {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var normalizedPath = TarArchiveExtractor.NormalizeTarEntryPath(entry.Name);
+            if (string.IsNullOrWhiteSpace(normalizedPath))
+                continue;
+
+            var segments = normalizedPath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 0)
+                continue;
+
+            if (entry.EntryType is TarEntryType.Directory) {
+                EnsureDirectory(rootDirectory, segments);
+                continue;
+            }
+
+            if (!TarArchiveExtractor.IsRegularFile(entry.EntryType) || entry.DataStream is null)
+                continue;
+
+            var parent = segments.Length > 1
+                ? EnsureDirectory(rootDirectory, segments[..^1])
+                : rootDirectory;
+            if (parent is null)
+                throw new IOException("Failed to create directory while extracting folder transfer.");
+
+            var fileName = SanitizeLeafName(segments[^1]);
+            var existing = parent.FindFile(fileName);
+            existing?.Delete();
+
+            var outputFile = parent.CreateFile("application/octet-stream", fileName);
+            if (outputFile?.Uri is null)
+                throw new IOException($"Failed to create output file '{fileName}'.");
+
+            await using var output = _context.ContentResolver.OpenOutputStream(outputFile.Uri);
+            if (output is null)
+                throw new IOException($"Failed to open output file '{fileName}' for writing.");
+
+            await entry.DataStream.CopyToAsync(output, cancellationToken);
+        }
+    }
+
+    private DocumentFile? EnsureDirectory(DocumentFile root, string[] segments) {
+        var current = root;
+        foreach (var rawSegment in segments) {
+            var segment = SanitizeLeafName(rawSegment);
+            if (string.IsNullOrWhiteSpace(segment))
+                continue;
+
+            var next = current.FindFile(segment);
+            if (next is null) {
+                next = current.CreateDirectory(segment);
+            }
+            else if (!next.IsDirectory) {
+                next.Delete();
+                next = current.CreateDirectory(segment);
+            }
+
+            if (next is null)
+                return null;
+
+            current = next;
+        }
+
+        return current;
+    }
+
+    private static DocumentFile? CreateUniqueDirectory(DocumentFile parent, string baseName) {
+        var safeBaseName = string.IsNullOrWhiteSpace(baseName) ? "Folder" : baseName;
+        var candidateName = safeBaseName;
+        var suffix = 2;
+
+        while (parent.FindFile(candidateName) is not null) {
+            candidateName = $"{safeBaseName} ({suffix++})";
+        }
+
+        return parent.CreateDirectory(candidateName);
+    }
+
+    private static string CreateUniqueDirectoryPath(string parentDirectory, string baseName) {
+        var safeBaseName = string.IsNullOrWhiteSpace(baseName) ? "Folder" : baseName;
+        var candidate = Path.Combine(parentDirectory, safeBaseName);
+        var suffix = 2;
+        while (Directory.Exists(candidate) || File.Exists(candidate)) {
+            candidate = Path.Combine(parentDirectory, $"{safeBaseName} ({suffix++})");
+        }
+
+        return candidate;
+    }
+
+    private static string SanitizeLeafName(string name) {
+        var sanitized = name;
+        foreach (var invalidChar in Path.GetInvalidFileNameChars())
+            sanitized = sanitized.Replace(invalidChar, '_');
+
+        sanitized = sanitized.Replace('/', '_').Replace('\\', '_').Trim().TrimEnd('.');
+        return string.IsNullOrWhiteSpace(sanitized) ? "Folder" : sanitized;
     }
 }
