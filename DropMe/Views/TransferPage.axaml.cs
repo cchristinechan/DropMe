@@ -39,11 +39,6 @@ public partial class TransferPage : UserControl {
             UpdatePreviewSurfaceSize();
             RefreshModeSwitchVisual();
         };
-
-        AttachedToVisualTree += async (_, _) => {
-            if (DataContext is MainViewModel vm2)
-                await vm2.PrepareMainPageAsync(homeMessage: vm2.HomeSessionMessage, regenerateQr: true);
-        };
     }
 
     private void UpdatePreviewSurfaceSize() {
