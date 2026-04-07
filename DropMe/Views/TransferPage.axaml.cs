@@ -25,15 +25,18 @@ public partial class TransferPage : UserControl {
 
     public TransferPage() {
         InitializeComponent();
+        SizeChanged += (_, _) => UpdatePreviewSurfaceSize();
         DataContextChanged += (_, _) => {
             AttachViewModel();
             InitializeNativePreviewHost();
+            UpdatePreviewSurfaceSize();
             RefreshModeSwitchVisual();
         };
         AttachedToVisualTree += async (_, _) => {
             InitializeNativePreviewHost();
             if (DataContext is MainViewModel vm)
                 await vm.PrepareMainPageAsync(homeMessage: vm.HomeSessionMessage, regenerateQr: true);
+            UpdatePreviewSurfaceSize();
             RefreshModeSwitchVisual();
         };
 
@@ -41,6 +44,26 @@ public partial class TransferPage : UserControl {
             if (DataContext is MainViewModel vm2)
                 await vm2.PrepareMainPageAsync(homeMessage: vm2.HomeSessionMessage, regenerateQr: true);
         };
+    }
+
+    private void UpdatePreviewSurfaceSize() {
+        var previewCard = this.FindControl<Border>("PreviewCard");
+        var previewSurface = this.FindControl<Grid>("PreviewSurface");
+        if (previewCard is null || previewSurface is null)
+            return;
+
+        var availableWidth = previewCard.Bounds.Width - previewCard.Padding.Left - previewCard.Padding.Right;
+        if (availableWidth <= 0)
+            return;
+
+        var targetSize = Math.Clamp(Math.Floor(availableWidth), 220d, 320d);
+        if (Math.Abs(previewSurface.Width - targetSize) < 0.5 &&
+            Math.Abs(previewSurface.Height - targetSize) < 0.5) {
+            return;
+        }
+
+        previewSurface.Width = targetSize;
+        previewSurface.Height = targetSize;
     }
 
     private void InitializeNativePreviewHost() {
