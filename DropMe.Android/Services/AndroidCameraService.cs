@@ -215,7 +215,7 @@ public sealed class AndroidCameraService : ICameraService {
             return;
 
         _previewView ??= new PreviewView(context);
-        _previewView.SetImplementationMode(PreviewView.ImplementationMode.Performance);
+        _previewView.SetImplementationMode(PreviewView.ImplementationMode.Compatible);
         _previewView.SetScaleType(PreviewView.ScaleType.FillCenter);
 
         var container = new FrameLayout(context);
