@@ -218,10 +218,9 @@ public sealed class AndroidCameraService : ICameraService {
         _previewView.SetImplementationMode(PreviewView.ImplementationMode.Performance);
         _previewView.SetScaleType(PreviewView.ScaleType.FillCenter);
 
-        var container = new FrameLayout(context) {
-            ClipChildren = true,
-            ClipToPadding = true
-        };
+        var container = new FrameLayout(context);
+        container.SetClipChildren(true);
+        container.SetClipToPadding(true);
 
         container.SetBackgroundColor(Color.Transparent);
         container.AddView(_previewView, new FrameLayout.LayoutParams(
