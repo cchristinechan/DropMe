@@ -185,6 +185,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     public Func<FileOfferInfo, System.Threading.Tasks.Task<bool>>? FileOfferDecisionUi;
     // Opens a file picker, lets user choose file, and opens a stream for reading to it
     public Func<Task<(string, Stream)?>>? PickFileStreamUi;
+    public Func<Task<string?>>? PickFolderUi;
     public Func<Task>? PickDownloadFolderUi;
 
     private TaskCompletionSource<bool>? _pendingFileOfferTcs;
@@ -255,6 +256,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
     }
 
     public bool CanToggleCamera => _availableCameras.Count > 1;
+    public bool CanSendFolders => !OperatingSystem.IsAndroid();
     public MainViewModel(
         ICameraService camera,
         QrDecoder decoder,
@@ -306,7 +308,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
             });
 
         sessionManager.FileOfferDecision = async offer => {
-            var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size);
+            var info = new FileOfferInfo(offer.FileId, offer.Name, offer.Size, offer.IsDirectory);
             return FileOfferDecisionUi is null || await FileOfferDecisionUi(info);
         };
 
@@ -1069,6 +1071,27 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         }
     }
 
+    public async Task SendFolderAsync() {
+        try {
+            var folderPath = PickFolderUi is null
+                ? null
+                : await PickFolderUi();
+
+            if (!string.IsNullOrWhiteSpace(folderPath)) {
+                Status = "Sending folder…";
+                await _sessionManager.SendDirectoryAsync(folderPath, CancellationToken.None);
+                Status = "Folder sent.";
+            }
+            else {
+                Status = "Folder send canceled.";
+            }
+        }
+        catch (Exception ex) {
+            SessionMessage = $"Folder send failed: {ex.Message}";
+            Status = "Folder send failed.";
+        }
+    }
+
     public async Task OpenTransferLocationAsync(TransferHistoryEntry entry) {
         if (!entry.CanOpenTarget || string.IsNullOrWhiteSpace(entry.OpenTarget))
             return;
@@ -1113,7 +1136,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable {
         Dispatcher.UIThread.Post(() => {
             PendingFileOfferName = info.Name;
             PendingFileOfferSizeText = $"{sizeKb} KB";
-            PendingFileOfferMessage = "Incoming file offer";
+            PendingFileOfferMessage = info.IsDirectory ? "Incoming folder offer" : "Incoming file offer";
             HasPendingFileOffer = true;
         });
 

@@ -15,7 +15,7 @@ public class SessionMessageTests {
     [Test]
     public void FileOfferMsg_ShouldStoreProperties() {
         var fileId = Guid.NewGuid();
-        var msg = new FileOfferMsg(fileId, "report.pdf", 1024);
+        var msg = new FileOfferMsg(fileId, "report.pdf", 1024, false);
 
         Assert.That(msg.FileId, Is.EqualTo(fileId));
         Assert.That(msg.Name, Is.EqualTo("report.pdf"));
@@ -50,7 +50,7 @@ public class SessionMessageTests {
 
     [Test]
     public void FileOfferMsg_ShouldBeFileMessage() {
-        var msg = new FileOfferMsg(Guid.NewGuid(), "file.txt", 10);
+        var msg = new FileOfferMsg(Guid.NewGuid(), "file.txt", 10, false);
 
         Assert.That(msg, Is.InstanceOf<FileMsg>());
         Assert.That(msg, Is.InstanceOf<DropMeMsg>());

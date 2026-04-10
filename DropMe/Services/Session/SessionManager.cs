@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Formats.Tar;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
@@ -94,18 +96,96 @@ public class SessionManager : IDisposable {
         Dispose();
     }
 
+    private static async Task CreateTarAsync(string sourceDir, Stream outputStream, CancellationToken ct) {
+        await using var tarWriter = new TarWriter(outputStream, TarEntryFormat.Pax, leaveOpen: false);
+
+        foreach (var filePath in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories)) {
+            ct.ThrowIfCancellationRequested();
+
+            // Build a relative path to use as the entry name inside the archive
+            var entryName = Path.GetRelativePath(sourceDir, filePath)
+                .Replace(Path.DirectorySeparatorChar, '/'); // TAR uses forward slashes
+
+            await tarWriter.WriteEntryAsync(filePath, entryName, ct);
+        }
+    }
+
+    public async Task SendDirectoryAsync(string path, CancellationToken ct) {
+        Debug.Assert(!_disposed, "Cannot send on disposed session, create a new session manager");
+        var tempArchivePath = await CreateTempTarArchiveAsync(path, ct).ConfigureAwait(false);
+        var length = new FileInfo(tempArchivePath).Length;
+        var fileId = Guid.NewGuid();
+        var name = GetDirectoryTransferName(path);
+        var offer = new FileOfferInfo(fileId, name, length, true);
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_fileTransferStates) {
+            _fileTransferStates.Add(fileId, new AwaitingDecision(offer, tcs));
+        }
+        await _connectionManager.SendMessage(new FileOfferMsg(fileId, name, length, true), ct).ConfigureAwait(false);
+        Console.WriteLine("Awaiting acceptance");
+        var fileAccepted = await tcs.Task;
+        Console.WriteLine("Directory accepted");
+
+        if (!fileAccepted)
+            throw new InvalidOperationException("Peer rejected the directory.");
+
+        try {
+            await using var archiveStream = File.OpenRead(tempArchivePath);
+            var fileState = new SendInProgress(archiveStream, IncrementalHash.CreateHash(HashAlgorithmName.SHA256), 0);
+            lock (_fileTransferStates) {
+                _fileTransferStates[fileId] = fileState;
+            }
+
+            const int chunkSize = 8 * 1024;
+            var buffer = new byte[chunkSize];
+            var chunkIndex = 0;
+
+            while (true) {
+                var n = await archiveStream.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false);
+                if (n <= 0) break;
+
+                fileState.Hash.AppendData(buffer, 0, n);
+                try {
+                    await _connectionManager.SendMessage(new FileChunkMsg(fileId, chunkIndex++, buffer[0..n]), ct)
+                        .ConfigureAwait(false);
+
+                }
+                catch (Exception e) {
+                    Console.WriteLine($"Exception sending file data message {e}");
+                }
+            }
+
+            var hash = fileState.Hash.GetHashAndReset(); // 32 bytes
+            lock (_fileTransferStates) {
+                _fileTransferStates[fileId] = new AwaitingAck(name, length, hash);
+            }
+
+            Debug.Assert(hash.Length == 32, "Sha256 hash should be 32 bytes");
+            await _connectionManager.SendMessage(new FileDoneMsg(fileId, hash), ct).ConfigureAwait(false);
+        }
+        finally {
+            try {
+                if (File.Exists(tempArchivePath))
+                    File.Delete(tempArchivePath);
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"Failed to delete temporary tar archive '{tempArchivePath}': {ex.Message}");
+            }
+        }
+    }
+
     // There would be race conditions if multiple threads try to modify the same _fileTransferStates[fileId]
     // This should be fine as after it is SendInProgress, this thread is the only one modifying that fileId
     public async Task SendFileAsync(Stream file, string filename, CancellationToken ct) {
         Debug.Assert(!_disposed, "Cannot send on disposed session, create a new session manager");
         var fileLength = file.Length;
         var fileId = Guid.NewGuid();
-        var offer = new FileOfferInfo(fileId, filename, fileLength);
-        await _connectionManager.SendMessage(new FileOfferMsg(fileId, filename, fileLength), ct).ConfigureAwait(false);
-        var tcs = new TaskCompletionSource<bool>();
+        var offer = new FileOfferInfo(fileId, filename, fileLength, false);
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_fileTransferStates) {
             _fileTransferStates.Add(fileId, new AwaitingDecision(offer, tcs));
         }
+        await _connectionManager.SendMessage(new FileOfferMsg(fileId, filename, fileLength, false), ct).ConfigureAwait(false);
         Console.WriteLine("Awaiting acceptance");
         var fileAccepted = await tcs.Task;
         Console.WriteLine("File accepted");
@@ -149,19 +229,19 @@ public class SessionManager : IDisposable {
     private async Task RespondToDataMessage(FileMsg message) {
         Console.WriteLine($"Responding to data message {message}");
         switch (message) {
-            case FileOfferMsg(var fileId, var fileName, var fileSize):
-                Console.WriteLine($"File {fileId}  {fileName} offered");
-                var accept = FileOfferDecision is null || await FileOfferDecision(new FileOfferInfo(fileId, fileName, fileSize)).ConfigureAwait(false);
+            case FileOfferMsg(var fileId, var fileName, var fileSize, var directory):
+                Console.WriteLine($"File {fileId}  {fileName} offered, directory: {directory}");
+                var accept = FileOfferDecision is null || await FileOfferDecision(new FileOfferInfo(fileId, fileName, fileSize, directory)).ConfigureAwait(false);
                 if (accept) {
                     bool accepted;
                     lock (_fileTransferStates) {
-                        var output =
-                            _storageService.OpenDownloadFileWriteStream(
-                                SanitizeName(fileName));
+                        var output = directory
+                            ? CreateTempArchiveWriteStream(fileName)
+                            : _storageService.OpenDownloadFileWriteStream(SanitizeName(fileName));
                         if (output is var (stream, outputPath)) {
                             var ableToAdd = _fileTransferStates.TryAdd(fileId,
-                                new ReceiveInProgress(stream, outputPath, fileSize, 0,
-                                    IncrementalHash.CreateHash(HashAlgorithmName.SHA256), 0));
+                                new ReceiveInProgress(stream, outputPath, fileName, fileSize, 0,
+                                    IncrementalHash.CreateHash(HashAlgorithmName.SHA256), 0, directory));
                             accepted = ableToAdd;
                         }
                         else {
@@ -265,13 +345,54 @@ public class SessionManager : IDisposable {
                 return;
             }
 
-            var savedInfo = new TransferLogInfo(fileId, completedState.SavePath, TransferDirection.Receive, DateTime.Now, completedState.ExpectedSizeBytes, successful);
+            var savedPath = completedState.SavePath;
+            if (completedState.Directory) {
+                var extractedPath = await _storageService
+                    .ExtractDownloadedDirectoryAsync(completedState.SavePath, completedState.OfferedName, _sessionCtSource.Token)
+                    .ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(extractedPath)) {
+                    await _connectionManager.SendMessage(new FileRejectMsg(fileId, FileRejectReason.InternalError), _sessionCtSource.Token).ConfigureAwait(false);
+                    successful = false;
+                    return;
+                }
+
+                savedPath = extractedPath;
+            }
+
+            var savedInfo = new TransferLogInfo(fileId, savedPath, TransferDirection.Receive, DateTime.Now, completedState.ExpectedSizeBytes, successful);
             CompletedTransfers.Add(savedInfo);
             TransferCompleted?.Invoke(savedInfo);
             Console.WriteLine($"Completed {CompletedTransfers[0]}");
-            FileSaved?.Invoke(completedState.SavePath);
+            FileSaved?.Invoke(savedPath);
             await _connectionManager.SendMessage(new FileAckMsg(fileId, sha256), _sessionCtSource.Token).ConfigureAwait(false);
         }
+    }
+
+    private static (Stream, string)? CreateTempArchiveWriteStream(string offeredName) {
+        var safeName = SanitizeName(GetDirectoryTransferName(offeredName));
+        var tempDirectory = Path.Combine(Path.GetTempPath(), "DropMe");
+        Directory.CreateDirectory(tempDirectory);
+
+        var tempPath = Path.Combine(tempDirectory, $"{Guid.NewGuid():N}_{safeName}.tar");
+        var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        return (stream, tempPath);
+    }
+
+    private static async Task<string> CreateTempTarArchiveAsync(string sourceDirectory, CancellationToken ct) {
+        var safeName = SanitizeName(GetDirectoryTransferName(sourceDirectory));
+        var tempDirectory = Path.Combine(Path.GetTempPath(), "DropMe");
+        Directory.CreateDirectory(tempDirectory);
+
+        var tempPath = Path.Combine(tempDirectory, $"{Guid.NewGuid():N}_{safeName}.tar");
+        await using var outputStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await CreateTarAsync(sourceDirectory, outputStream, ct).ConfigureAwait(false);
+        return tempPath;
+    }
+
+    private static string GetDirectoryTransferName(string pathOrName) {
+        var trimmed = pathOrName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var name = Path.GetFileName(trimmed);
+        return string.IsNullOrWhiteSpace(name) ? "Folder" : name;
     }
 
     private static string SanitizeName(string name) {

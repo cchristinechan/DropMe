@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -93,5 +94,46 @@ public class DesktopStorageService : IStorageService {
         }
 
         return Task.FromResult(false);
+    }
+
+    public async Task<string?> ExtractDownloadedDirectoryAsync(string archivePath, string directoryName, CancellationToken cancellationToken) {
+        try {
+            Directory.CreateDirectory(_downloadsFolder);
+
+            var safeName = SanitizeLeafName(directoryName);
+            var destinationPath = CreateUniqueDirectoryPath(_downloadsFolder, safeName);
+            Directory.CreateDirectory(destinationPath);
+
+            await TarArchiveExtractor.ExtractToDirectoryAsync(archivePath, destinationPath, cancellationToken);
+            return destinationPath;
+        }
+        finally {
+            try {
+                if (File.Exists(archivePath))
+                    File.Delete(archivePath);
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"Failed to clean up temp archive '{archivePath}': {ex.Message}");
+            }
+        }
+    }
+
+    private static string CreateUniqueDirectoryPath(string parentDirectory, string baseName) {
+        var safeBaseName = string.IsNullOrWhiteSpace(baseName) ? "Folder" : baseName;
+        var candidate = Path.Combine(parentDirectory, safeBaseName);
+        var suffix = 2;
+        while (Directory.Exists(candidate) || File.Exists(candidate)) {
+            candidate = Path.Combine(parentDirectory, $"{safeBaseName} ({suffix++})");
+        }
+
+        return candidate;
+    }
+
+    private static string SanitizeLeafName(string name) {
+        var sanitized = name;
+        foreach (var invalidChar in Path.GetInvalidFileNameChars())
+            sanitized = sanitized.Replace(invalidChar, '_');
+
+        return sanitized.Trim().TrimEnd('.');
     }
 }

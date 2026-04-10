@@ -35,7 +35,7 @@ public sealed record DeviceNameMsg(string Name) : ControlMsg;
 public sealed record SwitchConnectionRequest : ControlMsg;
 public sealed record DisconnectMsg : ControlMsg;
 
-public sealed record FileOfferMsg(Guid FileId, string Name, long Size) : FileMsg(FileId);
+public sealed record FileOfferMsg(Guid FileId, string Name, long Size, bool Directory) : FileMsg(FileId);
 public sealed record FileAcceptMsg(Guid FileId) : FileMsg(FileId);
 public sealed record FileRejectMsg(Guid FileId, FileRejectReason Reason) : FileMsg(FileId);
 public sealed record FileChunkMsg(Guid FileId, int ChunkIndex, ReadOnlyMemory<byte> Data) : FileMsg(FileId);

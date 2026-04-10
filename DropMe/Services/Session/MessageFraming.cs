@@ -58,7 +58,7 @@ public static class MessageFraming {
             throw new InvalidDataException($"Unsupported version: {header[4]}");
 
         var type = (SessionMessageType)header[5];
-        var acknowledges = BinaryPrimitives.ReadUInt32BigEndian(header[6..(8 + 4)]);
+        var acknowledges = BinaryPrimitives.ReadUInt32BigEndian(header[6..(6 + 4)]);
         var len = BinaryPrimitives.ReadUInt32LittleEndian(header[12..(12 + 4)]);
 
         var span = data[HeaderLen..];

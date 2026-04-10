@@ -1,4 +1,5 @@
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 
@@ -31,6 +32,14 @@ public interface IStorageService {
     /// <param name="target">A local path or persisted content URI.</param>
     /// <returns>True if the platform attempted to open it, otherwise false.</returns>
     public Task<bool> TryOpenTransferTargetAsync(string target);
+    /// <summary>
+    /// Extracts a received tar archive into the configured downloads area as a directory.
+    /// </summary>
+    /// <param name="archivePath">Local temporary path to the received tar archive.</param>
+    /// <param name="directoryName">Requested directory name from the sender.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The saved directory path or URI if extraction succeeded; otherwise null.</returns>
+    public Task<string?> ExtractDownloadedDirectoryAsync(string archivePath, string directoryName, CancellationToken cancellationToken);
     /// <summary>
     /// Opens a stream for reading to the backing storage of the config.
     /// </summary>

@@ -344,6 +344,7 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
         var client = new TcpClient();
         Console.WriteLine($"Trying to connect to {serverEp}");
         await client.ConnectAsync(serverEp, ct).ConfigureAwait(false);
+        var alreadyConnected = IsConnected;
         Console.WriteLine($"Connected to {serverEp}");
         if (AesSessionKey is null)
             throw new NullReferenceException("Aes session key must be set before connecting");
@@ -359,7 +360,17 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             var task = connection.StartHandlingMessages(_networkSyncChannel.Writer, sessionCt);
             Console.WriteLine("Started handling messages");
             _tcpConnection = (connection, task);
-            //await _connectionInUseSemaphore.WaitAsync().ConfigureAwait(false);
+
+            // If another connection exists try to switch to lan
+            if (alreadyConnected) {
+                Console.WriteLine("Trying to switch to TCP");
+                await _connectionInUseSemaphore.WaitAsync(ct).ConfigureAwait(false);
+                _connectionInUse = _tcpConnection!.Value.connection;
+                await _connectionInUse!.SendMessageAsync(new SwitchConnectionRequest(), CancellationToken.None)
+                    .ConfigureAwait(false);
+                _connectionInUseSemaphore.Release();
+            }
+
 
             return connection;
         }
@@ -517,7 +528,6 @@ public class ConnectionManager(CancellationToken sessionCt) : IDisposable {
             _bluetoothConnection = null;
         }
 
-        //await _connectionInUseSemaphore.WaitAsync().ConfigureAwait(false);
         try {
             await TryRecoverConnection(CancellationToken.None).ConfigureAwait(false);
             foreach (var msg in undelivered) {

@@ -28,6 +28,7 @@ public partial class MainView : UserControl {
                 _vm.SessionConnected -= OnSessionConnected;
                 _vm.SessionEnded -= OnSessionEnded;
                 _vm.PickFileStreamUi = null;
+                _vm.PickFolderUi = null;
                 _vm.PickDownloadFolderUi = null;
                 _vm.FileOfferDecisionUi = null;
             }
@@ -37,6 +38,7 @@ public partial class MainView : UserControl {
                 _vm.SessionConnected += OnSessionConnected;
                 _vm.SessionEnded += OnSessionEnded;
                 _vm.PickFileStreamUi = PickFileStreamAsync;
+                _vm.PickFolderUi = PickFolderAsync;
                 _vm.PickDownloadFolderUi = PickDownloadFolderAsync;
                 _vm.FileOfferDecisionUi = _vm.RequestFileOfferDecisionAsync;
             }
@@ -139,6 +141,22 @@ public partial class MainView : UserControl {
 
             return (filename, stream);
         }
+        return null;
+    }
+
+    private async System.Threading.Tasks.Task<string?> PickFolderAsync() {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+            return null;
+
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions {
+            Title = "Select folder to send",
+            AllowMultiple = false
+        });
+
+        if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path)
+            return path;
+
         return null;
     }
 

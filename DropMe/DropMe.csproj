@@ -25,6 +25,7 @@
         <PackageReference Include="Material.Avalonia" />
         <PackageReference Include="CommunityToolkit.Mvvm" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+        <PackageReference Include="System.IO.Pipelines" />
         <PackageReference Include="ZXing.Net" />
     </ItemGroup>
 

@@ -31,6 +31,11 @@ public partial class Session : UserControl {
             await vm.SendFileAsync();
     }
 
+    private async void SendFolder_Click(object? sender, RoutedEventArgs e) {
+        if (DataContext is MainViewModel vm)
+            await vm.SendFolderAsync();
+    }
+
     private async void ChooseDownloadFolder_Click(object? sender, RoutedEventArgs e) {
         if (DataContext is MainViewModel vm)
             await vm.ChooseDownloadFolderAsync();

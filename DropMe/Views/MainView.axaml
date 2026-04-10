@@ -42,7 +42,7 @@
                     VerticalAlignment="Center">
                 <StackPanel Spacing="10">
                     <TextBlock Classes="SectionTitle" Text="{Binding PendingFileOfferMessage}"/>
-                    <TextBlock Text="{Binding PendingFileOfferName, StringFormat='File: {0}'}"
+                    <TextBlock Text="{Binding PendingFileOfferName, StringFormat='Name: {0}'}"
                                TextWrapping="Wrap"/>
                     <TextBlock Classes="BodyMuted"
                                Text="{Binding PendingFileOfferSizeText, StringFormat='Size: {0}'}"

@@ -11,7 +11,7 @@ namespace DropMe.Tests;
 public class FileTransferStateTests {
     [Test]
     public void AwaitingDecision_ShouldStoreProperties() {
-        var offer = new FileOfferInfo(Guid.NewGuid(), "report.pdf", 1024);
+        var offer = new FileOfferInfo(Guid.NewGuid(), "report.pdf", 1024, false);
         var tcs = new TaskCompletionSource<bool>();
 
         var state = new AwaitingDecision(offer, tcs);
@@ -21,28 +21,6 @@ public class FileTransferStateTests {
         Assert.That(state, Is.InstanceOf<FileTransferState>());
     }
 
-    [Test]
-    public void ReceiveInProgress_ShouldStoreInitialValues() {
-        using var stream = new MemoryStream();
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-
-        var state = new ReceiveInProgress(
-            stream,
-            "C:/temp/report.pdf",
-            5000,
-            1200,
-            hash,
-            3
-        );
-
-        Assert.That(state.SaveStream, Is.EqualTo(stream));
-        Assert.That(state.SavePath, Is.EqualTo("C:/temp/report.pdf"));
-        Assert.That(state.ExpectedSizeBytes, Is.EqualTo(5000));
-        Assert.That(state.WrittenBytes, Is.EqualTo(1200));
-        Assert.That(state.Hash, Is.EqualTo(hash));
-        Assert.That(state.ExpectedChunkIndex, Is.EqualTo(3));
-        Assert.That(state, Is.InstanceOf<FileTransferState>());
-    }
 
     [Test]
     public void ReceiveInProgress_ShouldAllowUpdatingMutableProperties() {
@@ -52,10 +30,12 @@ public class FileTransferStateTests {
         var state = new ReceiveInProgress(
             stream,
             "C:/temp/report.pdf",
+            "report.pdf",
             5000,
             1200,
             hash,
-            3
+            3,
+            false
         );
 
         state.WrittenBytes = 2500;

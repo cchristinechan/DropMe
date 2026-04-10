@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Android.Content;
+using Android.Graphics;
 using Android.Views;
+using Android.Widget;
 using Android.Util;
 using AndroidX.Camera.Core;
 using AndroidX.Camera.Lifecycle;
@@ -22,6 +24,7 @@ public sealed class AndroidCameraService : ICameraService {
     private ImageAnalysis? _analysis;
     private Preview? _preview;
     private PreviewView? _previewView;
+    private FrameLayout? _previewContainer;
     private CancellationTokenSource? _loopCts;
     private IExecutorService? _analyzerExecutor;
     private byte[]? _frameBuffer;
@@ -194,24 +197,99 @@ public sealed class AndroidCameraService : ICameraService {
     }
 
     public View GetNativePreviewView(Context context) {
-        if (_previewView is null) {
-            _previewView = new PreviewView(context);
-            _previewView.SetImplementationMode(PreviewView.ImplementationMode.Performance);
-            _previewView.SetScaleType(PreviewView.ScaleType.FillCenter);
-        }
-        else if (_previewView.Parent is ViewGroup parent) {
-            parent.RemoveView(_previewView);
+        EnsureNativePreviewContainer(context);
+
+        if (_previewContainer?.Parent is ViewGroup parent) {
+            parent.RemoveView(_previewContainer);
         }
 
-        if (_preview is not null) {
+        if (_preview is not null && _previewView is not null) {
             _preview.SetSurfaceProvider(_previewView.SurfaceProvider);
         }
 
-        return _previewView;
+        return _previewContainer ?? throw new InvalidOperationException("Native preview container is not available.");
+    }
+
+    private void EnsureNativePreviewContainer(Context context) {
+        if (_previewContainer is not null && _previewView is not null)
+            return;
+
+        _previewView ??= new PreviewView(context);
+        _previewView.SetImplementationMode(PreviewView.ImplementationMode.Compatible);
+        _previewView.SetScaleType(PreviewView.ScaleType.FillCenter);
+
+        var container = new FrameLayout(context);
+        container.SetClipChildren(true);
+        container.SetClipToPadding(true);
+
+        container.SetBackgroundColor(Color.Transparent);
+        container.AddView(_previewView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MatchParent,
+            ViewGroup.LayoutParams.MatchParent));
+
+        var overlay = new ScanOverlayView(context);
+        container.AddView(overlay, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MatchParent,
+            ViewGroup.LayoutParams.MatchParent));
+
+        var flipButton = new ImageButton(context);
+        flipButton.SetImageResource(global::Android.Resource.Drawable.IcMenuRotate);
+        flipButton.SetBackgroundColor(Color.Transparent);
+        flipButton.SetColorFilter(GetAvailableCameras().Count > 1 ? Color.White : Color.Rgb(143, 160, 175));
+        flipButton.Enabled = GetAvailableCameras().Count > 1;
+        flipButton.Alpha = flipButton.Enabled ? 1f : 0.75f;
+        flipButton.Click += async (_, _) => {
+            if (flipButton.Enabled)
+                await ToggleCameraAsync().ConfigureAwait(false);
+        };
+
+        var buttonSize = (int)TypedValue.ApplyDimension(ComplexUnitType.Dip, 40, context.Resources?.DisplayMetrics);
+        var buttonMargin = (int)TypedValue.ApplyDimension(ComplexUnitType.Dip, 6, context.Resources?.DisplayMetrics);
+        var buttonLayout = new FrameLayout.LayoutParams(buttonSize, buttonSize, GravityFlags.Top | GravityFlags.Right) {
+            TopMargin = buttonMargin,
+            RightMargin = buttonMargin
+        };
+        container.AddView(flipButton, buttonLayout);
+
+        _previewContainer = container;
     }
 
     private sealed class Analyzer(Action<IImageProxy> onFrame) : Java.Lang.Object, ImageAnalysis.IAnalyzer {
         public Size? DefaultTargetResolution => new(TargetAnalysisWidth, TargetAnalysisHeight);
         public void Analyze(IImageProxy image) => onFrame(image);
+    }
+
+    private sealed class ScanOverlayView(Context context) : View(context) {
+        private readonly Paint _maskPaint = new() {
+            Color = Color.Argb(166, 0, 0, 0)
+        };
+
+        private readonly Paint _framePaint = new() {
+            Color = Color.Rgb(85, 255, 170),
+            StrokeWidth = TypedValue.ApplyDimension(ComplexUnitType.Dip, 3, context.Resources?.DisplayMetrics),
+            AntiAlias = true
+        };
+
+        protected override void OnDraw(Canvas canvas) {
+            base.OnDraw(canvas);
+
+            var width = Width;
+            var height = Height;
+            if (width <= 0 || height <= 0)
+                return;
+
+            var left = width / 7f;
+            var top = height / 7f;
+            var right = width * 6f / 7f;
+            var bottom = height * 6f / 7f;
+
+            canvas.DrawRect(0, 0, width, top, _maskPaint);
+            canvas.DrawRect(0, top, left, bottom, _maskPaint);
+            canvas.DrawRect(right, top, width, bottom, _maskPaint);
+            canvas.DrawRect(0, bottom, width, height, _maskPaint);
+
+            _framePaint.SetStyle(Paint.Style.Stroke);
+            canvas.DrawRect(left, top, right, bottom, _framePaint);
+        }
     }
 }
