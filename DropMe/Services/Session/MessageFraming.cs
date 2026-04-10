@@ -44,7 +44,7 @@ public static class MessageFraming {
         // Need get type or it for some reason won't resolve the actual type of msg and always serialise it as {}
         var serialised = JsonSerializer.SerializeToUtf8Bytes(msg, msg.GetType());
 
-        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan()[8..(8 + 4)], (uint)serialised.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan()[12..(12 + 4)], (uint)serialised.Length);
 
         return (header, serialised);
     }
@@ -58,7 +58,7 @@ public static class MessageFraming {
             throw new InvalidDataException($"Unsupported version: {header[4]}");
 
         var type = (SessionMessageType)header[5];
-        var acknowledges = BinaryPrimitives.ReadUInt32BigEndian(header[6..(8 + 4)]);
+        var acknowledges = BinaryPrimitives.ReadUInt32BigEndian(header[6..(6 + 4)]);
         var len = BinaryPrimitives.ReadUInt32LittleEndian(header[12..(12 + 4)]);
 
         var span = data[HeaderLen..];

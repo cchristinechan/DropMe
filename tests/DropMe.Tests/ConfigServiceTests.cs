@@ -232,6 +232,10 @@ public class ConfigServiceTestsStorageMock : IStorageService {
         throw new NotImplementedException();
     }
 
+    public Task<string?> ExtractDownloadedDirectoryAsync(string archivePath, string directoryName, CancellationToken cancellationToken) {
+        throw new NotImplementedException();
+    }
+
     public Stream ReadConfig() => ReadStream;
 
     public Stream WriteConfig() => WriteStream;
