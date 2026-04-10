@@ -100,7 +100,7 @@ deploy_to_github:
   script:
     - git remote add github git@github.com:cchristinechan/DropMe.git
     - git fetch --unshallow
-    - git push github HEAD:main
+    - git push github HEAD:main --force-with-lease
  
 pkgbuild_install:
   stage: install
